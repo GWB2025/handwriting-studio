@@ -28,7 +28,7 @@ You can also run the Python launcher directly from this folder:
 python3 launch_handwriting_studio.py
 ```
 
-Use this launcher instead of opening files in `static/`: a local HTML file cannot load the running app correctly. The launcher always opens **Capture** first. It uses this app's virtual environment, the original app's environment on this Mac, or the current Python if Flask is already installed. It does not install packages automatically. `--no-browser` checks/starts the server without opening a browser; `--port` changes the default port if needed. An unrelated service already using the chosen port is left untouched and reported.
+Use this launcher instead of opening files in `static/`: a local HTML file cannot load the running app correctly. The launcher always opens **Capture** first. It prefers this app's virtual environment and can also use the current Python if Flask is already installed. It does not install packages automatically. `--no-browser` checks/starts the server without opening a browser; `--port` changes the default port if needed. An unrelated service already using the chosen port is left untouched and reported.
 
 For first-time setup or to run the server in the foreground, follow the steps below.
 
@@ -40,11 +40,13 @@ python3 -m venv .venv
 .venv/bin/python app.py --host 0.0.0.0 --port 8766
 ```
 
-On this Mac the existing environment can also run it:
+On this Mac, the repository, saved handwriting and app's `.venv` are stored on **EXTRA Apps**:
 
+```text
+/Volumes/EXTRA Apps/Documents/Writing Robot T-A4/handwriting-studio-v2
 ```
-../handwriting-capture/.venv/bin/python app.py --host 0.0.0.0 --port 8766
-```
+
+Keep that drive connected while using the app. The Desktop launcher points to this location. The previous project-folder location is a symbolic link to the same external-drive folder, so existing local references continue to work without keeping a second copy on the main disk.
 
 Open http://127.0.0.1:8766 on the Mac, or http://192.168.178.112:8766 on the iPad on the same private Wi-Fi. The Mac's address may change when the network changes. Use the explicit `http://` address. This is an unauthenticated local HTTP server; do not expose it to the internet. Stop with Control-C.
 
