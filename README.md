@@ -4,6 +4,20 @@ A local iPad/Safari handwriting app for the 2D Pen Plotter project. Guided lower
 
 The original app on port 8765 and its data remain separate. This app runs on port 8766. Existing free-writing pages remain in `data/`; new labelled letter sheets live in `data/letters/`.
 
+## Launch Handwriting Studio
+
+[![Open Handwriting Studio on this Mac](docs/open-handwriting-studio.svg)](http://127.0.0.1:8766/)
+
+The button opens **Capture** on the Mac running the app. **Start the app first** by double-clicking **Start Handwriting Studio.command** on your Desktop or in the project folder. Once the server is running, you can use this button whenever you want to return to it. GitHub's README cannot start a Python program on your Mac; if the button reports that it cannot connect, run the desktop launcher and try again. For a new installation, follow [Run on the Mac](#run-on-the-mac) below.
+
+On the iPad, use the [iPad Capture link](http://192.168.178.112:8766/) while the Mac is awake and both devices are on the same Wi-Fi. This is the current Mac address for this setup; use your Mac's current address if it changes. The button above uses `127.0.0.1`, which always means the device you are browsing on, so it is for the Mac, not the iPad.
+
+## Acknowledgement
+
+This project was inspired by **[Dan Catt](https://revdancatt.com/projects)** and the handwriting-capture workflow demonstrated in [his handwriting video](https://www.youtube.com/watch?v=nD3XlqFhcEI). Thank you, Dan, for sharing the approach: guided practice, repeated character samples, changing capture positions, and composing handwriting with natural variations. His [Generative Handwriting project diary](https://revdancatt.com/projects/Generative%20Handwriting/dev-diary) provides further context for his work.
+
+Handwriting Studio is an independent implementation of these ideas for the 2D Pen Plotter project.
+
 ## Run on the Mac
 
 For everyday use, double-click **Start Handwriting Studio.command** in Finder. It runs `launch_handwriting_studio.py`, starts the server if needed, waits for Capture to be ready, and opens `http://127.0.0.1:8766/` in your default browser. Opening it again reuses the running server. You can close the launcher's Terminal window; a server started by the launcher keeps running. Its output goes to `logs/server.log`.
