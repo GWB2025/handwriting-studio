@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting Studio · Review samples</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+</head>
+<body class="compose-page">
+<div class="compose-shell">
+  <header><div><p class="eyebrow">Handwriting Studio</p><h1>Review your samples</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="/">Capture letters</a><a class="button" id="review-compose" href="/compose">Compose</a></nav></header>
+  <p>Choose a letter and inspect its saved examples, newest first. Exclude an accidental or poor sample, or adjust where it sits on the baseline. You can include it again at any time.</p>
+  <div class="compose-settings">
+    <label>Writer <select id="review-writer" disabled><option value="">Loading writers…</option></select></label>
+    <label>Letter <select id="review-letter" disabled></select></label>
+    <button id="review-refresh" disabled>Refresh samples</button>
+  </div>
+  <p id="review-coverage" class="subtle"></p>
+  <p id="review-status" role="status" aria-live="polite">Loading your saved samples…</p>
+  <div class="review-layout">
+    <div id="sample-list" aria-label="Saved examples"></div>
+    <section id="sample-detail" hidden aria-label="Selected sample">
+      <h2 id="sample-title"></h2>
+      <p id="sample-date" class="subtle"></p>
+      <div class="sample-paper"><img id="sample-image" alt="Selected handwriting sample with a baseline" /></div>
+      <form id="review-form">
+        <label class="sample-include"><input type="checkbox" id="sample-included"> Use this sample in composition</label>
+        <label class="sample-shift">Baseline shift (mm) <input id="sample-shift" type="number" min="-10" max="10" step="any" inputmode="decimal" required value="0"></label>
+        <p class="subtle">Positive moves the letter down; negative moves it up. Preview shown at Medium (5 mm). Save changes to update the preview.</p>
+        <div class="compose-actions"><button id="review-save" class="primary" disabled>Save changes</button><button id="review-reset" type="button" disabled>Reset changes</button></div>
+      </form>
+    </section>
+  </div>
+  <p class="subtle">Original writing is kept. Review choices apply to this individual sample. Generate a fresh Compose preview after reviewing.</p>
+</div>
+<script src="/static/review.js?v=16"></script>
+</body>
+</html>

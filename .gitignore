@@ -1,0 +1,15 @@
+# Handwriting and personal working files stay local.
+/data/
+/backups/
+/logs/
+/tests/artifacts/
+/*.png
+/*.svg
+
+# Local dependencies, credentials and generated files.
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*

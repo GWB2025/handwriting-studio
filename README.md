@@ -1,0 +1,104 @@
+# Handwriting Studio — guided capture and composition
+
+A local iPad/Safari handwriting app for the 2D Pen Plotter project. Guided lowercase a–z capture, repeat sets for natural variations, individual sample review, and a typed handwriting preview. No cloud service or account is required.
+
+The original app on port 8765 and its data remain separate. This app runs on port 8766. Existing free-writing pages remain in `data/`; new labelled letter sheets live in `data/letters/`.
+
+## Run on the Mac
+
+For everyday use, double-click **Start Handwriting Studio.command** in Finder. It runs `launch_handwriting_studio.py`, starts the server if needed, waits for Capture to be ready, and opens `http://127.0.0.1:8766/` in your default browser. Opening it again reuses the running server. You can close the launcher's Terminal window; a server started by the launcher keeps running. Its output goes to `logs/server.log`.
+
+You can also run the Python launcher directly from this folder:
+
+```
+python3 launch_handwriting_studio.py
+```
+
+Use this launcher instead of opening files in `static/`: a local HTML file cannot load the running app correctly. The launcher always opens **Capture** first. It uses this app's virtual environment, the original app's environment on this Mac, or the current Python if Flask is already installed. It does not install packages automatically. `--no-browser` checks/starts the server without opening a browser; `--port` changes the default port if needed. An unrelated service already using the chosen port is left untouched and reported.
+
+For first-time setup or to run the server in the foreground, follow the steps below.
+
+Use Python 3.10+ from this folder:
+
+```
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python app.py --host 0.0.0.0 --port 8766
+```
+
+On this Mac the existing environment can also run it:
+
+```
+../handwriting-capture/.venv/bin/python app.py --host 0.0.0.0 --port 8766
+```
+
+Open http://127.0.0.1:8766 on the Mac, or http://192.168.178.112:8766 on the iPad on the same private Wi-Fi. The Mac's address may change when the network changes. Use the explicit `http://` address. This is an unauthenticated local HTTP server; do not expose it to the internet. Stop with Control-C.
+
+Flask is the only installed dependency. The browser uses ordinary HTML, CSS, JavaScript, Canvas and Pointer Events; no build step is needed. HTML and API responses are uncached. If updating an already open page, save or download current writing before reloading.
+
+## Capture the lowercase alphabet
+
+1. Enter the writer's name. If you tap Start capture with no name entered, the app highlights and focuses the Writer box without clearing practice strokes. Use the same name for later sessions; existing names appear as suggestions. Tap **Done** to finish text entry.
+2. The initial sheet is optional **Practice** with a–e. These marks are not stored. **Start capture** clears them and opens the next unsaved alphabet sheet for this writer.
+3. A set has six sheets: two with five letters, four with four letters, covering all 26 lowercase letters. Keep each entire letter inside its own box, including dots and separate strokes. Use the small-letter and tall-letter guides for comfortable proportions.
+4. For **f, g, j, p, q and y**, place the body on the baseline and any tail below it. These letters use the drawn baseline instead of moving the bottom of the tail to the baseline. Other letters still settle onto the baseline automatically. Review can adjust an individual sample's placement if needed.
+5. Tap **Save sheet**. Only confirmation from the Mac clears it and advances. Each saved sheet can be used immediately in Compose. Reopening Capture with the same writer continues after the most recently saved alphabet sheet; an unsaved draft itself is not restored.
+6. After six sheets, **Review samples** lets you inspect your alphabet and **Compose handwriting** opens the composer. **Capture another set** collects further variants. Three sets give three examples of each letter, with positions rotated between sets; further sets repeat that positioning cycle.
+
+Undo/Redo work on the current sheet. Clear sheet clears only that draft. Missing boxes, tiny marks or a stroke that crosses between boxes produce an explanation and leave the writing in place. The app associates strokes with the labelled box; it does not recognise whether the correct letter was written. Check the letters before saving.
+
+The **Guides** checkboxes control **Baseline**, **Small letters**, **Tall letters**, **Tails** and **Shading** independently. For a baseline only, untick the others. Letter labels and box dividers stay visible so each letter can still be assigned to its box. Changing guides only changes the display; it does not change strokes or SVG exports. Choices stay in place between sheets in the current visit.
+
+The writer name is fixed during capture to prevent mixing writers. To start a new writer, reopen the capture page and edit the name on the Practice screen. Saved samples are retained, including incomplete sets. Existing a–e captures remain usable and can also be reviewed; the first full alphabet set starts at sheet 1 when there are no newer alphabet sheets. Unsaved capture drafts are not restored after a refresh; the browser is asked to warn before leaving.
+
+Pencil and mouse draw; fingers do not. The entire capture screen suppresses touch scrolling, pinching, text selection and copy menus. The editable Writer field is the exception when no Pencil stroke is active. Safari's toolbar and system edge gestures are outside the app's control. Actual iPad/Pencil behaviour still needs device testing.
+
+## Review individual samples
+
+Open **Review samples**, choose the writer and letter, then select an example from the list (newest first). The preview shows that sample against a baseline at the Medium writing scale. **Use this sample in composition** includes or excludes just that example. **Baseline shift (mm)** moves it down for positive values or up for negative values, between −10 and 10 mm. This is a physical shift in the exported SVG at all writing sizes. It does not resize a letter.
+
+Tap **Save changes** for an explicit confirmation and updated preview. Save is only enabled when something changed; **Reset changes** discards pending edits. Switching samples is disabled while edits are pending. Exclusions are reversible, and originals are never deleted. Review settings are stored separately in `data/letter_reviews/`. Unreadable review files are preserved and their samples are skipped rather than silently re-enabled.
+
+The page reports which letters still need included samples. Existing a–e examples and newly captured alphabet examples share this review workflow. Return to Compose and generate a fresh preview after reviewing.
+
+## Compose and export
+
+Choose a writer, type a short phrase using lowercase a–z, spaces and line breaks, and select **Generate preview**. After capturing the alphabet, try `the quick brown fox jumps over the lazy dog`. The phrase box starts with that full-alphabet sentence and an a–z line when the selected writer has all 26 letters included. For incomplete alphabets, the automatic example uses only available letters. Changing writers or refreshing samples updates an untouched example, while text you have edited is preserved. By default, successive occurrences cycle through that writer's **latest three included examples per letter**, newest first. Choose **Latest only** or **All saved** for different selection limits; excluded samples are always skipped. The choice is deterministic. Each generation reads captures and review choices afresh. Returning from another tab or Safari's back/forward cache checks for changes, including baseline adjustments: an unchanged preview stays downloadable; changed captures or reviews clear it and prompt regeneration without losing the phrase. If that check cannot reach the Mac, the existing preview remains available to download.
+
+Every letter is translated so its left edge is zero. Letters with tails use the capture baseline; others use their lowest point. A review shift is applied afterwards. All letters use the same scale: Small/Medium/Large refer to the capture guide's small-letter height (3/5/8 mm), not a forced height for each character. Line spacing and A4 bounds allow for both ascenders and descenders. Gentle smoothing uses the same quadratic midpoint curves as the notebook; it never rewrites raw points.
+
+**Download A4 SVG** exports exactly the generated preview, on a 210 × 297 mm portrait page with 20 mm margins. The app confirms when it requests the download; look for `composed-handwriting-a4.svg` in the browser's Downloads. The preview remains available for another download. Each pen stroke is its own unfilled centre-line path, in captured order and direction, with nominal width 0.3 mm. Text wraps at the right margin, potentially within a word. If it cannot fit on one page, the app asks for less text or a smaller size instead of clipping it. Changes to phrase/writer/size/smoothing/sample selection clear the old preview and disable download until regenerated.
+
+This stage spaces separate lowercase letters. It does not yet include capitals, numbers, punctuation, cursive joins, pair-specific spacing, blending new shapes between samples, stroke editing or handwriting recognition. It sends no commands to the plotter.
+
+## Free writing and saved pages
+
+**Free writing** opens `/notebook`, using the established notebook and Saved pages browser. Enter a name and write at a comfortable size. Done is active only for a non-empty name that differs from the last finished name. A Pencil stroke also ends name entry. The fitted paper waits until that stroke finishes before resizing after the keyboard closes.
+
+Save page stores a new immutable JSON file in `data/`. It changes to Saving… and then ✓ Saved only after confirmation from the Mac. Editing enables Save again. Undo removes the last completed stroke; Redo restores its original point data. New writing or Clear empties redo history. SVG exports the current free-writing page at 200 × 100 mm.
+
+Saved pages lists free-writing pages newest first and can filter by writer. Select a page to preview it, then Open this page. Opening restores original strokes and smoothing. Saving edits creates a new file. There is a warning before replacing an unsaved draft, including strokes held in redo history. Unreadable files are left untouched and counted; there is no delete action. Labelled capture sheets are used by the composer and are not mixed into this free-writing list.
+
+## Data and validation
+
+- `data/<uuid>.json`: existing notebook schema 2, ordered `raw_strokes`, writer and display setting.
+- `data/letters/<uuid>.json`: immutable schema 1 (legacy a–e) or schema 2 (lowercase alphabet), writer, ordered original `raw_strokes`, cell order and guides. Each sample holds raw stroke indices and a separate `processed_strokes` copy translated to its baseline. Time, pressure, tilt, stroke order and raw coordinates remain unchanged. Processing version and method are recorded explicitly; old captures are read without migration or rewriting.
+- `data/letter_reviews/<uuid>.json`: separate per-letter inclusion and baseline offsets for that capture, saved atomically. Writer revisions include review choices, so a baseline-only adjustment invalidates stale compositions too.
+- Capture coordinates are 1000 × 500 with y increasing down the page; timestamps are milliseconds from first contact. Pressure and tilt are retained where available. Captured data is never replaced by display smoothing.
+- A save request UUID is reused when retrying the same sheet after a timeout, preventing duplicate samples from a lost response. Files are written atomically. Existing IDs with different content are rejected.
+- The server checks finite coordinate values, ordered timestamps, pressure/tilt ranges, writer names, stroke/point counts, whole-cell assignment and file size. Stored letter records are validated again before composition. Writers are labels, not authenticated accounts.
+
+APIs: `GET/POST /api/pages`, `GET /api/pages/<uuid>`, `GET /api/letters/plan.js`, `GET /api/letters/writers`, `POST /api/letters/pages`, `GET /api/letters/samples?writer=…&letter=…`, `POST /api/letters/samples/<uuid>/<letter>/review`, `POST /api/compose`.
+
+## Verification
+
+```
+python -m unittest discover -s tests
+node --test tests/*.cjs
+```
+
+Python checks persistence, raw preservation, legacy compatibility, all 26 letters across three sets, multi-stroke letters, descenders, A4 bounds, reversible exclusions, baseline shifts, safe retries and unreadable files. JavaScript checks capture continuation, sample selection, stale preview/download invalidation after review, keyboard viewport recovery, first-stroke preservation, Writer focus, Undo/Redo, timestamps and selection protection. Browser checks use isolated disposable data for capture/save, review persistence and full-alphabet composition. Desktop checks cannot establish real iPad palm-rejection quality.
+
+A pre-guided-capture code snapshot is in `backups/before-guided-capture/`; user data is not part of that snapshot.
+
+The previous a–e version is in `backups/before-lowercase-alphabet/`, including fingerprints of the original saved data for preservation checks.

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting Studio · Letter capture</title>
+<link rel="stylesheet" href="/static/style.css?v=16">
+</head>
+<body>
+<main id="notebook" class="letter-capture">
+  <section class="controls" aria-label="Capture settings">
+    <header>
+      <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
+      <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="/review">Review samples</a><a class="button" id="compose-link" href="/compose">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button></nav>
+      <button id="saved-pages" hidden>Saved pages</button>
+    </header>
+    <div class="capture-heading"><strong id="capture-step">Practice · not saved</strong><span id="sample-counts"></span><button id="more-sheets" hidden>Capture another set</button></div>
+    <p class="capture-instruction" id="capture-instruction">Try one letter in each labelled box. Keep a, c and e small; b and d reach the tall-letter line. Start capture when comfortable.</p>
+    <div id="guidance" hidden>
+      <p>Use your usual handwriting, one example per box. Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets. Start capture continues after your latest saved sheet.</p>
+      <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These letters keep the drawn baseline; other letters settle onto it automatically. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
+      <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="/notebook">Open free writing</a>.</p>
+    </div>
+    <div class="toolbar">
+      <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
+      <div class="guide-options" role="group" aria-label="Writing guides">
+        <span>Guides:</span>
+        <label><input id="guides" type="checkbox" checked> Baseline</label>
+        <label><input id="guide-small" type="checkbox" checked> Small letters</label>
+        <label><input id="guide-tall" type="checkbox" checked> Tall letters</label>
+        <label><input id="guide-tail" type="checkbox" checked> Tails</label>
+        <label><input id="guide-shading" type="checkbox" checked> Shading</label>
+      </div>
+      <span id="input">Ready for Pencil</span>
+    </div>
+  </section>
+  <div class="paper"><canvas id="paper" aria-label="Practice: write a, c, e, b, d in the five labelled boxes" width="1000" height="500"></canvas></div>
+  <div class="actions">
+    <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="clear">Clear sheet</button>
+    <button id="save" class="primary">Start capture</button><button id="export">Download sheet SVG</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Enter a writer name. Practice is optional; Start capture opens your next alphabet sheet.</p>
+</main>
+<script src="/api/letters/plan.js"></script>
+<script src="/static/app.js?v=11"></script>
+<script src="/static/capture.js?v=16"></script>
+</body>
+</html>
