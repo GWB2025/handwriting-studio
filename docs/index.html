@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Letter capture</title>
-<link rel="stylesheet" href="assets/style.css">
-<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>
+<link rel="stylesheet" href="assets/style.css?v=b608cda2d024">
+<script src="assets/engine.js?v=4e46879bdeaf"></script><script src="assets/browser-api.js?v=a84ff76d16c6"></script>
 </head>
 <body>
 <main id="notebook" class="letter-capture">
@@ -44,9 +44,9 @@
   <p id="status" role="status" aria-live="polite">Enter a writer name. Practice is optional; Start capture opens your next alphabet sheet.</p>
 </main>
 
-<script src="assets/app.js"></script>
-<script src="assets/capture.js"></script>
+<script src="assets/app.js?v=c68dfd834c03"></script>
+<script src="assets/capture.js?v=f7b517a6c1b0"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js"></script>
+<script src="assets/backup.js?v=a7cdc3cb8f3d"></script>
 </body>
 </html>
