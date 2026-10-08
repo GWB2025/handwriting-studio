@@ -91,6 +91,8 @@ Flask is the only installed dependency. The browser uses ordinary HTML, CSS, Jav
 
 ## Capture the lowercase alphabet
 
+The public GitHub Pages app shuffles all 26 letters across each new six-sheet set. Saved records retain the shuffled order for resuming and backup/import. If you resume an older fixed-order set, only its remaining letters are shuffled; completed sheets keep their original meaning. The original Mac server uses its existing fixed groups.
+
 1. Enter the writer's name. If you tap Start capture with no name entered, the app highlights and focuses the Writer box without clearing practice strokes. Use the same name for later sessions; existing names appear as suggestions. Tap **Done** to finish text entry.
 2. The initial sheet is optional **Practice** with a–e. These marks are not stored. **Start capture** clears them and opens the next unsaved alphabet sheet for this writer.
 3. A set has six sheets: two with five letters, four with four letters, covering all 26 lowercase letters. Keep each entire letter inside its own box, including dots and separate strokes. Use the small-letter and tall-letter guides for comfortable proportions.

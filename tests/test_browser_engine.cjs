@@ -36,3 +36,30 @@ test('Pages build contains relative navigation and no server or personal data as
     const js=fs.readFileSync('docs/assets/'+name+'.js','utf8');assert.doesNotMatch(js,/(?<!studio)fetch\(/);assert.doesNotMatch(js,/['"]\/(?:compose|review|notebook)\?/);
   }
 });
+
+test('shuffled sets cover every letter once and saved orders survive resume and backup validation',()=>{
+  let orders=E.clone(E.plan.orders);
+  for(let i=0;i<18;i+=6)orders=E.shuffleSet(orders,i,()=>0);
+  assert.notDeepEqual(orders,E.plan.orders);
+  for(let i=0;i<18;i+=6)assert.equal([...orders.slice(i,i+6).join('')].sort().join(''),E.plan.alphabet);
+  const records=[];
+  for(let i=0;i<18;i++){
+    const data={...sheet(i,i),capture_orders:orders};
+    const record=E.capture(data);
+    assert.equal(record.order,orders[i]);
+    assert.deepEqual(record.samples.map(s=>s.letter),[...orders[i]]);
+    E.validateRecord('letters/'+record.id+'.json',JSON.parse(JSON.stringify(record)));
+    records.push({key:'letters/'+record.id+'.json',value:record});
+  }
+  const profile=E.catalog(records).writers[0];
+  assert.deepEqual(profile.capture_orders,orders);
+  for(const letter of E.plan.alphabet)assert.equal(profile.counts[letter],3);
+  // Starting midway through an older set leaves completed sheets untouched.
+  const partial=E.shuffleSet(E.plan.orders,2,()=>0);
+  assert.deepEqual(partial.slice(0,2),E.plan.orders.slice(0,2));
+  assert.equal([...partial.slice(0,6).join('')].sort().join(''),E.plan.alphabet);
+  const invalid=E.clone(orders);invalid[0]=invalid[0].slice(0,-1)+invalid[0][0];
+  assert.throws(()=>E.capture({...sheet(),capture_orders:invalid}),/every letter/);
+  const tampered=E.clone(records[0].value);tampered.order=E.plan.orders[0];
+  assert.throws(()=>E.validateRecord(records[0].key,tampered),/capture plan/);
+});
