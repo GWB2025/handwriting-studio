@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../static/app.js'), 'utf8');
+const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'app.js'), 'utf8');
 
 function notebook(guided = false, profiles = []) {
   const listeners = target => {
@@ -51,8 +51,9 @@ function notebook(guided = false, profiles = []) {
     for (const [id, timer] of [...timers]) if (timer.due <= now) {timers.delete(id); timer.fn();}
     flush();
   }
+  context.window.studioFetch=context.fetch;
   vm.runInContext(source, context);
-  if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../static/capture.js'), 'utf8'), context);
+  if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'capture.js'), 'utf8'), context);
   flush();
   return {elements, styles, viewport, window, document, context, flush, advance};
 }

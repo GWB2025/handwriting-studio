@@ -1,0 +1,6 @@
+{
+  "name": "handwriting-studio",
+  "private": true,
+  "scripts": { "test": "node --test tests/*.cjs", "build": "python3 scripts/build_pages.py" },
+  "devDependencies": { "fake-indexeddb": "6.2.4" }
+}

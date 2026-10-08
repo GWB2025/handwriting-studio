@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting notebook</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>
+</head>
+<body>
+<main id="notebook">
+  <section class="controls" aria-label="Page settings">
+    <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
+<header>
+      <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Enter a name for this page" autocomplete="off" enterkeyhint="done"></label><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
+      <div class="header-actions"><a class="button" href="index.html">Letter capture</a><a class="button" href="compose.html">Compose</a><button id="saved-pages">Saved pages</button><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button></div>
+    </header>
+    <div id="guidance" hidden>
+      <p>Write a short word or sentence at your usual writing size. Pencil draws; fingers can use the buttons. Scrolling, pinching and text selection are blocked across this writing screen; the Writer box remains editable when the Pencil is lifted.</p>
+      <p>Save page keeps your original strokes in this browser. Download SVG exports a drawing. Smoothing changes the display and SVG only.</p>
+    </div>
+    <div class="toolbar">
+      <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
+      <label><input id="guides" type="checkbox" checked> Writing lines</label>
+      <span id="input">Ready for Pencil</span>
+    </div>
+  </section>
+  <div class="paper"><canvas id="paper" aria-label="Free handwriting area" width="1000" height="500"></canvas></div>
+  <div class="actions">
+    <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="clear">Clear page</button>
+    <button id="save" class="primary">Save page</button><button id="export">Download SVG</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Nothing saved yet. Enter a writer name, then write on the page.</p>
+</main>
+<dialog id="library" aria-labelledby="library-title">
+  <div class="library-top"><div><h1 id="library-title">Saved pages</h1><p>Handwriting stored in this browser</p></div><button id="library-close">Back to writing</button></div>
+  <div class="library-tools"><label>Writer <select id="library-writer" disabled><option value="">All writers</option></select></label><button id="library-refresh">Refresh list</button></div>
+  <p id="library-status" role="status" aria-live="polite">Loading saved pages…</p>
+  <div class="library-body">
+    <div id="page-list" aria-label="Saved handwriting pages"></div>
+    <section class="page-detail" aria-label="Page preview">
+      <h2 id="preview-title">Choose a saved page</h2>
+      <p id="preview-info">Select a page to see its handwriting before opening it.</p>
+      <div id="page-preview"></div>
+      <p class="library-note">Opening a page lets you continue writing or download its SVG. Saving changes creates a new copy.</p>
+      <div id="replace-warning" hidden role="alert">
+        <p>Your current writing has unsaved changes. Go back and save it first if you want to keep it.</p>
+        <div class="warning-actions"><button id="keep-writing">Keep current writing</button><button id="replace-page">Open without saving</button></div>
+      </div>
+      <button id="open-page" class="primary" disabled>Open this page</button>
+    </section>
+  </div>
+</dialog>
+<script src="assets/app.js"></script>
+<script src="assets/library.js"></script>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js"></script>
+</body>
+</html>

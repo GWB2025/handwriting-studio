@@ -1,5 +1,42 @@
 # Handwriting Studio — guided capture and composition
 
+## Use the website
+
+[Open Handwriting Studio](https://gwb2025.github.io/handwriting-studio/)
+
+The GitHub Pages version runs entirely in Safari or Chrome, including on an iPad. No Mac server, Python setup or login is needed. Capture all 26 lowercase letters, review individual samples, compose A4 handwriting and download SVGs. Free writing and Saved pages are also available.
+
+**Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** to download a JSON backup regularly and move writing between devices. Clearing website data or using private browsing can remove saved writing. The app requests persistent browser storage where supported, but backups are still needed. Unsaved drafts are not part of a backup: save your sheet or page first.
+
+Import validates every record before adding anything. Identical records are skipped. Conflicting versions of the same record reject the entire import; use a fresh browser for the other version. Import does not overwrite captures or review choices. The import limit is 100 MB.
+
+### Bring existing Mac handwriting to the website
+
+From the local app folder, export your original data without changing it:
+
+```
+python3 scripts/export_backup.py --output ~/Desktop/handwriting-studio-backup.json
+```
+
+Then open the website, choose **Backup / Import**, select that JSON file and import it. Transfer the file to your iPad to import there too. Keep the original local data and the backup.
+
+### Build and publish
+
+Browser capture and composition rules live in `web/`. `scripts/build_pages.py` adapts the established screens into `docs/` with relative links and browser storage. It copies only named UI assets, never `data/` or local backups. The original Python app below remains available.
+
+```
+npm ci --ignore-scripts
+npm test
+python3 scripts/build_pages.py
+```
+
+In repository Settings → Pages, choose **GitHub Actions** as the source. The Publish Handwriting Studio workflow tests and deploys `docs/` on pushes to `main`. A normal internet connection loads the website; this version does not include an offline installation or automatic cloud sync.
+
+---
+
+## Original Mac app
+
+
 A local iPad/Safari handwriting app for the 2D Pen Plotter project. Guided lowercase a–z capture, repeat sets for natural variations, individual sample review, and a typed handwriting preview. No cloud service or account is required.
 
 The original app on port 8765 and its data remain separate. This app runs on port 8766. Existing free-writing pages remain in `data/`; new labelled letter sheets live in `data/letters/`.
