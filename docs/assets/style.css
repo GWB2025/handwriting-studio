@@ -144,6 +144,8 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .review-alphabet button { min-width: 64px; }
 .review-alphabet button[aria-pressed="true"] { background: #245e4c; color: white; border-color: #245e4c; }
 
+#capture-kind { font: inherit; font-size: 16px; padding: 8px; border: 1px solid #bccbc1; border-radius: 7px; background: white; max-width: 100%; }
+
 .browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
 #backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }
 #backup-dialog::backdrop { background: #10231c66; }

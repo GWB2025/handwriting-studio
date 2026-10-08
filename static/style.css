@@ -143,3 +143,5 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .review-alphabet { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .review-alphabet button { min-width: 64px; }
 .review-alphabet button[aria-pressed="true"] { background: #245e4c; color: white; border-color: #245e4c; }
+
+#capture-kind { font: inherit; font-size: 16px; padding: 8px; border: 1px solid #bccbc1; border-radius: 7px; background: white; max-width: 100%; }

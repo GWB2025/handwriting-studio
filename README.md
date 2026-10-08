@@ -10,6 +10,19 @@ The GitHub Pages version runs entirely in Safari or Chrome, including on an iPad
 
 Import validates every record before adding anything. Identical records are skipped. Conflicting versions of the same record reject the entire import; use a fresh browser for the other version. Import does not overwrite captures or review choices. The import limit is 100 MB.
 
+
+### Extended handwriting workflow (public website)
+
+Choose **Capture** → **Lowercase**, **Uppercase**, **Numbers**, **Punctuation and symbols**, or **Joined pairs**. Each type has its own saved progress. Complete the current set before changing type; unsaved practice can be cleared with confirmation. Capture capitals to the tall-letter guide. New character types retain the drawn baseline, so write dots, commas and quotes at their normal positions. Joined pairs should be written as one connected shape in each box.
+
+Review has matching groups, with individual inclusion and baseline controls. Existing lowercase samples remain unchanged. Extended records use schema 3, supported by the public website and its backup/import; the original Mac app does not support these new records.
+
+Compose supports captured capitals, digits and the symbols offered by Capture. It wraps whole words, uses neighbouring stroke shapes to adjust spacing, and accepts up to 2,000 characters when they fit on one A4 page. Oversized words and overflowing pages produce a message instead of clipping.
+
+Choose **Blend compatible examples** to resample matching strokes at equal arc-length intervals and blend two examples. Stroke counts and corresponding geometry/direction must match; unsuitable combinations use an original sample. This is a conservative heuristic, not handwriting recognition: inspect the preview before plotting. Saved raw strokes are never resampled or overwritten. Each generated preview is fixed for downloading; generating again chooses fresh blend weights. **Use saved joined pairs** substitutes included pairs where available and otherwise uses individual characters. Full cursive joining is not included.
+
+Direct plotter control and an editable pending plot queue remain dependent on the controller and connection used by the T-A4. This release exports SVGs for the existing plotting workflow.
+
 ### Bring existing Mac handwriting to the website
 
 From the local app folder, export your original data without changing it:

@@ -34,3 +34,16 @@ test('free writing and review survive export/import, and storage failure gives a
   const restored=browser();await restored.StudioStorage.importBackup(await b.StudioStorage.backup());assert.equal((await call(restored,'/api/pages')).data.pages.length,1);
   const broken=browser(null);const response=await call(broken,'/api/letters/pages',sheet());assert.equal(response.status,400);assert.match(response.data.error,/storage is unavailable/);
 });
+
+test('new character and joined-pair reviews survive backup and encoded punctuation routes',async()=>{
+ const {extendedFiles}=require('./extended_helpers');const b=browser();
+ const backup={format:'handwriting-studio-backup',version:1,files:[...extendedFiles('symbols'),...extendedFiles('uppercase'),...extendedFiles('pairs')]};
+ await b.StudioStorage.importBackup(backup);
+ for(const token of ['/','+','Z','th']){
+  const samples=(await call(b,'/api/letters/samples?'+new URLSearchParams({writer:'Writer',letter:token}))).data.samples;
+  assert.equal(samples.length,1);
+  const result=await call(b,'/api/letters/samples/'+samples[0].capture_id+'/'+encodeURIComponent(token)+'/review',{included:false,baseline_shift_mm:1});assert.equal(result.status,200);
+ }
+ const restored=browser();await restored.StudioStorage.importBackup(await b.StudioStorage.backup());
+ const profile=(await call(restored,'/api/letters/writers')).data.writers[0];for(const token of ['/','+','Z','th'])assert.equal(profile.counts[token],0);
+});

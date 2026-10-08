@@ -52,7 +52,7 @@ function notebook(guided = false, profiles = [], shuffled = false) {
     for (const [id, timer] of [...timers]) if (timer.due <= now) {timers.delete(id); timer.fn();}
     flush();
   }
-  if(shuffled){window.StudioEngine=require('../web/engine.js');window.capturePlan=window.StudioEngine.plan;}
+  if(shuffled){window.StudioEngine=require('../web/engine.js');window.capturePlan=window.StudioEngine.plan;elements['capture-kind']=listeners({value:'lowercase',selectedOptions:[{textContent:'Lowercase'}]});}
   context.window.studioFetch=context.fetch;
   vm.runInContext(source, context);
   if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'capture.js'), 'utf8'), context);
@@ -258,7 +258,7 @@ test('six-sheet alphabet capture reaches review and resumes after the latest sav
   draw(n,100,0);await n.elements.save.onclick();
   assert.equal(n.elements.save.textContent,'Save sheet 6 of 6');
   draw(n,100,100);await n.elements.save.onclick();
-  assert.equal(n.elements['capture-step'].textContent,'Alphabet set complete');
+  assert.equal(n.elements['capture-step'].textContent,'Capture set complete');
   assert.equal(n.elements['more-sheets'].hidden,false);
   assert.match(n.elements['review-link'].href,/writer=Writer/);
 });
@@ -313,4 +313,13 @@ test('browser capture resumes the saved shuffled sheet labels', () => {
     n.elements.save.onclick();n.flush();
     assert.equal(n.elements.paper.attributes['aria-label'],'Write one '+orders[1].split('').join(', ')+' in the corresponding labelled boxes');
   });
+});
+
+
+test('capture category changes open uppercase and joined sheets without corrupting lowercase progress',async()=>{
+ const n=notebook(true,[],true);await new Promise(resolve=>setImmediate(resolve));
+ const select=n.elements['capture-kind'];select.value='uppercase';select.selectedOptions=[{textContent:'Uppercase'}];select.onchange();n.flush();
+ assert.match(n.elements.paper.attributes['aria-label'],/Write one [A-Z]/);
+ n.elements.writer.value='Writer';n.elements.save.onclick();n.flush();
+ assert.equal(select.disabled,true);assert.match(n.elements['capture-step'].textContent,/sheet 1 of 7/);
 });

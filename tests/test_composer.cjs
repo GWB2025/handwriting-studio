@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer() {
+async function composer(extended=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -14,12 +14,13 @@ async function composer() {
   }
   const elements = {};
   for (const id of ['compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
-    'compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link']) {
+    'compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
+  elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -30,11 +31,11 @@ async function composer() {
       click() {assert.equal(this.attached, true);downloads.push({url: this.href, name: this.download});},
       remove() {this.attached = false;}
     } : {}});
-  const window = events({location: {search: '?writer=Writer'}});
+  const window = events({...(extended?{StudioEngine:require('../web/engine.js')} : {}),location: {search: '?writer=Writer'}});
   const requests = [], revoked = [];
   const server = {count: 8, savedAt: '2026-10-05T10:15:00Z', offline: false, revision:'original'};
   let serial = 0;
-  const context = vm.createContext({document, window, URLSearchParams, AbortController, Blob, setTimeout, clearTimeout,
+  const context = vm.createContext({document, window, crypto:require('node:crypto').webcrypto, URLSearchParams, AbortController, Blob, setTimeout, clearTimeout,
     URL: {createObjectURL: () => 'blob:preview-' + (++serial), revokeObjectURL: url => revoked.push(url)},
     fetch: async (url, options = {}) => {
       requests.push({url, options});
@@ -131,4 +132,12 @@ test('baseline review changes invalidate a previous composition even when counts
   c.document.emit('visibilitychange');await settle();
   assert.equal(e['compose-download'].disabled,true);
   assert.match(e['compose-status'].textContent,/Saved samples have changed/);
+});
+
+
+test('browser composer sends blending and joined options and invalidates preview when they change',async()=>{
+ const c=await composer(true),e=c.elements;e['compose-variation'].value='blend';e['compose-joined'].checked=false;
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.variation,'blend');assert.equal(data.joined,false);assert.ok(data.seed);
+ e['compose-variation'].emit('change');assert.equal(e['compose-download'].disabled,true);
 });
