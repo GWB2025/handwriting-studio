@@ -3,7 +3,7 @@
   const byID=id=>document.getElementById(id);
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
-  let previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
+  let liveTimer=null,blendSeed='',hasPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
     if(phraseEdited || byID('phrase').value!==automaticPhrase)return;
@@ -20,7 +20,7 @@
     byID('compose-empty').hidden=false;byID('compose-download').disabled=true;
   }
   function invalidate(){
-    requestNumber++;controller?.abort();controller=null;loading=false;clearPreview();
+    clearTimeout(liveTimer);requestNumber++;controller?.abort();controller=null;loading=false;clearPreview();
     byID('generate').disabled=!byID('compose-writer').value;
     byID('generate').textContent='Generate preview';
     byID('compose-status').textContent='Settings changed. Generate a new preview before downloading.';
@@ -28,7 +28,7 @@
   }
   function showCounts(counts){
     const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
-    const limit={latest_three:3,latest_only:1,all:Infinity}[byID('compose-samples').value];
+    const limit={latest_three:3,latest_four:4,latest_only:1,all:Infinity}[byID('compose-samples').value];
     counts=counts || (profile && Object.fromEntries(Object.entries(profile.counts).map(([letter,n])=>[letter,Math.min(n,limit)])));
     byID('compose-counts').textContent=counts?'Preview samples: '+Object.entries(counts).map(([letter,n])=>letter+' × '+n).join(' · ')+' · newest first':'';
     byID('review-link').href='review.html?writer='+encodeURIComponent(byID('compose-writer').value);
@@ -57,6 +57,7 @@
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
+    if(!event.live)blendSeed=crypto.randomUUID();
     clearPreview();loading=true;const ticket=++requestNumber;
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
@@ -64,9 +65,9 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await window.studioFetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:crypto.randomUUID(),...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
-      previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
+      hasPreview=true;previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
       imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
       byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
       byID('compose-download').disabled=false;
@@ -96,8 +97,14 @@
   };
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
-  for(const id of ['compose-variation','compose-joined','blend-mix'])byID(id)?.addEventListener('change',invalidate);
-  byID('blend-mix')?.addEventListener('input',()=>{byID('blend-mix-value').textContent=byID('blend-mix').value+'% source B';invalidate();});
+  for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
+  function liveBlend(){
+    const active=hasPreview;invalidate();
+    if(active&&byID('compose-variation').value==='blend')liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),100);
+  }
+  byID('blend-mix')?.addEventListener('input',()=>{byID('blend-mix-value').textContent=byID('blend-mix').value+'% right source';liveBlend();});
+  byID('blend-vertical')?.addEventListener('input',()=>{byID('blend-vertical-value').textContent=byID('blend-vertical').value+'% bottom row';liveBlend();});
+  byID('blend-count')?.addEventListener('change',()=>{if(byID('blend-count').value==='4'&&byID('compose-samples').value==='latest_three')byID('compose-samples').value='latest_four';liveBlend();});
   byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){

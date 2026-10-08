@@ -155,6 +155,13 @@
     result.baseline_shift_mm=a.baseline_shift_mm*(1-weight)+b.baseline_shift_mm*weight;
     return result;
   }
+  function blendMany(samples,weights){
+    if(samples.length!==weights.length||samples.length<2||weights.some(w=>!finite(w,0,1))||Math.abs(weights.reduce((a,b)=>a+b,0)-1)>1e-8)return null;
+    for(let i=0;i<samples.length;i++)for(let j=i+1;j<samples.length;j++)if(!compatible(samples[i],samples[j]))return null;
+    const result=clone(samples[0]);result.sources=samples.map(s=>s.capture_id);result.weights=weights.slice();
+    result.processed_strokes=samples[0].processed_strokes.map((stroke,i)=>{const normalized=samples.map(s=>resample(s.processed_strokes[i].points));return {pointerType:stroke.pointerType,points:normalized[0].map((_,j)=>({x:normalized.reduce((v,p,k)=>v+p[j].x*weights[k],0),y:normalized.reduce((v,p,k)=>v+p[j].y*weights[k],0)}))};});
+    const points=result.processed_strokes.flatMap(s=>s.points),left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));for(const p of points)p.x-=left;result.bounds={left:0,right:right-left};result.baseline_shift_mm=samples.reduce((v,s,i)=>v+s.baseline_shift_mm*weights[i],0);return result;
+  }
   function spacing(a,b,scale,height){
     function envelope(sample){const rows=new Map();for(const stroke of sample.processed_strokes){const points=resample(stroke.points,128);for(const p of points){const row=Math.floor((p.y*scale+sample.baseline_shift_mm)/.5),x=p.x*scale;for(const key of [row-1,row,row+1]){const r=rows.get(key)||[Infinity,-Infinity];r[0]=Math.min(r[0],x);r[1]=Math.max(r[1],x);rows.set(key,r);}}}return rows;}
     const ar=envelope(a),br=envelope(b),width=(a.bounds.right-a.bounds.left)*scale;let advance=height*.25;
@@ -162,24 +169,37 @@
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
   function compose(files,data){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength}=data;
-    if(!['latest_three','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50}=data;
+    if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
     if(typeof phrase!=='string'||phrase.length>2000||![...phrase].some(c=>characters.includes(c)))fail('Type a phrase (up to 2000 characters).');
     if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
     if(!finite(height,2,12)||typeof smooth!=='boolean'||typeof joined!=='boolean')fail('Choose a writing size from 2 to 12 mm.');
-    if(blend_strength!==undefined&&!finite(blend_strength,10,90))fail('Choose a blend mix from 10 to 90 percent.');
+    if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
+    if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
     const previews=[];
     const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={};
     for(const s of all){variants[s.letter]??=[];if(s.included)variants[s.letter].push(s);}
-    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;variants[letter]=list.slice(0,{latest_three:3,latest_only:1,all:undefined}[mode]);}
+    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;variants[letter]=list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
     const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
     const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
     if(missing.length)fail('No included samples for: '+missing.join(', ')+'. Capture them or include a saved example in Review samples.');
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
-    let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=list[n%list.length];if(variation==='blend'){const candidates=list.filter(s=>s!==original&&compatible(original,s));if(candidates.length){const other=candidates[Math.floor(random()*candidates.length)],weight=blend_strength===undefined?.2+random()*.6:1-blend_strength/100,result=blend(original,other,weight);if(previews.length<6)previews.push({letter:c,source_a:original.capture_id,source_b:other.capture_id,source_a_saved_at:original.saved_at,source_b_saved_at:other.saved_at,source_b_percent:Math.round((1-weight)*100),...comparisonSVG(original,other,result)});blended++;return result;}fallback++;}return original;});
+    let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{
+      if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=list[n%list.length];
+      if(variation==='blend'){
+        const candidates=list.filter(s=>s!==original&&compatible(original,s));
+        // Seeded selection stays fixed when only the mix controls change.
+        const sources=[original];while(candidates.length&&sources.length<blend_count){const i=Math.floor(random()*candidates.length),candidate=candidates.splice(i,1)[0];if(sources.every(s=>compatible(s,candidate)))sources.push(candidate);}
+        if(sources.length===blend_count){const h=blend_strength===undefined?.2+random()*.6:blend_strength/100,v=blend_vertical/100,weights=blend_count===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];
+          const result=blendMany(sources,weights);result.weight=h;
+          if(previews.length<6)previews.push({letter:c,source_a:sources[0].capture_id,source_b:sources[1].capture_id,source_b_percent:Math.round(h*100),source_ids:sources.map(s=>s.capture_id),weights,svgs:comparisonMany(sources,result)});
+          blended++;return result;
+        }fallback++;
+      }return original;
+    });
     const scale=height/80;let above=0,below=0;
     for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*scale+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}
     let x=20,baseline=20+above;const line=above+below+height*.8,paths=[],chosen=[];
@@ -191,17 +211,17 @@
       if(wordWidth>170)fail('A word is too wide for the page. Choose a smaller writing size or add a space.');
       if(x+wordWidth>190){x=20;baseline+=line;}
       if(baseline+below>277)fail('This phrase does not fit on one A4 page. Use fewer words or a smaller writing size.');
-      for(let j=i;j<end;j++){const s=used[j];for(const stroke of s.processed_strokes)paths.push('<path d="'+pathData(stroke.points,smooth,x,baseline+s.baseline_shift_mm,scale)+'"/>');chosen.push({letter:letters[j],capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight}:{})});x+=advances[j-i];}
+      for(let j=i;j<end;j++){const s=used[j];for(const stroke of s.processed_strokes)paths.push('<path d="'+pathData(stroke.points,smooth,x,baseline+s.baseline_shift_mm,scale)+'"/>');chosen.push({letter:letters[j],capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});x+=advances[j-i];}
       x+=height*.22;i=end;
     }
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b)),profile=cat.writers.find(p=>p.writer===writer.trim());
-    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),previews},
+    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
       sample_selection:{mode,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
-  function comparisonSVG(a,b,result){
-    const svgs=[a,b,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
+  function comparisonMany(sources,result){
+    const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
     const left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
-    return {svgs:svgs.map(svg=>svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`))};
+    return svgs.map(svg=>svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`));
   }
   function reviewSVG(sample){
     const shift=sample.baseline_shift_mm*16;let top=-180,bottom=110,width=240;
@@ -211,6 +231,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

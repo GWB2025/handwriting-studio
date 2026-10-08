@@ -155,6 +155,11 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 @media(max-width:600px){#blend-cards{grid-template-columns:1fr;}}
 #blend-mix-label[hidden], #blend-comparison[hidden] {display:none;}
 
+#blend-cards[data-sources="4"] {grid-template-columns:repeat(2,minmax(0,1fr));}
+#blend-cards[data-sources="4"] figure:last-child {grid-column:1/-1;max-width:350px;margin:auto;}
+#blend-count-label[hidden], #blend-vertical-label[hidden] {display:none;}
+#blend-vertical {display:block;width:260px;max-width:100%;}
+
 .browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
 #backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }
 #backup-dialog::backdrop { background: #10231c66; }

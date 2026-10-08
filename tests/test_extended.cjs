@@ -60,11 +60,11 @@ test('blend mix is reflected in output and comparison previews share a scale',()
  for(const strength of [10,50,90]){
   const r=E.compose(records,{writer:'Writer',phrase:'aaaaaaaa',variation:'blend',seed:'same',blend_strength:strength});
   assert.equal(r.variation.previews.length,6);
-  for(const sample of r.used_samples)assert(Math.abs(sample.weight-(1-strength/100))<1e-10);
+  for(const sample of r.used_samples)assert(Math.abs(sample.weight-(strength/100))<1e-10);
   for(const preview of r.variation.previews){assert.equal(preview.source_b_percent,strength);assert.equal(preview.svgs.length,3);assert.equal(new Set(preview.svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1])).size,1);}
  }
  assert.equal(JSON.stringify(records),raw);
- for(const strength of [0,100,NaN,'50'])assert.throws(()=>E.compose(records,{writer:'Writer',phrase:'a',blend_strength:strength}),/blend mix/);
+ for(const strength of [-1,101,NaN,'50'])assert.throws(()=>E.compose(records,{writer:'Writer',phrase:'a',blend_strength:strength}),/blend mix/);
 });
 test('normalised blending preserves separate dots and crossbars and rejects mismatched strokes',()=>{
  const base=E.catalog(files()).byWriter.get('Writer')[0],a=E.clone(base),b=E.clone(base);
@@ -74,4 +74,17 @@ test('normalised blending preserves separate dots and crossbars and rejects mism
  assert(r.processed_strokes[1].points.every(p=>p.x===5&&p.y===-70));
  assert(r.processed_strokes[2].points.every(p=>p.y===-30));assert.equal(JSON.stringify([a,b]),before);
  b.processed_strokes.pop();assert.equal(E.blend(a,b,.5),null);
+});
+
+test('four-source bilinear blend reaches corners and averages at centre',()=>{
+ const source=E.catalog(files()).byWriter.get('Writer')[0];const samples=Array.from({length:4},(_,i)=>{const s=E.clone(source);s.capture_id='source'+i;s.baseline_shift_mm=i;s.processed_strokes.forEach(st=>st.points.forEach(p=>p.y+=i));return s;});
+ for(let i=0;i<4;i++){const weights=[0,0,0,0];weights[i]=1;const r=E.blendMany(samples,weights);assert(r);assert.equal(r.baseline_shift_mm,i);assert.equal(r.sources.length,4);}
+ const r=E.blendMany(samples,[.25,.25,.25,.25]);assert.equal(r.baseline_shift_mm,1.5);
+ const records=files();assert.equal(E.compose(records,{writer:'Writer',phrase:'a',variation:'blend',blend_count:4}).variation.fallback,1);
+});
+
+test('four captured examples compose using all four weighted sources',()=>{
+ const records=files(),extra=E.clone(records[0]);extra.value.id=E.uuid();extra.key='letters/'+extra.value.id+'.json';extra.value.saved_at='2026-10-08T12:00:00Z';records.push(extra);
+ const result=E.compose(records,{writer:'Writer',phrase:'a',samples:'latest_four',variation:'blend',blend_count:4,blend_strength:50,blend_vertical:50});
+ assert.equal(result.variation.blended,1);assert.deepEqual(result.used_samples[0].weights,[.25,.25,.25,.25]);assert.equal(new Set(result.used_samples[0].sources).size,4);assert.equal(result.variation.previews[0].svgs.length,5);
 });

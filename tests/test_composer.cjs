@@ -14,13 +14,13 @@ async function composer(extended=false) {
   }
   const elements = {};
   for (const id of ['compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
-    'blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
+    'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
-  elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
+  elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -159,6 +159,15 @@ test('blend mix reaches composition and slider input invalidates both exports',a
  await e['compose-form'].onsubmit({preventDefault(){}});
  assert.equal(JSON.parse(c.requests.at(-1).options.body).blend_strength,70);
  e['blend-mix'].value='30';e['blend-mix'].emit('input');
- assert.equal(e['blend-mix-value'].textContent,'30% source B');
+ assert.equal(e['blend-mix-value'].textContent,'30% right source');
  assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);
+});
+
+test('live slider rebuilds with a fixed seed and four-source settings',async()=>{
+ const c=await composer(true),e=c.elements;e['compose-variation'].value='blend';
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ const seed=JSON.parse(c.requests.at(-1).options.body).seed;
+ e['blend-count'].value='4';e['blend-count'].emit('change');e['blend-vertical'].value='80';e['blend-vertical'].emit('input');
+ assert.equal(e['compose-gcode'].disabled,true);await new Promise(r=>setTimeout(r,150));await settle();
+ const body=JSON.parse(c.requests.at(-1).options.body);assert.equal(body.seed,seed);assert.equal(body.blend_count,4);assert.equal(body.blend_vertical,80);assert.equal(body.samples,'latest_four');assert.equal(e['compose-gcode'].disabled,false);
 });

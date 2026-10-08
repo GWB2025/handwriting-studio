@@ -8,5 +8,5 @@ test('comparison displays sources and result, switches examples and releases sta
  window.StudioBlendPreview.show({mode:'blend',previews:[example,example]});assert.equal(ids['blend-cards'].children.length,3);assert.equal(ids['blend-cards'].children[2].children[0].textContent,'Result · 70% source B');
  ids['blend-example'].value='1';ids['blend-example'].listeners.change();assert.equal(revoked.length,3);
  window.StudioBlendPreview.clear();assert.equal(revoked.length,6);assert.equal(ids['blend-comparison'].hidden,true);
- window.StudioBlendPreview.show({mode:'blend',previews:[]});assert(ids['blend-cards'].textContent.includes('No compatible pair'));
+ window.StudioBlendPreview.show({mode:'blend',previews:[]});assert(ids['blend-cards'].textContent.includes('Not enough compatible'));
 });
