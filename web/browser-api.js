@@ -46,7 +46,7 @@
         const record=E.capture(data),key='letters/'+record.id+'.json';
         return await transaction((files,store)=>{
           const previous=files.find(f=>f.key===key)?.value;
-          if(previous){if(!['schema_version','writer','raw_strokes','order_index','display_smoothing'].every(k=>E.same(previous[k],record[k])))return json({error:'This save identifier is already in use. Your existing capture was kept.'},409);return json({id:previous.id,saved_at:previous.saved_at});}
+          if(previous){if(!['schema_version','writer','raw_strokes','order_index','order','plan_id','capture_orders','display_smoothing'].every(k=>E.same(previous[k],record[k])))return json({error:'This save identifier is already in use. Your existing capture was kept.'},409);return json({id:previous.id,saved_at:previous.saved_at});}
           store.add({key,value:record});return json({id:record.id,saved_at:record.saved_at},201);
         });
       }
@@ -55,7 +55,8 @@
         const record={id:crypto.randomUUID(),writer:data.writer.trim(),saved_at:new Date().toISOString(),coordinates:{width:1000,height:500,y:'down',time:'milliseconds from first contact'},raw_strokes:E.clone(data.strokes),display_smoothing:data.smooth,schema_version:2};E.size(record);
         await transaction((files,store)=>store.add({key:record.id+'.json',value:record}));return json({id:record.id,saved_at:record.saved_at},201);
       }
-      const review=path.match(/^\/api\/letters\/samples\/([0-9a-f-]+)\/([a-z])\/review$/);
+      const review=path.match(/^\/api\/letters\/samples\/([0-9a-f-]+)\/([^/]+)\/review$/);
+      if(review)review[2]=decodeURIComponent(review[2]);
       if(method==='POST'&&review){
         E.validateReview(data);
         return await transaction((files,store)=>{
@@ -72,7 +73,7 @@
       if(method==='GET'&&path.startsWith('/api/pages/')){const record=files.find(f=>f.key===path.slice('/api/pages/'.length)+'.json')?.value;return record?json(record):json({error:'This saved page is no longer available.'},404);}
       if(method==='GET'&&path==='/api/letters/writers')return json({writers:E.catalog(files).writers,unavailable_count:0});
       if(method==='GET'&&path==='/api/letters/samples'){
-        const letter=u.searchParams.get('letter');if(!letter||letter.length!==1||!E.plan.alphabet.includes(letter))throw Error('Choose a lowercase letter.');
+        const letter=u.searchParams.get('letter');if(!letter||![...E.characters,...E.pairs].includes(letter))throw Error('Choose a captured character or joined pair.');
         return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s)})),unavailable_count:0});
       }
       if(method==='POST'&&path==='/api/compose')return json(E.compose(files,data));

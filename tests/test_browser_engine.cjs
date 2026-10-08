@@ -23,7 +23,7 @@ test('reject invalid points, crossing boxes, missing letters and oversized layou
   const invalid=sheet();invalid.strokes[0].points[0].pressure=Infinity;assert.throws(()=>E.capture(invalid),/Invalid point/);
   const partial=sheet();partial.strokes.pop();assert.throws(()=>E.capture(partial),/Still needed/);
   assert.throws(()=>E.compose([],{writer:'Writer',phrase:'hello'}),/No included/);
-  assert.throws(()=>E.compose(files(),{writer:'Writer',phrase:'Hello'}),/lowercase/);
+  assert.throws(()=>E.compose(files(),{writer:'Writer',phrase:'Hello'}),/No included samples for: H/);
   assert.throws(()=>E.compose(files(),{writer:'Writer',phrase:Array(100).fill('b').join('\n'),height:8}),/does not fit/);
   const f=files()[0];f.value.samples[0].processed_strokes[0].points[0].x=999;assert.throws(()=>E.validateRecord(f.key,f.value),/do not match/);
 });

@@ -9,7 +9,7 @@
     if(phraseEdited || byID('phrase').value!==automaticPhrase)return;
     const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
     if(!profile)return;
-    const available=[...alphabet].filter(letter=>profile.counts[letter]>0).join('');
+    const available=[...(window.StudioEngine?.characters || alphabet)].filter(letter=>profile.counts[letter]>0).join('');
     automaticPhrase=available===alphabet?fullExample:available==='abcde'?'a bad cab\naaaa bbbb cccc dddd eeee':[...available].join(' ');
     byID('phrase').value=automaticPhrase;
   }
@@ -49,6 +49,7 @@
       select.disabled=!profiles.length;updateExample();showCounts();
       byID('generate').disabled=!profiles.length;
       byID('compose-status').textContent=profiles.length?'Choose a writer and generate a preview.':'No letter samples yet. Tap Capture letters and save your first sheet.';
+      if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
     finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
@@ -62,7 +63,7 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:crypto.randomUUID()}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
       byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
@@ -85,6 +86,7 @@
   };
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
+  for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
   byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){

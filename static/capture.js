@@ -2,15 +2,16 @@
 // The notebook's Pencil handling, viewport fitting and undo/redo are shared.
 // This layer supplies guides and explicit labels, not handwriting recognition.
 (()=>{
-  const plan=window.capturePlan,setSize=plan.sheets_per_set;
-  let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0):plan.orders;
+  let plan=window.capturePlan,setSize=plan.sheets_per_set;
+  let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan):plan.orders;
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
   const composeURL=()=>'/compose?writer='+encodeURIComponent($('writer').value.trim());
   function updateCounts(){
     const writer=$('writer').value.trim(),profile=profiles.find(p=>p.writer===writer);
     const counts=profile?.total_counts || profile?.counts;
-    $('sample-counts').textContent=profile?'Captured '+Object.values(counts).filter(n=>n>0).length+' of 26 letters · '+Object.values(counts).reduce((a,b)=>a+b,0)+' samples saved':'No letter samples saved for this name yet';
+    const expected=Array.from(plan.alphabet || 'abcdefghijklmnopqrstuvwxyz');
+    $('sample-counts').textContent=profile?'Captured '+expected.filter(c=>counts[c]>0).length+' of '+expected.length+' characters · '+expected.reduce((sum,c)=>sum+(counts[c]||0),0)+' samples saved':'No letter samples saved for this name yet';
     $('compose-link').href=composeURL();
     $('review-link').href='/review?writer='+encodeURIComponent(writer);
   }
@@ -26,6 +27,7 @@
   }
   function updateControls(){
     const complete=phase==='complete';
+    if($('capture-kind'))$('capture-kind').disabled=saving || !!active || phase==='capture';
     $('writer').disabled=saving || !!active || phase!=='practice';
     $('writer-done').disabled=$('writer').disabled || !$('writer').value.trim() || $('writer').value.trim()===finishedWriter;
     $('save').textContent=saving?'Saving…':complete?'Compose handwriting':phase==='practice'?'Start capture':'Save sheet '+(sheet%setSize+1)+' of '+setSize;
@@ -39,7 +41,7 @@
     $('export').disabled=saving || !!active || !strokes.length;
     $('more-sheets').hidden=!complete;
     $('smooth').disabled=saving;
-    $('capture-step').textContent=complete?'Alphabet set complete':phase==='practice'?'Practice · not saved':'Capture · set '+(Math.floor(sheet/setSize)+1)+' · sheet '+(sheet%setSize+1)+' of '+setSize;
+    $('capture-step').textContent=complete?'Capture set complete':phase==='practice'?'Practice · not saved':'Capture · set '+(Math.floor(sheet/setSize)+1)+' · sheet '+(sheet%setSize+1)+' of '+setSize;
     // A completed set remains visible but is no longer an editable draft.
     canvas.style.pointerEvents=complete?'none':'auto';
   }
@@ -68,7 +70,7 @@
   }
   function blankSheet(){
     release();strokes=[];undone=[];origin=null;dirty=false;saved=false;
-    canvas.setAttribute('aria-label','Write one '+order().split('').join(', ')+' in the corresponding labelled boxes');
+    canvas.setAttribute('aria-label','Write one '+Array.from(order()).join(', ')+' in the corresponding labelled boxes');
     redraw();updateSave();
   }
   function start(){
@@ -80,20 +82,21 @@
     }
     $('writer').removeAttribute('aria-invalid');
     const profile=profiles.find(p=>p.writer===$('writer').value.trim());
-    sheet=phase==='complete'?(sheet+1)%orders.length:(profile?.next_order_index || 0);
+    const progress=profile?.capture_progress?.[plan.id] || (plan.id==='lowercase-v2'?profile:null);
+    sheet=phase==='complete'?(sheet+1)%orders.length:(progress?.next_order_index || 0);
     if(window.StudioEngine){
-      if(phase!=='complete')orders=profile?.capture_orders || plan.orders;
+      if(phase!=='complete')orders=progress?.capture_orders || plan.orders;
       // Resume saved shuffled sets exactly; new sets receive a fresh shuffle.
-      if(sheet%setSize===0 || !profile?.capture_orders)orders=window.StudioEngine.shuffleSet(orders,sheet);
+      if(sheet%setSize===0 || !progress?.capture_orders)orders=window.StudioEngine.shuffleSet(orders,sheet,Math.random,plan);
     }
     finishWriter();phase='capture';blankSheet();
     try{localStorage.setItem('handwriting-writer',$('writer').value.trim());}catch{}
     instructions();
-    message('Sheet '+(sheet%setSize+1)+' of '+setSize+' · Write '+order().split('').join(', ')+'. Saved sheets stay on this Mac if you stop here.');
+    message('Sheet '+(sheet%setSize+1)+' of '+setSize+' · Write '+Array.from(order()).join(', ')+'. Saved sheets stay on this Mac if you stop here.');
   }
   function instructions(){
     const tails=[...order()].filter(letter=>plan.descenders.includes(letter));
-    $('capture-instruction').textContent='Write one '+order().split('').join(', ')+' in the labelled boxes. '+(tails.length?'For '+tails.join(', ')+', place the body on the baseline and any tail below it.':'Use your usual letter proportions; tall letters reach above the small-letter line.');
+    $('capture-instruction').textContent='Write one '+Array.from(order()).join(', ')+' in the labelled boxes. '+(tails.length?'For '+tails.join(', ')+', place the body on the baseline and any tail below it.':'Use your usual letter proportions; tall letters reach above the small-letter line.');
   }
   function requestID(){
     // getRandomValues works on local HTTP in iPad Safari; randomUUID may not.
@@ -117,9 +120,9 @@
       const data=await r.json();if(!r.ok)throw Error(data.error || 'Save failed.');
       dirty=false;saved=true;const justSaved=sheet%setSize+1;
       if(justSaved<setSize){sheet++;blankSheet();instructions();}
-      else{phase='complete';$('capture-instruction').textContent='This alphabet set is saved. Review your samples, compose a phrase, or capture another set for more variation.';}
+      else{phase='complete';$('capture-instruction').textContent='This capture set is saved. Review your samples, compose a phrase, or capture another set for more variation.';}
       message('✓ Sheet '+justSaved+' saved on this Mac at '+new Date(data.saved_at).toLocaleTimeString()+'. '+
-        (phase==='complete'?'Tap Review samples to check individual letters, or Compose handwriting.':'Now write '+order().split('').join(', ')+' on sheet '+(sheet%setSize+1)+'.'));
+        (phase==='complete'?'Tap Review samples to check individual letters, or Compose handwriting.':'Now write '+Array.from(order()).join(', ')+' on sheet '+(sheet%setSize+1)+'.'));
       await loadCounts();
     }catch(error){
       message(error.name==='AbortError'?'The Mac took too long to confirm. Your writing is still here. Tap Save to retry safely.':
@@ -139,5 +142,15 @@
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};
   for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])$(id).onchange=redraw;
   try{if(!$('writer').value)$('writer').value=localStorage.getItem('handwriting-writer')||'';}catch{}
+  if($('capture-kind') && window.StudioEngine){
+    $('capture-kind').onchange=()=>{
+      if(saving || active || phase==='capture')return;
+      if(hasUnsavedWriting() && !window.confirm('Changing the capture type clears unsaved practice. Continue?')){$('capture-kind').value=Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);return;}
+      plan=window.StudioEngine.plans[$('capture-kind').value];setSize=plan.sheets_per_set;
+      orders=window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan);sheet=0;phase='practice';blankSheet();instructions();updateCounts();
+      message('Practice · '+$('capture-kind').selectedOptions[0].textContent+'. Start capture when ready.');
+    };
+  }
+  if(window.StudioEngine)instructions();
   loadCounts();updateSave();redraw();
 })();

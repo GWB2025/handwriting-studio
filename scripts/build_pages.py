@@ -33,6 +33,16 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
     html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>\n</head>')
+    if(source=='review.html'):
+        html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs</option></select></label><label>Character <select')
+    if(source=='compose.html'):
+        html=html.replace('<div class="compose-actions">','<div class="compose-settings"><label>Variation <select id="compose-variation"><option value="original">Saved examples</option><option value="blend">Blend compatible examples</option></select></label><label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label></div><div class="compose-actions">')
+        html=html.replace('maxlength="200"','maxlength="2000"')
+        html=html.replace('Type with your saved lowercase a–z captures.', 'Type with your saved letters, numbers and punctuation.')
+        html=html.replace('Capitals, punctuation and cursive joins come later.', 'Capture capitals, numbers, punctuation and common joined pairs as needed. Words wrap together; full cursive is not included.')
+    if(source=='capture.html'):
+        html=html.replace('<div class="capture-heading">','<label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs</option></select></label><div class="capture-heading">')
+        html=html.replace('Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets.', 'Choose a capture type. Each set covers its characters once, with shuffled positions. Capitals reach the tall-letter line; punctuation stays where you draw it relative to the baseline. Write joined pairs as a connected shape.')
     banner,modal=notice.split('<dialog',1)
     html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')

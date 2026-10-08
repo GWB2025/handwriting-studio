@@ -4,29 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
-<link rel="stylesheet" href="assets/style.css?v=62c2979f3de2">
-<script src="assets/engine.js?v=97bbc2e4ffee"></script><script src="assets/browser-api.js?v=a84ff76d16c6"></script>
+<link rel="stylesheet" href="assets/style.css?v=052ad5c086a6">
+<script src="assets/engine.js?v=da51b2eb9022"></script><script src="assets/browser-api.js?v=702195417705"></script>
 </head>
 <body class="compose-page">
 <div class="compose-shell">
   <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
 <header><div><p class="eyebrow">Handwriting Studio</p><h1>Compose your handwriting</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="index.html">Capture letters</a><a class="button" id="review-link" href="review.html">Review samples</a></nav></header>
-  <p>Type with your saved lowercase a–z captures. Repeated letters cycle through the newest three included examples of each letter. Excluded samples are skipped.</p>
+  <p>Type with your saved letters, numbers and punctuation. Repeated letters cycle through the newest three included examples of each letter. Excluded samples are skipped.</p>
   <form id="compose-form">
     <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
     <div class="compose-settings sample-settings"><label>Samples <select id="compose-samples"><option value="latest_three">Latest three per letter</option><option value="latest_only">Latest only — check new writing</option><option value="all">All saved — newest first</option></select></label></div>
     <p id="compose-counts" class="subtle"></p>
     <label for="phrase">Your phrase</label>
-    <textarea id="phrase" maxlength="200" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
+    <textarea id="phrase" maxlength="2000" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
 abcdefghijklmnopqrstuvwxyz</textarea>
     <p class="subtle">The example uses this writer’s available letters. Edit it to try your own words. Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.</p>
-    <div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="refresh-writers">Refresh samples</button></div>
+    <div class="compose-settings"><label>Variation <select id="compose-variation"><option value="original">Saved examples</option><option value="blend">Blend compatible examples</option></select></label><label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label></div><div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="refresh-writers">Refresh samples</button></div>
   </form>
   <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
   <div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
-  <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capitals, punctuation and cursive joins come later.</p>
+  <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capture capitals, numbers, punctuation and common joined pairs as needed. Words wrap together; full cursive is not included.</p>
 </div>
-<script src="assets/compose.js?v=523bed748dc2"></script>
+<script src="assets/compose.js?v=082bf136a74f"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=a7cdc3cb8f3d"></script>
 </body>

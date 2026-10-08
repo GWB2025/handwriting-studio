@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
-  const $=id=>document.getElementById(id),alphabet='abcdefghijklmnopqrstuvwxyz';
+  const $=id=>document.getElementById(id);
+  let alphabet='abcdefghijklmnopqrstuvwxyz';
   let profiles=[],samples=[],selected=null,busy=false,dirty=false,imageURL='';
   function status(text){$('review-status').textContent=text;}
   async function api(url,body){
@@ -14,6 +15,7 @@
   function controls(){
     $('review-writer').disabled=busy || dirty || !profiles.length;
     $('review-letter').disabled=busy || dirty || !profiles.length;
+    if($('review-kind'))$('review-kind').disabled=busy || dirty;
     $('review-refresh').disabled=busy || dirty;
     for(const button of $('review-alphabet').querySelectorAll('button')){
       button.disabled=busy || dirty || !profiles.length;
@@ -28,6 +30,7 @@
     $('review-compose').href='compose.html?writer='+encodeURIComponent($('review-writer').value);
   }
   function coverage(){
+    if(window.StudioEngine && $('review-kind'))alphabet=window.StudioEngine.plans[$('review-kind').value].alphabet;
     const profile=profiles.find(p=>p.writer===$('review-writer').value);
     const previous=$('review-letter').value;$('review-letter').replaceChildren();
     for(const letter of alphabet){
@@ -35,7 +38,7 @@
       option.textContent=letter+' · '+(profile?.counts[letter] || 0)+' of '+(profile?.total_counts[letter] || 0)+' included';
       $('review-letter').append(option);
     }
-    $('review-letter').value=previous || [...alphabet].find(letter=>profile?.total_counts[letter]) || 'a';
+    $('review-letter').value=alphabet.includes(previous)?previous:([...alphabet].find(letter=>profile?.total_counts[letter]) || alphabet[0]);
     $('review-alphabet').replaceChildren();
     for(const letter of alphabet){
       const count=profile?.total_counts[letter] || 0;
@@ -46,7 +49,7 @@
       $('review-alphabet').append(button);
     }
     const missing=[...alphabet].filter(letter=>!profile?.counts[letter]);
-    $('review-coverage').textContent=profile?(26-missing.length)+' of 26 letters ready to compose.'+(missing.length?' Still needed: '+missing.join(', ')+'.':' All lowercase letters are ready.'):'No saved letters yet. Start on Capture letters.';
+    $('review-coverage').textContent=profile?(alphabet.length-missing.length)+' of '+alphabet.length+' characters/pairs ready to compose.'+(missing.length?' Still needed: '+missing.join(', ')+'.':' All characters in this group are ready.'):'No saved letters yet. Start on Capture letters.';
   }
   function showSample(sample){
     selected=sample;dirty=false;
@@ -101,7 +104,7 @@
     event.preventDefault();if(busy || !dirty || $('review-save').disabled)return;
     busy=true;controls();status('Saving your review…');
     try{
-      const result=await api('/api/letters/samples/'+selected.capture_id+'/'+selected.letter+'/review',
+      const result=await api('/api/letters/samples/'+selected.capture_id+'/'+encodeURIComponent(selected.letter)+'/review',
         {included:$('sample-included').checked,baseline_shift_mm:Number($('sample-shift').value)});
       Object.assign(selected,{included:result.included,baseline_shift_mm:result.baseline_shift_mm,svg:result.svg});
       showSample(selected);
@@ -112,6 +115,7 @@
     }catch(error){status('Not saved: '+error.message+' Your edits are still here.');}
     finally{busy=false;controls();}
   };
+  if($('review-kind'))$('review-kind').onchange=()=>load();
   $('review-writer').onchange=()=>load();$('review-letter').onchange=()=>load();$('review-refresh').onclick=()=>load(true);
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
   window.addEventListener('pageshow',event=>{if(event.persisted)load(true);});
