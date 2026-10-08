@@ -15,7 +15,8 @@
   if(key!==previewKey){
    release();previewKey=key;
    // Source bounds are fixed for the entire drag; the result is their weighted blend.
-   const svgs=sources.map(E.reviewSVG),boxes=svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)),left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
+   const points=sources.flatMap(s=>s.processed_strokes.flatMap(st=>st.points.map(p=>({x:p.x,y:p.y+s.baseline_shift_mm*16}))));
+   const left=Math.min(...points.map(p=>p.x))-20,top=Math.min(...points.map(p=>p.y))-20,right=Math.max(...points.map(p=>p.x))+20,bottom=Math.max(...points.map(p=>p.y))+20;
    items.forEach((item,i)=>{
     const figure=document.createElement('figure'),caption=document.createElement('figcaption'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');if(i===count)figure.className='blend-result';
     svg.setAttribute('viewBox',`${left} ${top} ${right-left} ${bottom-top}`);svg.setAttribute('role','img');svg.setAttribute('aria-label',i<count?'Source '+String.fromCharCode(65+i):'Blended result');
@@ -53,6 +54,11 @@
  }
  function letters(){const old=$('single-letter').value,available=pool().filter(s=>s.included&&!s.derived);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
  async function load(){files=await window.StudioStorage.snapshot();const previous=$('single-writer').value;$('single-writer').replaceChildren();for(const writer of E.catalog(files).writers){const option=document.createElement('option');option.value=writer.writer;option.textContent=writer.writer;$('single-writer').append(option);}if([...$('single-writer').options].some(o=>o.value===previous))$('single-writer').value=previous;letters();}
+ function previewControls(){
+  $('single-cards').dataset.guides=String($('single-guides').checked);
+  const zoom=Number($('single-zoom').value);$('single-cards').style.width=zoom+'%';$('single-zoom-value').textContent=zoom+'%';
+ }
+ $('single-guides').addEventListener('change',previewControls);$('single-zoom').addEventListener('input',previewControls);previewControls();
  $('single-pool')?.addEventListener('change',letters);$('single-writer').addEventListener('change',letters);$('single-letter').addEventListener('change',sourceControls);$('single-count').addEventListener('change',sourceControls);for(const id of ['single-horizontal','single-vertical'])$(id).addEventListener('input',render);
  $('single-refresh').onclick=()=>load().catch(e=>status(e.message));
  $('single-save').onclick=async()=>{if(!result||busy)return;busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.blend-bottom-controls input'),$('single-refresh')];controls.forEach(c=>c.disabled=true);
