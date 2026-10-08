@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting Studio · Letter capture</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>
+</head>
+<body>
+<main id="notebook" class="letter-capture">
+  <section class="controls" aria-label="Capture settings">
+    <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
+<header>
+      <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
+      <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button></nav>
+      <button id="saved-pages" hidden>Saved pages</button>
+    </header>
+    <div class="capture-heading"><strong id="capture-step">Practice · not saved</strong><span id="sample-counts"></span><button id="more-sheets" hidden>Capture another set</button></div>
+    <p class="capture-instruction" id="capture-instruction">Try one letter in each labelled box. Keep a, c and e small; b and d reach the tall-letter line. Start capture when comfortable.</p>
+    <div id="guidance" hidden>
+      <p>Use your usual handwriting, one example per box. Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets. Start capture continues after your latest saved sheet.</p>
+      <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These letters keep the drawn baseline; other letters settle onto it automatically. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
+      <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="notebook.html">Open free writing</a>.</p>
+    </div>
+    <div class="toolbar">
+      <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
+      <div class="guide-options" role="group" aria-label="Writing guides">
+        <span>Guides:</span>
+        <label><input id="guides" type="checkbox" checked> Baseline</label>
+        <label><input id="guide-small" type="checkbox" checked> Small letters</label>
+        <label><input id="guide-tall" type="checkbox" checked> Tall letters</label>
+        <label><input id="guide-tail" type="checkbox" checked> Tails</label>
+        <label><input id="guide-shading" type="checkbox" checked> Shading</label>
+      </div>
+      <span id="input">Ready for Pencil</span>
+    </div>
+  </section>
+  <div class="paper"><canvas id="paper" aria-label="Practice: write a, c, e, b, d in the five labelled boxes" width="1000" height="500"></canvas></div>
+  <div class="actions">
+    <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="clear">Clear sheet</button>
+    <button id="save" class="primary">Start capture</button><button id="export">Download sheet SVG</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Enter a writer name. Practice is optional; Start capture opens your next alphabet sheet.</p>
+</main>
+
+<script src="assets/app.js"></script>
+<script src="assets/capture.js"></script>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js"></script>
+</body>
+</html>

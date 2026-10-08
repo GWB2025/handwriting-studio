@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../static/compose.js'), 'utf8');
+const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
 async function composer() {
@@ -46,6 +46,7 @@ async function composer() {
           available_counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])),
           counts: {a: limit, b: limit, c: limit, d: limit, e: limit}, newest_saved_at: server.savedAt,writer_revision:server.revision}}};
     }});
+  context.window.studioFetch=context.fetch;
   vm.runInContext(source, context); await settle();
   return {elements, window, document, requests, revoked, downloads, server};
 }
