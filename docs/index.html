@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Letter capture</title>
 <link rel="stylesheet" href="assets/style.css?v=e206eed18896">
-<script src="assets/engine.js?v=80ed8f5eb1ee"></script><script src="assets/browser-api.js?v=702195417705"></script>
+<script src="assets/engine.js?v=14f786b5b02c"></script><script src="assets/browser-api.js?v=6229ebc7c2fa"></script>
 </head>
 <body>
 <main id="notebook" class="letter-capture">
@@ -13,7 +13,7 @@
     <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
 <header>
       <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
-      <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button><a class="button" href="calibration.html">Calibration</a></nav>
+      <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button><a class="button" href="calibration.html">Calibration</a><a class="button" href="blending.html">Blend a character</a></nav>
       <button id="saved-pages" hidden>Saved pages</button>
     </header>
     <label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs</option></select></label><div class="capture-heading"><strong id="capture-step">Practice · not saved</strong><span id="sample-counts"></span><button id="more-sheets" hidden>Capture another set</button></div>

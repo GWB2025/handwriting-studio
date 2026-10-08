@@ -30,9 +30,10 @@
       for(const f of backup.files){if(map.has(f.key)&&!E.same(map.get(f.key),f.value))throw Error('A saved record has different content in this backup. Nothing was imported. Import into a fresh browser to keep both versions.');}
       const merged=new Map([...map,...backup.files.map(f=>[f.key,f.value])]);
       for(const [key,r] of merged)if(key.startsWith('letter_reviews/')){
-        const capture=merged.get('letters/'+r.capture_id+'.json');
+        const capture=merged.get('letters/'+r.capture_id+'.json')||merged.get('blends/'+r.capture_id+'.json');
         if(!capture||Object.keys(r.reviews).some(letter=>!capture.order.includes(letter)))throw Error('A review is missing its original letter capture. Nothing was imported.');
       }
+      E.validateBlendReferences([...merged].map(([key,value])=>({key,value})));
       for(const f of backup.files)if(!map.has(f.key)){store.add(f);added++;}return added;
     });
   }
@@ -42,6 +43,11 @@
     try{
       if(options.signal?.aborted)throw new DOMException('Aborted','AbortError');
       const u=new URL(url,window.location.href),path=u.pathname,method=options.method||'GET',data=options.body?JSON.parse(options.body):null;
+      if(method==='POST'&&path==='/api/blends')return await transaction((files,store)=>{
+        const record=E.createSavedBlend(files,data),key='blends/'+record.id+'.json',old=files.find(f=>f.key===key)?.value;
+        if(old){if(!['writer','order','source_ids','source_shifts','weights','samples'].every(k=>E.same(old[k],record[k])))return json({error:'Save identifier is already in use.'},409);return json({id:old.id,saved_at:old.saved_at});}
+        store.add({key,value:record});return json({id:record.id,saved_at:record.saved_at},201);
+      });
       if(method==='POST'&&path==='/api/letters/pages'){
         const record=E.capture(data),key='letters/'+record.id+'.json';
         return await transaction((files,store)=>{
@@ -60,7 +66,7 @@
       if(method==='POST'&&review){
         E.validateReview(data);
         return await transaction((files,store)=>{
-          const capture=files.find(f=>f.key==='letters/'+review[1]+'.json')?.value,sample=capture?.samples.find(s=>s.letter===review[2]);
+          const capture=files.find(f=>f.key==='letters/'+review[1]+'.json'||f.key==='blends/'+review[1]+'.json')?.value,sample=capture?.samples.find(s=>s.letter===review[2]);
           if(!sample)return json({error:'This capture is no longer available.'},404);
           const key='letter_reviews/'+capture.id+'.json',reviews=E.clone(files.find(f=>f.key===key)?.value.reviews||{}),setting={included:data.included,baseline_shift_mm:data.baseline_shift_mm,reviewed_at:new Date().toISOString()};
           reviews[review[2]]=setting;store.put({key,value:{schema_version:1,capture_id:capture.id,reviews}});
@@ -74,7 +80,7 @@
       if(method==='GET'&&path==='/api/letters/writers')return json({writers:E.catalog(files).writers,unavailable_count:0});
       if(method==='GET'&&path==='/api/letters/samples'){
         const letter=u.searchParams.get('letter');if(!letter||![...E.characters,...E.pairs].includes(letter))throw Error('Choose a captured character or joined pair.');
-        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s)})),unavailable_count:0});
+        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,derived:!!s.derived,stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s)})),unavailable_count:0});
       }
       if(method==='POST'&&path==='/api/compose')return json(E.compose(files,data));
       return json({error:'Unknown browser operation.'},404);

@@ -88,11 +88,30 @@
   }
   function size(record){if(new TextEncoder().encode(JSON.stringify(record)).length>8*1024*1024)fail('This page is too large to save. Download its SVG and start a smaller page.');}
   function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10))fail('Choose whether to use this sample and a baseline shift between −10 and 10 mm.');}
+  function createSavedBlend(files,data){
+    if(!uuid(data.id)||typeof data.writer!=='string'||!Array.isArray(data.source_ids)||![2,4].includes(data.source_ids.length)||new Set(data.source_ids).size!==data.source_ids.length||!finite(data.horizontal,0,100)||!finite(data.vertical,0,100))fail('Choose two or four distinct source samples and valid mix controls.');
+    const all=catalog(files).byWriter.get(data.writer)||[],sources=data.source_ids.map(id=>all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived));
+    if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
+    const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
+    if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
+    const sample={letter:data.letter,processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm};
+    return {schema_version:4,derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
+  }
+  function validateBlendReferences(files){
+    const map=new Map(files.map(f=>[f.key,f.value]));
+    for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample||capture.writer!==r.writer)fail('A saved blend is missing an original source.');return {...sample,capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
+      const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
+    }
+  }
   function validateRecord(key,r){
     if(!r||!uuid(r.id||r.capture_id))fail('Unsupported backup record.');
     if(key==='letter_reviews/'+r.capture_id+'.json'){
       if(r.schema_version!==1||!r.reviews||typeof r.reviews!=='object'||Array.isArray(r.reviews))fail('Invalid review record.');
       for(const [letter,review] of Object.entries(r.reviews)){if(!([...characters,...pairs].includes(letter)))fail('Invalid review letter.');validateReview(review);}return;
+    }
+    if(key==='blends/'+r.id+'.json'){
+      size(r);if(r.schema_version!==4||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
+      const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
     size(r);validateContent(r.writer,r.raw_strokes,r.display_smoothing);
     if(typeof r.saved_at!=='string'||!/(Z|[+-]\d\d:\d\d)$/.test(r.saved_at)||!Number.isFinite(Date.parse(r.saved_at)))fail('Invalid save time.');
@@ -105,19 +124,19 @@
     if(!same(r.samples,extract(r.raw_strokes,r.order,r.schema_version)))fail('Processed samples do not match the original writing.');
   }
   function catalog(files){
-    const records=files.filter(f=>f.key.startsWith('letters/')).map(f=>f.value).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at)||b.id.localeCompare(a.id));
+    const records=files.filter(f=>f.key.startsWith('letters/')||f.key.startsWith('blends/')).map(f=>f.value).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at)||b.id.localeCompare(a.id));
     const reviews=new Map(files.filter(f=>f.key.startsWith('letter_reviews/')).map(f=>[f.value.capture_id,f.value.reviews]));
     const profiles=new Map(),byWriter=new Map(),states=new Map(),next=new Set();
     for(const r of records){
       if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
       profile.capture_progress??={};
-      if(r.schema_version>=2&&!profile.capture_progress[r.plan_id])profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%getPlan(r.plan_id).orders.length,capture_orders:clone(r.capture_orders||getPlan(r.plan_id).orders)};
+      if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id])profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%getPlan(r.plan_id).orders.length,capture_orders:clone(r.capture_orders||getPlan(r.plan_id).orders)};
       if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
-      for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:0};
+      for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
-        byWriter.get(r.writer).push({...s,...setting,capture_id:r.id,saved_at:r.saved_at});
+        byWriter.get(r.writer).push({...s,...setting,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
     for(const [writer,p] of profiles){p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
@@ -231,6 +250,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

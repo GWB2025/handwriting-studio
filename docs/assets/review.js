@@ -57,7 +57,7 @@
     $('sample-detail').hidden=!sample;
     if(!sample){$('sample-image').removeAttribute('src');controls();return;}
     $('sample-title').textContent=sample.letter+' · '+(sample.included?'Included':'Excluded');
-    $('sample-date').textContent='Saved '+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
+    $('sample-date').textContent=(sample.derived?'Saved blend · ':'Saved ')+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
     imageURL=URL.createObjectURL(new Blob([sample.svg],{type:'image/svg+xml'}));$('sample-image').src=imageURL;
     $('sample-included').checked=sample.included;$('sample-shift').value=sample.baseline_shift_mm;
     for(const button of $('sample-list').querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.captureId===sample.capture_id));
@@ -68,7 +68,7 @@
     for(const [index,sample] of samples.entries()){
       const button=document.createElement('button');button.type='button';button.className='page-card';button.dataset.captureId=sample.capture_id;
       const title=document.createElement('strong');title.textContent='Example '+(samples.length-index)+' · '+(sample.included?'Included':'Excluded');
-      const date=document.createElement('span');date.textContent=new Date(sample.saved_at).toLocaleString();
+      const date=document.createElement('span');date.textContent=(sample.derived?'Blend · ':'')+new Date(sample.saved_at).toLocaleString();
       button.append(title,date);button.onclick=()=>{showSample(sample);status('Viewing '+sample.letter+'. Choose whether to use this example, then save any changes.');};
       $('sample-list').append(button);
     }

@@ -47,3 +47,16 @@ test('new character and joined-pair reviews survive backup and encoded punctuati
  const restored=browser();await restored.StudioStorage.importBackup(await b.StudioStorage.backup());
  const profile=(await call(restored,'/api/letters/writers')).data.writers[0];for(const token of ['/','+','Z','th'])assert.equal(profile.counts[token],0);
 });
+test('saved single-character blends persist, retry safely, review and round-trip through backup',async()=>{
+ const {files}=require('./browser_helpers');const originals=files(),b=browser();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:originals});
+ const samples=E.catalog(originals).byWriter.get('Writer').filter(s=>s.letter==='a'),request={id:webcrypto.randomUUID(),writer:'Writer',letter:'a',source_ids:samples.slice(0,2).map(s=>s.capture_id),horizontal:30,vertical:50};
+ const saved=await call(b,'/api/blends',request);assert.equal(saved.status,201);assert.equal((await call(b,'/api/blends',request)).status,200);
+ const snapshot=await b.StudioStorage.snapshot();assert.equal(snapshot.filter(f=>f.key.startsWith('blends/')).length,1);for(const f of originals)assert.deepEqual(snapshot.find(s=>s.key===f.key).value,f.value);
+ const derived=E.catalog(snapshot).byWriter.get('Writer').find(s=>s.derived);assert(derived);assert.equal(derived.letter,'a');
+ assert.equal((await call(b,'/api/letters/samples/'+request.id+'/a/review',{included:false,baseline_shift_mm:0})).status,200);
+ const backup=await b.StudioStorage.backup(),fresh=browser();assert.equal(await fresh.StudioStorage.importBackup(backup),backup.files.length);
+ assert.equal(E.catalog(await fresh.StudioStorage.snapshot()).byWriter.get('Writer').find(s=>s.capture_id===request.id).included,false);
+ const broken=structuredClone(backup);broken.files.find(f=>f.key.startsWith('blends/')).value.samples[0].processed_strokes[0].points[0].x+=1;
+ await assert.rejects(browser().StudioStorage.importBackup(broken),/match its sources/);
+ const incomplete=structuredClone(backup);incomplete.files=incomplete.files.filter(f=>f.key!=='letters/'+request.source_ids[0]+'.json');await assert.rejects(browser().StudioStorage.importBackup(incomplete),/missing an original source/);
+});
