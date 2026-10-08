@@ -7,17 +7,32 @@
   const count=Number($('single-count').value);$('single-vertical-label').hidden=count!==4;
   $('single-horizontal-value').textContent=$('single-horizontal').value+'% right';$('single-vertical-value').textContent=$('single-vertical').value+'% bottom';
   sources=Array.from($('single-sources').querySelectorAll('select')).map(s=>samples.find(p=>p.capture_id===s.value));
+  if(samples.length<count){status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
   if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){status('Choose '+count+' distinct original samples.');return;}
   const h=Number($('single-horizontal').value)/100,v=Number($('single-vertical').value)/100,weights=count===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];
   result=E.blendMany(sources,weights);const items=result?[...sources,result]:sources;
   const svgs=items.map(E.reviewSVG),boxes=svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)),left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
-  svgs.forEach((svg,i)=>{const figure=document.createElement('figure'),caption=document.createElement('figcaption'),img=document.createElement('img');caption.textContent=i<count?'Source '+String.fromCharCode(65+i)+' · '+Math.round(weights[i]*100)+'%':'Blended result';const url=URL.createObjectURL(new Blob([svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`)],{type:'image/svg+xml'}));urls.push(url);img.src=url;img.alt=caption.textContent;figure.append(caption,img);$('single-cards').append(figure);});
+  svgs.forEach((svg,i)=>{const figure=document.createElement('figure'),caption=document.createElement('figcaption'),img=document.createElement('img');caption.textContent=i<count?'Source '+String.fromCharCode(65+i)+' · Sample '+(samples.findIndex(s=>s.capture_id===sources[i].capture_id)+1)+' · '+Math.round(weights[i]*100)+'%':'Blended result';const url=URL.createObjectURL(new Blob([svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`)],{type:'image/svg+xml'}));urls.push(url);img.src=url;img.alt=caption.textContent;figure.append(caption,img);$('single-cards').append(figure);});
   $('single-cards').dataset.count=String(count);$('single-save').disabled=busy||!result;
   status(result?'Live preview · originals remain unchanged. Save adds this result as another sample for Review and Compose.':'These samples have incompatible strokes. Choose matching stroke counts and directions.');
  }
- function sourceControls(){const selected=Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
+ function sourceControls(){
+  const selected=Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
   samples=(E.catalog(files).byWriter.get($('single-writer').value)||[]).filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
-  for(let i=0;i<count;i++){const label=document.createElement('label'),select=document.createElement('select');label.append('Source '+String.fromCharCode(65+i)+' ',select);for(const sample of samples){const option=document.createElement('option');option.value=sample.capture_id;option.textContent=new Date(sample.saved_at).toLocaleString()+' · '+sample.capture_id.slice(0,8)+' · '+sample.processed_strokes.length+' strokes';select.append(option);}select.value=samples.some(s=>s.capture_id===selected[i])?selected[i]:(samples[i]?.capture_id||'');select.addEventListener('change',render);$('single-sources').append(label);}
+  const used=new Set();
+  for(let i=0;i<count;i++){
+   const label=document.createElement('label'),select=document.createElement('select');label.append('Source '+String.fromCharCode(65+i)+' ',select);
+   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a different original sample';select.append(placeholder);
+   samples.forEach((sample,j)=>{const option=document.createElement('option');option.value=sample.capture_id;option.textContent='Sample '+(j+1)+' · '+new Date(sample.saved_at).toLocaleString()+' · '+sample.capture_id.slice(0,8)+' · '+sample.processed_strokes.length+' strokes';select.append(option);});
+   select.value=samples.some(s=>s.capture_id===selected[i]&&!used.has(s.capture_id))?selected[i]:(samples.find(s=>!used.has(s.capture_id))?.capture_id||'');if(select.value)used.add(select.value);
+   select.dataset.previous=select.value;select.disabled=samples.length<count&&i>=samples.length;
+   select.addEventListener('change',()=>{
+    const all=Array.from($('single-sources').querySelectorAll('select')),previous=select.dataset.previous;
+    const other=select.value&&all.find(s=>s!==select&&s.value===select.value);
+    if(other)other.value=previous||'';
+    all.forEach(s=>s.dataset.previous=s.value);render();
+   });$('single-sources').append(label);
+  }
   render();
  }
  function letters(){const old=$('single-letter').value,profile=E.catalog(files).writers.find(p=>p.writer===$('single-writer').value);$('single-letter').replaceChildren();for(const letter of Object.keys(profile?.counts||{})){const originals=(E.catalog(files).byWriter.get(profile.writer)||[]).filter(s=>s.letter===letter&&s.included&&!s.derived);if(!originals.length)continue;const option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
