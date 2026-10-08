@@ -5,7 +5,7 @@
  function release(){previewKey='';views=[];$('single-cards').replaceChildren();}
  function render(){result=null;saveID='';$('single-save').disabled=true;
   const count=Number($('single-count').value);$('single-vertical-label').hidden=count!==4;
-  $('single-horizontal-value').textContent=$('single-horizontal').value+'% right';$('single-vertical-value').textContent=$('single-vertical').value+'% bottom';
+  $('single-horizontal-value').textContent=$('single-horizontal').value+'% right';$('single-vertical-value').textContent=$('single-vertical').value+'% bottom';$('single-vertical').setAttribute('aria-valuetext',$('single-vertical').value+'% bottom pair');
   sources=Array.from($('single-sources').querySelectorAll('select')).map(s=>samples.find(p=>p.capture_id===s.value));
   if(samples.length<count){release();status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
   if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){release();status('Choose '+count+' distinct original samples.');return;}
@@ -61,7 +61,7 @@
  $('single-guides').addEventListener('change',previewControls);$('single-zoom').addEventListener('input',previewControls);previewControls();
  $('single-pool')?.addEventListener('change',letters);$('single-writer').addEventListener('change',letters);$('single-letter').addEventListener('change',sourceControls);$('single-count').addEventListener('change',sourceControls);for(const id of ['single-horizontal','single-vertical'])$(id).addEventListener('input',render);
  $('single-refresh').onclick=()=>load().catch(e=>status(e.message));
- $('single-save').onclick=async()=>{if(!result||busy)return;busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.blend-bottom-controls input'),$('single-refresh')];controls.forEach(c=>c.disabled=true);
+ $('single-save').onclick=async()=>{if(!result||busy)return;busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.blend-bottom-controls input,.blend-preview-area input'),$('single-refresh')];controls.forEach(c=>c.disabled=true);
   try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal:Number($('single-horizontal').value),vertical:Number($('single-vertical').value)})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();}
   catch(e){status('Could not save: '+e.message);$('single-save').disabled=false;}
   finally{busy=false;controls.forEach(c=>c.disabled=false);}
