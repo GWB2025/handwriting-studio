@@ -15,6 +15,10 @@
     $('review-writer').disabled=busy || dirty || !profiles.length;
     $('review-letter').disabled=busy || dirty || !profiles.length;
     $('review-refresh').disabled=busy || dirty;
+    for(const button of $('review-alphabet').querySelectorAll('button')){
+      button.disabled=busy || dirty || !profiles.length;
+      button.setAttribute('aria-pressed',String(button.dataset.letter===$('review-letter').value));
+    }
     $('sample-included').disabled=busy || !selected;
     $('sample-shift').disabled=busy || !selected;
     const shift=$('sample-shift').value.trim(),number=Number(shift);
@@ -32,6 +36,15 @@
       $('review-letter').append(option);
     }
     $('review-letter').value=previous || [...alphabet].find(letter=>profile?.total_counts[letter]) || 'a';
+    $('review-alphabet').replaceChildren();
+    for(const letter of alphabet){
+      const count=profile?.total_counts[letter] || 0;
+      const button=document.createElement('button');button.type='button';button.dataset.letter=letter;
+      button.textContent=letter+' · '+count;
+      button.setAttribute('aria-label','Review '+letter+' · '+count+' saved '+(count===1?'sample':'samples'));
+      button.onclick=()=>{if(busy || dirty)return;$('review-letter').value=letter;load();};
+      $('review-alphabet').append(button);
+    }
     const missing=[...alphabet].filter(letter=>!profile?.counts[letter]);
     $('review-coverage').textContent=profile?(26-missing.length)+' of 26 letters ready to compose.'+(missing.length?' Still needed: '+missing.join(', ')+'.':' All lowercase letters are ready.'):'No saved letters yet. Start on Capture letters.';
   }
