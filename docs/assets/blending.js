@@ -1,18 +1,33 @@
 'use strict';
 (async()=>{
- const E=window.StudioEngine,$=id=>document.getElementById(id);let files=[],samples=[],sources=[],result=null,saveID='',urls=[],busy=false;
- const status=text=>$('blend-status').textContent=text;
- function release(){urls.forEach(url=>URL.revokeObjectURL(url));urls=[];$('single-cards').replaceChildren();}
- function render(){release();result=null;saveID='';$('single-save').disabled=true;
+ const E=window.StudioEngine,$=id=>document.getElementById(id);let files=[],samples=[],sources=[],result=null,saveID='',previewKey='',views=[],busy=false;
+ const status=text=>{if($('blend-status').textContent!==text)$('blend-status').textContent=text;};
+ function release(){previewKey='';views=[];$('single-cards').replaceChildren();}
+ function render(){result=null;saveID='';$('single-save').disabled=true;
   const count=Number($('single-count').value);$('single-vertical-label').hidden=count!==4;
   $('single-horizontal-value').textContent=$('single-horizontal').value+'% right';$('single-vertical-value').textContent=$('single-vertical').value+'% bottom';
   sources=Array.from($('single-sources').querySelectorAll('select')).map(s=>samples.find(p=>p.capture_id===s.value));
-  if(samples.length<count){status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
-  if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){status('Choose '+count+' distinct original samples.');return;}
+  if(samples.length<count){release();status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
+  if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){release();status('Choose '+count+' distinct original samples.');return;}
   const h=Number($('single-horizontal').value)/100,v=Number($('single-vertical').value)/100,weights=count===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];
   result=E.blendMany(sources,weights);const items=result?[...sources,result]:sources;
-  const svgs=items.map(E.reviewSVG),boxes=svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)),left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
-  svgs.forEach((svg,i)=>{const figure=document.createElement('figure'),caption=document.createElement('figcaption'),img=document.createElement('img');if(i===count)figure.className='blend-result';caption.textContent=i<count?'Source '+String.fromCharCode(65+i)+' · Sample '+(samples.findIndex(s=>s.capture_id===sources[i].capture_id)+1)+' · '+Math.round(weights[i]*100)+'%':'Blended result';const url=URL.createObjectURL(new Blob([svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`)],{type:'image/svg+xml'}));urls.push(url);img.src=url;img.alt=caption.textContent;figure.append(caption,img);$('single-cards').append(figure);});
+  const key=JSON.stringify(sources.map(s=>[s.capture_id,s.letter,s.baseline_shift_mm]))+'|'+Boolean(result);
+  if(key!==previewKey){
+   release();previewKey=key;
+   // Source bounds are fixed for the entire drag; the result is their weighted blend.
+   const svgs=sources.map(E.reviewSVG),boxes=svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)),left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
+   items.forEach((item,i)=>{
+    const figure=document.createElement('figure'),caption=document.createElement('figcaption'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');if(i===count)figure.className='blend-result';
+    svg.setAttribute('viewBox',`${left} ${top} ${right-left} ${bottom-top}`);svg.setAttribute('role','img');svg.setAttribute('aria-label',i<count?'Source '+String.fromCharCode(65+i):'Blended result');
+    svg.innerHTML=E.reviewSVG(item).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    figure.append(caption,svg);$('single-cards').append(figure);views.push({caption,svg});
+   });
+  }else if(result){
+   // Update the existing paths in place: no image downloads or collapsing card grid.
+   const paths=Array.from(views[count].svg.querySelectorAll('path')),data=[...E.reviewSVG(result).matchAll(/<path d="([^"]+)"/g)];
+   data.forEach((match,i)=>paths[i].setAttribute('d',match[1]));
+  }
+  views.forEach(({caption},i)=>{const text=i<count?'Source '+String.fromCharCode(65+i)+' · Sample '+(samples.findIndex(s=>s.capture_id===sources[i].capture_id)+1)+' · '+Math.round(weights[i]*100)+'%':'Blended result';if(caption.textContent!==text)caption.textContent=text;});
   $('single-cards').dataset.count=String(count);$('single-save').disabled=busy||!result;
   status(result?'Live preview · originals remain unchanged. Save adds this result as another sample for Review and Compose.':'These samples have incompatible strokes. Choose matching stroke counts and directions.');
  }
