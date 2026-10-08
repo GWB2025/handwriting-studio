@@ -1,6 +1,7 @@
 """Build a standalone Pages site without copying any personal data."""
 from pathlib import Path
 import re
+import hashlib
 ROOT = Path(__file__).resolve().parents[1]
 DEST = ROOT / 'docs'
 DEST.mkdir(exist_ok=True)
@@ -35,6 +36,8 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     banner,modal=notice.split('<dialog',1)
     html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')
+    # Changed assets get fresh URLs when a tablet reloads the page.
+    html=re.sub(r'assets/([a-z.-]+)', lambda m: m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12], html)
     (DEST/target).write_text(html)
 (DEST/'.nojekyll').write_text('')
 print('Built four Pages screens and browser-only assets in docs/. No handwriting data was copied.')

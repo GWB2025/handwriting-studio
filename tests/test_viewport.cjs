@@ -8,7 +8,8 @@ const source = fs.readFileSync(require('node:path').join(__dirname, (process.env
 function notebook(guided = false, profiles = []) {
   const listeners = target => {
     const events = {};
-    target.addEventListener = (name, fn) => (events[name] ??= []).push(fn);
+    target.listenerOptions = {};
+    target.addEventListener = (name, fn, options) => {target.listenerOptions[name]=options; (events[name] ??= []).push(fn);};
     target.emit = (name, event = {}) => (events[name] || []).forEach(fn => fn(event));
     return target;
   };
@@ -259,4 +260,44 @@ test('six-sheet alphabet capture reaches review and resumes after the latest sav
   assert.equal(n.elements['capture-step'].textContent,'Alphabet set complete');
   assert.equal(n.elements['more-sheets'].hidden,false);
   assert.match(n.elements['review-link'].href,/writer=Writer/);
+});
+
+test('rapid dot contacts suppress browser gestures and keep both raw dots', () => {
+  const n = notebook();
+  for (const time of [100, 180]) {
+    const pen = {pointerType:'pen', pointerId:7, clientX:250, clientY:100,
+      timeStamp:time, pressure:.4, tiltX:0, tiltY:0, preventDefault(){this.prevented=true;}};
+    n.elements.paper.emit('pointerdown', pen);
+    assert.equal(pen.prevented, true);
+    const up = {...pen, prevented:false, timeStamp:time+10};
+    n.window.emit('pointerup', up);
+    assert.equal(up.prevented, true);
+    n.flush();
+  }
+  for (const name of ['touchstart','touchmove','touchend','gesturestart','gesturechange','gestureend','dblclick']) {
+    const event = {preventDefault(){this.prevented=true;}};
+    n.elements.paper.emit(name, event);
+    assert.equal(event.prevented, true, name);
+    assert.equal(n.elements.paper.listenerOptions[name].passive, false);
+    const writerEvent = {preventDefault(){this.prevented=true;}};
+    n.elements.writer.emit(name, writerEvent);
+    assert.equal(writerEvent.prevented, undefined, 'writer retains native '+name);
+  }
+  assert.equal(vm.runInContext('strokes.length', n.context), 2);
+  assert.equal(vm.runInContext('strokes.every(s=>s.points.every(p=>p.x===250 && p.y===100))', n.context), true);
+});
+
+test('layout changes during a stroke preserve canvas size and its initial coordinate mapping', () => {
+  const n = notebook();
+  const before = {...n.elements.paper.style};
+  const pen = {pointerType:'pen', pointerId:7, clientX:250, clientY:100,
+    timeStamp:100, pressure:.4, tiltX:0, tiltY:0, preventDefault(){}};
+  n.elements.paper.emit('pointerdown', pen);
+  n.elements.paper.getBoundingClientRect = () => ({width:500,height:250,left:100,top:50});
+  n.window.emit('pointermove', {...pen, clientX:300, timeStamp:110}); n.flush();
+  assert.deepEqual(n.elements.paper.style, before);
+  assert.equal(vm.runInContext('active.points.at(-1).x', n.context), 300);
+  n.window.emit('pointerup', {...pen, clientX:300, timeStamp:120}); n.flush();
+  assert.equal(vm.runInContext('strokes[0].points.at(-1).x', n.context), 300);
+  assert.notEqual(n.elements.paper.style.width, before.width);
 });

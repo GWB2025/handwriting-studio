@@ -1,6 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id), canvas=$('paper'), ctx=canvas.getContext('2d');
 let strokes=[],undone=[],active=null,origin=null,dirty=false,frame=null,saving=false;
+let activeBounds=null;
 let saved=false,finishedWriter='';
 function updateSave(){
   // Prevent palm contact from focusing/selecting the name during a Pencil stroke.
@@ -58,36 +59,40 @@ function pathCommands(points,smooth){
   const end=points.at(-1);commands.push(['L',end.x,end.y]);return commands;
 }
 function render(){
-  frame=null;const box=canvas.parentElement.getBoundingClientRect();
-  const cw=Math.max(2,Math.min(box.width-2,(box.height-2)*2));
-  canvas.style.width=cw+'px';canvas.style.height=(cw/2)+'px';
-  const dpr=window.devicePixelRatio||1,r=canvas.getBoundingClientRect();
-  const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));
-  if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
-  ctx.setTransform(w/1000,0,0,h/500,0,0);ctx.clearRect(0,0,1000,500);
+  frame=null;
+  // Keep the paper and its coordinate mapping fixed until the Pencil lifts.
+  if(!active){
+    const box=canvas.parentElement.getBoundingClientRect();
+    const cw=Math.max(2,Math.min(box.width-2,(box.height-2)*2));
+    canvas.style.width=cw+'px';canvas.style.height=(cw/2)+'px';
+    const dpr=window.devicePixelRatio||1,r=canvas.getBoundingClientRect();
+    const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));
+    if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
+  }
+  ctx.setTransform(canvas.width/1000,0,0,canvas.height/500,0,0);ctx.clearRect(0,0,1000,500);
   if(window.notebookMode)window.notebookMode.drawGuides(ctx);
   else if($('guides').checked){ctx.strokeStyle='#dce2d8';ctx.lineWidth=.7;for(let y=90;y<500;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1000,y);ctx.stroke();}}
   ctx.strokeStyle='#203832';ctx.fillStyle='#203832';ctx.lineWidth=1.8;ctx.lineCap='round';ctx.lineJoin='round';
   for(const s of [...strokes,...(active?[active]:[])]){
     ctx.beginPath();for(const [op,...v] of pathCommands(s.points,$('smooth').checked)){if(op==='M')ctx.moveTo(...v);else if(op==='L')ctx.lineTo(...v);else ctx.quadraticCurveTo(...v);}ctx.stroke();
-    if(s.points.length===1){const p=s.points[0];ctx.beginPath();ctx.arc(p.x,p.y,.9,0,Math.PI*2);ctx.fill();}
+    if(s.points.length && s.points.every(p=>p.x===s.points[0].x && p.y===s.points[0].y)){const p=s.points[0];ctx.beginPath();ctx.arc(p.x,p.y,.9,0,Math.PI*2);ctx.fill();}
   }
 }
 function redraw(){if(frame===null)frame=requestAnimationFrame(render);}
 function point(e){
-  const r=canvas.getBoundingClientRect();
+  const r=activeBounds;
   const prev=active.points.at(-1)?.t??strokes.at(-1)?.points.at(-1)?.t??0;
   // Continue a reopened page's timeline without modifying its recorded points.
   if(origin===null)origin=e.timeStamp-prev;
   active.points.push({x:Math.max(0,Math.min(1000,(e.clientX-r.left)*1000/r.width)),y:Math.max(0,Math.min(500,(e.clientY-r.top)*500/r.height)),t:Math.max(prev,e.timeStamp-origin),pressure:Number.isFinite(e.pressure)?e.pressure:null,tiltX:Number.isFinite(e.tiltX)?e.tiltX:null,tiltY:Number.isFinite(e.tiltY)?e.tiltY:null});
 }
-function release(){if(!active)return;const id=active.id;active=null;try{if(canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);}catch{}fitPage();}
+function release(){if(!active)return;const id=active.id;active=null;activeBounds=null;try{if(canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);}catch{}fitPage();}
 function interrupt(){if(!active)return;release();message('Contact interrupted; unfinished stroke discarded. Completed strokes remain.');redraw();}
 canvas.addEventListener('pointerdown',e=>{
   if(e.pointerType!=='pen' && !(e.pointerType==='mouse' && e.button===0))return;
   if(saving){message('Saving this page — please wait.');return;}
   if(active)return;
-  e.preventDefault();active={id:e.pointerId,pointerType:e.pointerType,points:[]};point(e);dirty=true;
+  e.preventDefault();activeBounds=canvas.getBoundingClientRect();active={id:e.pointerId,pointerType:e.pointerType,points:[]};point(e);dirty=true;
   // preventDefault keeps input focus; explicitly dismiss name entry without
   // discarding this first point or resizing the paper until the stroke ends.
   if(document.activeElement===$('writer'))finishWriter();
@@ -97,13 +102,21 @@ canvas.addEventListener('pointerdown',e=>{
 });
 window.addEventListener('pointermove',e=>{
   if(!active || active.id!==e.pointerId)return;
+  e.preventDefault();
   const coalesced=e.getCoalescedEvents?.()||[];
   for(const item of coalesced.length?coalesced:[e])point(item);redraw();
 });
 window.addEventListener('pointerup',e=>{
   if(!active || active.id!==e.pointerId)return;
+  e.preventDefault();
   point(e);const {id,...stroke}=active;release();strokes.push(stroke);undone=[];updateSave();redraw();
 });
+// Safari can treat short Pencil contacts or palm touches as browser gestures,
+// even with touch-action on the absolutely positioned drawing canvas. Keep
+// native gestures off the paper only; controls and name entry stay native.
+for(const name of ['touchstart','touchmove','touchend','gesturestart','gesturechange','gestureend','dblclick']){
+  canvas.parentElement.addEventListener(name,e=>e.preventDefault(),{passive:false});
+}
 window.addEventListener('pointercancel',e=>{if(active?.id===e.pointerId)interrupt();});
 window.addEventListener('blur',interrupt);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)interrupt();});
