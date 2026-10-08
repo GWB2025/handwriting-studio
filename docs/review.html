@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Review samples</title>
-<link rel="stylesheet" href="assets/style.css?v=b608cda2d024">
+<link rel="stylesheet" href="assets/style.css?v=62c2979f3de2">
 <script src="assets/engine.js?v=97bbc2e4ffee"></script><script src="assets/browser-api.js?v=a84ff76d16c6"></script>
 </head>
 <body class="compose-page">
@@ -17,6 +17,7 @@
     <label>Letter <select id="review-letter" disabled></select></label>
     <button id="review-refresh" disabled>Refresh samples</button>
   </div>
+  <div id="review-alphabet" class="review-alphabet" role="group" aria-label="Choose a letter to review"></div>
   <p id="review-coverage" class="subtle"></p>
   <p id="review-status" role="status" aria-live="polite">Loading your saved samples…</p>
   <div class="review-layout">
@@ -35,7 +36,7 @@
   </div>
   <p class="subtle">Original writing is kept. Review choices apply to this individual sample. Generate a fresh Compose preview after reviewing.</p>
 </div>
-<script src="assets/review.js?v=cbb34642bd17"></script>
+<script src="assets/review.js?v=c2f8d62c4304"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=a7cdc3cb8f3d"></script>
 </body>
