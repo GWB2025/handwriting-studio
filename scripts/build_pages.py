@@ -21,7 +21,7 @@ def adapt(text):
     text = text.replace('Check that the Mac is running the app, then tap Refresh list.','Try reopening this page in a regular browser window, then tap Refresh list.')
     text = text.replace('The Mac took too long', 'Browser storage took too long').replace('The Mac could not read this page.', 'Browser storage could not read this page.')
     return text
-for name in ['app.js','capture.js','compose.js','review.js','library.js','calibration.js']:
+for name in ['app.js','capture.js','compose.js','review.js','library.js','calibration.js','plotter.js']:
     (assets/name).write_text(adapt((ROOT/'static'/name).read_text()))
 style=(ROOT/'static/style.css').read_text()
 style+='\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'

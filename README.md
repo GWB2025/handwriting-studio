@@ -174,3 +174,18 @@ The previous a–e version is in `backups/before-lowercase-alphabet/`, including
 ## Verified plotter calibration
 
 Open **Calibration** from Capture, Review or Compose for the repeatable A4 check, preview and downloadable G-code/SVG. The procedure was physically verified by the owner on 8 October 2026: top-left home, +X right, −Y down, Z0.5 pen up, Z5 pen down, 115200 baud on the Mac USB connection. Run the pen-up movement check, the pen down/up check (no X/Y commands), then shapes, dimensions and centre on one fixed sheet. Rectangle 170 × 257 mm with 20 mm margins; circle diameter 160 mm; triangle 150 × 210 mm; centre X105 Y−148.5 with a 6 mm cross. Downloads use millimetres and absolute coordinates, lift between strokes and finish pen up; drawing stages return to X0 Y0. The page does not connect directly to USB or modify firmware calibration.
+
+## Plot your handwriting
+
+In Compose, generate a preview and choose **Download plotter G-code**. It exports that preview’s strokes in the same order; smoothing is flattened to straight segments within 0.02 mm. Dots receive a brief dwell. The file uses the verified pen settings, 20 mm A4 margins, negative Y down, pen lifts between strokes, and returns home pen up. Changes to writing or sample settings invalidate both downloads. Transfer the downloaded file to the Mac attached to the plotter.
+
+The reusable sender validates the entire file before opening USB. It accepts only the Studio command set, rejects coordinates outside A4, verifies the controller is idle at X0 Y0 with zero work offset, waits for each acknowledgement, and checks final completion and pen-up home position. It does not home automatically. Place paper, home the plotter at its top-left corner and raise the pen before running.
+
+```sh
+# Check a downloaded file without connecting or moving the plotter:
+python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode
+# Send it after preparing the paper and homing:
+python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode --run
+```
+
+The default USB port is `/dev/cu.usbmodem201912341` at 115200 baud; override with `--port` if it changes. Install `requirements-plotter.txt` if pyserial is unavailable; the sender can also use this Mac’s existing Inkscape serial dependency. Progress reports commands accepted, then waits for physical motion to finish. **Ctrl+C requests feed hold** and reports an incomplete job. Check the machine before restarting; restarting sends the whole file, and no resume is attempted. A local lock prevents simultaneous Studio senders. The GitHub Pages app downloads files; USB transmission runs on the Mac.

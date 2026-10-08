@@ -18,12 +18,14 @@
     <textarea id="phrase" maxlength="200" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
 abcdefghijklmnopqrstuvwxyz</textarea>
     <p class="subtle">The example uses this writer’s available letters. Edit it to try your own words. Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.</p>
-    <div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="refresh-writers">Refresh samples</button></div>
+    <div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="compose-gcode" disabled>Download plotter G-code</button><button type="button" id="refresh-writers">Refresh samples</button></div>
   </form>
   <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
   <div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
   <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capitals, punctuation and cursive joins come later.</p>
 </div>
+<p class="subtle">G-code uses the verified A4 calibration: top-left home, +X right, −Y down, Z0.5 up and Z5 down. Send the downloaded file from the Mac connected to the plotter. <a href="/calibration">Check calibration</a> before using a new paper setup.</p>
+<script src="/static/plotter.js?v=1"></script>
 <script src="/static/compose.js?v=17"></script>
 </body>
 </html>

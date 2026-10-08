@@ -20,13 +20,15 @@
     <textarea id="phrase" maxlength="2000" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
 abcdefghijklmnopqrstuvwxyz</textarea>
     <p class="subtle">The example uses this writer’s available letters. Edit it to try your own words. Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.</p>
-    <div class="compose-settings"><label>Variation <select id="compose-variation"><option value="original">Saved examples</option><option value="blend">Blend compatible examples</option></select></label><label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label></div><div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="refresh-writers">Refresh samples</button></div>
+    <div class="compose-settings"><label>Variation <select id="compose-variation"><option value="original">Saved examples</option><option value="blend">Blend compatible examples</option></select></label><label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label></div><div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="compose-gcode" disabled>Download plotter G-code</button><button type="button" id="refresh-writers">Refresh samples</button></div>
   </form>
   <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
   <div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
   <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capture capitals, numbers, punctuation and common joined pairs as needed. Words wrap together; full cursive is not included.</p>
 </div>
-<script src="assets/compose.js?v=082bf136a74f"></script>
+<p class="subtle">G-code uses the verified A4 calibration: top-left home, +X right, −Y down, Z0.5 up and Z5 down. Send the downloaded file from the Mac connected to the plotter. <a href="calibration.html">Check calibration</a> before using a new paper setup.</p>
+<script src="assets/plotter.js?v=c6e39143f57e"></script>
+<script src="assets/compose.js?v=cabb88d50f92"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=a7cdc3cb8f3d"></script>
 </body>

@@ -14,7 +14,7 @@ async function composer(extended=false) {
   }
   const elements = {};
   for (const id of ['compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
-    'compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
+    'compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
@@ -31,7 +31,8 @@ async function composer(extended=false) {
       click() {assert.equal(this.attached, true);downloads.push({url: this.href, name: this.download});},
       remove() {this.attached = false;}
     } : {}});
-  const window = events({...(extended?{StudioEngine:require('../web/engine.js')} : {}),location: {search: '?writer=Writer'}});
+  const exported=[];
+  const window = events({StudioPlotter:{fromSVG:svg=>{exported.push(svg);return 'G21\n';}},...(extended?{StudioEngine:require('../web/engine.js')} : {}),location: {search: '?writer=Writer'}});
   const requests = [], revoked = [];
   const server = {count: 8, savedAt: '2026-10-05T10:15:00Z', offline: false, revision:'original'};
   let serial = 0;
@@ -49,7 +50,7 @@ async function composer(extended=false) {
     }});
   context.window.studioFetch=context.fetch;
   vm.runInContext(source, context); await settle();
-  return {elements, window, document, requests, revoked, downloads, server};
+  return {elements, window, document, requests, revoked, downloads, server, exported};
 }
 
 test('sample choice reaches the server and changing it invalidates the old download', async () => {
@@ -140,4 +141,15 @@ test('browser composer sends blending and joined options and invalidates preview
  await e['compose-form'].onsubmit({preventDefault(){}});
  const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.variation,'blend');assert.equal(data.joined,false);assert.ok(data.seed);
  e['compose-variation'].emit('change');assert.equal(e['compose-download'].disabled,true);
+});
+
+test('G-code export uses the displayed preview and clears when settings change',async()=>{
+ const c=await composer(),e=c.elements;
+ assert.equal(e['compose-gcode'].disabled,true);
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ assert.equal(e['compose-gcode'].disabled,false);
+ e['compose-gcode'].onclick();assert.deepEqual(c.exported,['<svg/>']);
+ assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.gcode');
+ e.phrase.value='abc';e.phrase.emit('input');assert.equal(e['compose-gcode'].disabled,true);
+ e['compose-gcode'].onclick();assert.equal(c.exported.length,1);
 });

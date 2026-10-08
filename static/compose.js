@@ -3,7 +3,7 @@
   const byID=id=>document.getElementById(id);
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
-  let profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
+  let previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
     if(phraseEdited || byID('phrase').value!==automaticPhrase)return;
@@ -14,6 +14,7 @@
     byID('phrase').value=automaticPhrase;
   }
   function clearPreview(){
+    previewSVG='';if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';
     byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');
     byID('compose-empty').hidden=false;byID('compose-download').disabled=true;
@@ -65,6 +66,7 @@
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
         body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:crypto.randomUUID()}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
+      previewSVG=data.svg;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
       imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
       byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
       byID('compose-download').disabled=false;
@@ -83,6 +85,13 @@
     // Keep the download link in the document for Safari's native download path.
     document.body.append(a);a.click();setTimeout(()=>a.remove(),1000);
     byID('compose-status').textContent='SVG download requested. Look for composed-handwriting-a4.svg in your browser’s Downloads. You can download this preview again.';
+  };
+  if(byID('compose-gcode'))byID('compose-gcode').onclick=()=>{
+    if(!previewSVG)return;
+    try{const gcode=window.StudioPlotter.fromSVG(previewSVG),url=URL.createObjectURL(new Blob([gcode],{type:'text/plain'}));
+      const a=document.createElement('a');a.href=url;a.download='composed-handwriting-a4.gcode';a.hidden=true;document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);
+      byID('compose-status').textContent='G-code downloaded for this preview. Send it from the Mac with the plotter homed at the paper’s top-left corner and the pen raised.';
+    }catch(error){byID('compose-status').textContent=error.message;}
   };
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
