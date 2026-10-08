@@ -2,7 +2,8 @@
 // The notebook's Pencil handling, viewport fitting and undo/redo are shared.
 // This layer supplies guides and explicit labels, not handwriting recognition.
 (()=>{
-  const plan=window.capturePlan,orders=plan.orders,setSize=plan.sheets_per_set;
+  const plan=window.capturePlan,setSize=plan.sheets_per_set;
+  let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0):plan.orders;
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
   const composeURL=()=>'/compose?writer='+encodeURIComponent($('writer').value.trim());
@@ -80,6 +81,11 @@
     $('writer').removeAttribute('aria-invalid');
     const profile=profiles.find(p=>p.writer===$('writer').value.trim());
     sheet=phase==='complete'?(sheet+1)%orders.length:(profile?.next_order_index || 0);
+    if(window.StudioEngine){
+      if(phase!=='complete')orders=profile?.capture_orders || plan.orders;
+      // Resume saved shuffled sets exactly; new sets receive a fresh shuffle.
+      if(sheet%setSize===0 || !profile?.capture_orders)orders=window.StudioEngine.shuffleSet(orders,sheet);
+    }
     finishWriter();phase='capture';blankSheet();
     try{localStorage.setItem('handwriting-writer',$('writer').value.trim());}catch{}
     instructions();
@@ -101,7 +107,7 @@
     if(phase==='complete'){window.location.href=composeURL();return;}
     if(!strokes.length)return;
     finishWriter();
-    const body=JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked,order_index:sheet,plan_id:plan.id});
+    const body=JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked,order_index:sheet,plan_id:plan.id,...(window.StudioEngine?{capture_orders:orders}:{})});
     if(body!==lastBody){lastBody=body;lastID=requestID();}
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
     saving=true;message('Saving sheet '+(sheet%setSize+1)+' on this Mac…');

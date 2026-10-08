@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'app.js'), 'utf8');
 
-function notebook(guided = false, profiles = []) {
+function notebook(guided = false, profiles = [], shuffled = false) {
   const listeners = target => {
     const events = {};
     target.listenerOptions = {};
@@ -52,6 +52,7 @@ function notebook(guided = false, profiles = []) {
     for (const [id, timer] of [...timers]) if (timer.due <= now) {timers.delete(id); timer.fn();}
     flush();
   }
+  if(shuffled){window.StudioEngine=require('../web/engine.js');window.capturePlan=window.StudioEngine.plan;}
   context.window.studioFetch=context.fetch;
   vm.runInContext(source, context);
   if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'capture.js'), 'utf8'), context);
@@ -300,4 +301,16 @@ test('layout changes during a stroke preserve canvas size and its initial coordi
   n.window.emit('pointerup', {...pen, clientX:300, timeStamp:120}); n.flush();
   assert.equal(vm.runInContext('strokes[0].points.at(-1).x', n.context), 300);
   assert.notEqual(n.elements.paper.style.width, before.width);
+});
+
+
+test('browser capture resumes the saved shuffled sheet labels', () => {
+  const E=require('../web/engine.js'),orders=E.shuffleSet(E.plan.orders,0,()=>0);
+  const n=notebook(true,[{writer:'Writer',counts:{a:1},next_order_index:1,capture_orders:orders}],true);
+  n.elements.writer.value='Writer';
+  // Counts arrive asynchronously before the user begins capture.
+  return new Promise(resolve=>setImmediate(resolve)).then(()=>{
+    n.elements.save.onclick();n.flush();
+    assert.equal(n.elements.paper.attributes['aria-label'],'Write one '+orders[1].split('').join(', ')+' in the corresponding labelled boxes');
+  });
 });

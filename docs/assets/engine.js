@@ -10,6 +10,22 @@
   const uuid=id=>typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
   const same=(a,b)=>stable(a)===stable(b);
   function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
+  function validateOrders(orders){
+    if(!Array.isArray(orders)||orders.length!==plan.orders.length)fail('Invalid shuffled alphabet.');
+    for(let i=0;i<orders.length;i++)if(typeof orders[i]!=='string'||orders[i].length!==plan.orders[i].length)fail('Invalid shuffled sheet.');
+    for(let i=0;i<orders.length;i+=plan.sheets_per_set){
+      if([...orders.slice(i,i+plan.sheets_per_set).join('')].sort().join('')!==alphabet)fail('Each shuffled set must contain every letter exactly once.');
+    }
+    return orders;
+  }
+  function shuffleSet(orders,index,random=Math.random){
+    const result=clone(validateOrders(orders)),end=(Math.floor(index/plan.sheets_per_set)+1)*plan.sheets_per_set;
+    const letters=[...result.slice(index,end).join('')];
+    for(let i=letters.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]];}
+    let offset=0;
+    for(let i=index;i<end;i++){const length=result[i].length;result[i]=letters.slice(offset,offset+length).join('');offset+=length;}
+    return result;
+  }
   function validateContent(writer,strokes,smooth){
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Enter a writer name (up to 80 characters).');
     if(!Array.isArray(strokes)||!strokes.length||strokes.length>1000)fail('Draw a page before saving.');
@@ -52,12 +68,13 @@
     validateContent(data.writer,data.strokes,data.smooth);
     if(!uuid(data.request_id))fail('Invalid save identifier.');
     if(data.plan_id!=null&&data.plan_id!==plan.id)fail('Unknown capture plan.');
-    const version=data.plan_id==null?1:2,orders=version===1?legacy:plan.orders;
+    const version=data.plan_id==null?1:2,orders=version===1?legacy:(data.capture_orders==null?plan.orders:validateOrders(data.capture_orders));
     if(!Number.isInteger(data.order_index)||!orders[data.order_index])fail('Invalid letter order.');
     const record={schema_version:version,id:data.request_id,writer:data.writer.trim(),saved_at:new Date().toISOString(),order_index:data.order_index,order:orders[data.order_index],display_smoothing:data.smooth,
       coordinates:{width:1000,height:500,y:'down',time:'milliseconds from first contact'},guides:clone(plan.guides),
       processing:{version,method:version===2?'translate left edge to x=0; baseline from capture guide for f/g/j/p/q/y, bottom otherwise; no resizing':'translate left edge to x=0, bottom to y=0; no resizing'},raw_strokes:clone(data.strokes),samples:extract(data.strokes,orders[data.order_index],version)};
     if(version===2)record.plan_id=plan.id;else delete record.guides.descender;
+    if(data.capture_orders!=null)record.capture_orders=clone(orders);
     size(record);return record;
   }
   function size(record){if(new TextEncoder().encode(JSON.stringify(record)).length>8*1024*1024)fail('This page is too large to save. Download its SVG and start a smaller page.');}
@@ -73,7 +90,7 @@
     if(r.coordinates?.width!==1000||r.coordinates?.height!==500||r.coordinates?.y!=='down')fail('Unsupported coordinates.');
     if(key===r.id+'.json'){if(r.schema_version!==2)fail('Unsupported notebook format.');return;}
     if(key!=='letters/'+r.id+'.json'||![1,2].includes(r.schema_version))fail('Unsupported backup path or format.');
-    const orders=r.schema_version===1?legacy:plan.orders;
+    const orders=r.schema_version===1?legacy:(r.capture_orders==null?plan.orders:validateOrders(r.capture_orders));
     if(!Number.isInteger(r.order_index)||r.order!==orders[r.order_index]||(r.schema_version===2&&r.plan_id!==plan.id))fail('Unsupported capture plan.');
     if(!same(r.samples,extract(r.raw_strokes,r.order,r.schema_version)))fail('Processed samples do not match the original writing.');
   }
@@ -84,7 +101,7 @@
     for(const r of records){
       if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
-      if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;next.add(r.writer);}
+      if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
@@ -139,6 +156,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={plan,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={plan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
