@@ -60,3 +60,9 @@ test('saved single-character blends persist, retry safely, review and round-trip
  await assert.rejects(browser().StudioStorage.importBackup(broken),/match its sources/);
  const incomplete=structuredClone(backup);incomplete.files=incomplete.files.filter(f=>f.key!=='letters/'+request.source_ids[0]+'.json');await assert.rejects(browser().StudioStorage.importBackup(incomplete),/missing an original source/);
 });
+
+test('four sets under separate writer names can save a cross-set blend without renaming originals',async()=>{
+ const base=files()[0],records=Array.from({length:4},(_,i)=>{const r=E.clone(base);r.value.id=webcrypto.randomUUID();r.key='letters/'+r.value.id+'.json';r.value.writer='Gordon-00'+(i+1)+'-lower';return r;}),b=browser();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:records});
+ const request={id:webcrypto.randomUUID(),writer:records[0].value.writer,letter:'a',source_ids:records.map(r=>r.value.id),horizontal:50,vertical:50};assert.equal((await call(b,'/api/blends',request)).status,201);
+ const backup=await b.StudioStorage.backup();assert.equal(await browser().StudioStorage.importBackup(backup),5);for(const r of records)assert.deepEqual(backup.files.find(f=>f.key===r.key).value,r.value);
+});
