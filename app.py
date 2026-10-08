@@ -88,6 +88,10 @@ def create_app(data_dir=None):
     def composer():
         return app.send_static_file('compose.html')
 
+    @app.get('/calibration')
+    def calibration():
+        return app.send_static_file('calibration.html')
+
     @app.get('/review')
     def review():
         return app.send_static_file('review.html')

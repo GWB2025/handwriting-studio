@@ -170,3 +170,7 @@ Python checks persistence, raw preservation, legacy compatibility, all 26 letter
 A pre-guided-capture code snapshot is in `backups/before-guided-capture/`; user data is not part of that snapshot.
 
 The previous a–e version is in `backups/before-lowercase-alphabet/`, including fingerprints of the original saved data for preservation checks.
+
+## Verified plotter calibration
+
+Open **Calibration** from Capture, Review or Compose for the repeatable A4 check, preview and downloadable G-code/SVG. The procedure was physically verified by the owner on 8 October 2026: top-left home, +X right, −Y down, Z0.5 pen up, Z5 pen down, 115200 baud on the Mac USB connection. Run the pen-up movement check, the pen down/up check (no X/Y commands), then shapes, dimensions and centre on one fixed sheet. Rectangle 170 × 257 mm with 20 mm margins; circle diameter 160 mm; triangle 150 × 210 mm; centre X105 Y−148.5 with a 6 mm cross. Downloads use millimetres and absolute coordinates, lift between strokes and finish pen up; drawing stages return to X0 Y0. The page does not connect directly to USB or modify firmware calibration.
