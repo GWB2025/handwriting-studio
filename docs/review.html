@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Review samples</title>
 <link rel="stylesheet" href="assets/style.css?v=e206eed18896">
-<script src="assets/engine.js?v=9e477dcd90b8"></script><script src="assets/browser-api.js?v=6229ebc7c2fa"></script>
+<script src="assets/engine.js?v=2f1f3b1c1989"></script><script src="assets/browser-api.js?v=73e7adf68edf"></script>
 </head>
 <body class="compose-page">
 <div class="compose-shell">
   <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
-<header><div><p class="eyebrow">Handwriting Studio</p><h1>Review your samples</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="index.html">Capture letters</a><a class="button" id="review-compose" href="compose.html">Compose</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="blending.html">Blend a character</a></nav></header>
+<header><div><p class="eyebrow">Handwriting Studio</p><h1>Review your samples</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="index.html">Capture letters</a><a class="button" id="review-compose" href="compose.html">Compose</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend a character</a></nav></header>
   <p>Choose a letter and inspect its saved examples, newest first. Exclude an accidental or poor sample, or adjust where it sits on the baseline. You can include it again at any time.</p>
   <div class="compose-settings">
     <label>Writer <select id="review-writer" disabled><option value="">Loading writers…</option></select></label>
@@ -38,6 +38,6 @@
 </div>
 <script src="assets/review.js?v=c9622e89d4ad"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js?v=a7cdc3cb8f3d"></script>
+<script src="assets/backup.js?v=29be55bc4a60"></script>
 </body>
 </html>

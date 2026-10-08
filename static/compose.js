@@ -4,12 +4,13 @@
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
   let liveTimer=null,blendSeed='',hasPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
+  function sourceCounts(profile){return window.StudioEngine?.countsFor?window.StudioEngine.countsFor(profile,byID('compose-source')?.value||'both'):(profile?.counts||{});}
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
     if(phraseEdited || byID('phrase').value!==automaticPhrase)return;
     const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
     if(!profile)return;
-    const available=[...(window.StudioEngine?.characters || alphabet)].filter(letter=>profile.counts[letter]>0).join('');
+    const available=[...(window.StudioEngine?.characters || alphabet)].filter(letter=>sourceCounts(profile)[letter]>0).join('');
     automaticPhrase=available===alphabet?fullExample:available==='abcde'?'a bad cab\naaaa bbbb cccc dddd eeee':[...available].join(' ');
     byID('phrase').value=automaticPhrase;
   }
@@ -27,10 +28,10 @@
     showCounts();
   }
   function showCounts(counts){
-    const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
+    const supplied=!!counts;const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
     const limit={latest_three:3,latest_four:4,latest_only:1,all:Infinity}[byID('compose-samples').value];
-    counts=counts || (profile && Object.fromEntries(Object.entries(profile.counts).map(([letter,n])=>[letter,Math.min(n,limit)])));
-    byID('compose-counts').textContent=counts?'Preview samples: '+Object.entries(counts).map(([letter,n])=>letter+' × '+n).join(' · ')+' · newest first':'';
+    counts=counts || (profile && Object.fromEntries(Object.entries(sourceCounts(profile)).map(([letter,n])=>[letter,Math.min(n,limit)])));
+    byID('compose-counts').textContent=counts?(supplied?'Preview samples: ':'Available samples: ')+Object.entries(counts).map(([letter,n])=>letter+' × '+n).join(' · ')+' · '+(byID('compose-preferred')?.checked?'preferred versions when available; otherwise newest first':'newest first'):'';
     byID('review-link').href='/review?writer='+encodeURIComponent(byID('compose-writer').value);
   }
   async function loadWriters(){
@@ -38,6 +39,7 @@
     const selected=byID('compose-writer').value || new URLSearchParams(window.location.search).get('writer');
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
+    for(const id of ['compose-source','compose-preferred'])if(byID(id))byID(id).disabled=true;
     byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;
     for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=true;
     byID('compose-status').textContent='Loading your saved letters…';
@@ -53,7 +55,7 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-source','compose-preferred'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
@@ -65,14 +67,14 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
       imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
       byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
       byID('compose-download').disabled=false;
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
-      if(profile){profile.counts=data.sample_selection.available_counts;profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
+      if(profile){profile.counts=data.sample_selection.all_counts||data.sample_selection.available_counts;for(const key of ['original_counts','blend_counts','preferred'])if(data.sample_selection[key])profile[key]=data.sample_selection[key];profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
       showCounts(data.sample_selection.counts);
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. Download exports exactly this preview.';
@@ -98,6 +100,8 @@
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
   for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
+  byID('compose-source')?.addEventListener('change',()=>{updateExample();invalidate();});
+  byID('compose-preferred')?.addEventListener('change',invalidate);
   function liveBlend(){
     const active=hasPreview;invalidate();
     if(active&&byID('compose-variation').value==='blend')liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),100);

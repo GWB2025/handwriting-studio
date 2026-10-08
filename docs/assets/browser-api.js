@@ -34,6 +34,7 @@
         if(!capture||Object.keys(r.reviews).some(letter=>!capture.order.includes(letter)))throw Error('A review is missing its original letter capture. Nothing was imported.');
       }
       E.validateBlendReferences([...merged].map(([key,value])=>({key,value})));
+      E.validateAlphabetReferences([...merged].map(([key,value])=>({key,value})));
       for(const f of backup.files)if(!map.has(f.key)){store.add(f);added++;}return added;
     });
   }
@@ -43,6 +44,7 @@
     try{
       if(options.signal?.aborted)throw new DOMException('Aborted','AbortError');
       const u=new URL(url,window.location.href),path=u.pathname,method=options.method||'GET',data=options.body?JSON.parse(options.body):null;
+      if(method==='POST'&&path==='/api/alphabet/preferred')return await transaction((files,store)=>{const record=E.choosePreferred(files,data);store.put(record);return json({saved:true,preferred:record.value.choices});});
       if(method==='POST'&&path==='/api/blends')return await transaction((files,store)=>{
         const record=E.createSavedBlend(files,data),key='blends/'+record.id+'.json',old=files.find(f=>f.key===key)?.value;
         if(old){if(!['writer','order','source_ids','source_shifts','weights','samples'].every(k=>E.same(old[k],record[k])))return json({error:'Save identifier is already in use.'},409);return json({id:old.id,saved_at:old.saved_at});}

@@ -66,3 +66,15 @@ test('four sets under separate writer names can save a cross-set blend without r
  const request={id:webcrypto.randomUUID(),writer:records[0].value.writer,letter:'a',source_ids:records.map(r=>r.value.id),horizontal:50,vertical:50};assert.equal((await call(b,'/api/blends',request)).status,201);
  const backup=await b.StudioStorage.backup();assert.equal(await browser().StudioStorage.importBackup(backup),5);for(const r of records)assert.deepEqual(backup.files.find(f=>f.key===r.key).value,r.value);
 });
+test('alphabet preferences save atomically, affect composition and survive backup without changing captures',async()=>{
+ const b=browser(),originals=files();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:originals});
+ const samples=E.catalog(originals).byWriter.get('Writer').filter(s=>s.letter==='a'),request={writer:'Writer',letter:'a',capture_id:samples.at(-1).capture_id};
+ assert.equal((await call(b,'/api/alphabet/preferred',request)).status,200);
+ assert.equal((await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'b',capture_id:E.catalog(originals).byWriter.get('Writer').find(s=>s.letter==='b').capture_id})).status,200);
+ const backup=await b.StudioStorage.backup(),fresh=browser();assert.equal(backup.files.filter(f=>f.key.startsWith('alphabets/')).length,1);assert.equal(await fresh.StudioStorage.importBackup(backup),backup.files.length);
+ const composed=await call(fresh,'/api/compose',{writer:'Writer',phrase:'aa',source:'originals',samples:'latest_only'});assert(composed.data.used_samples.every(s=>s.capture_id===request.capture_id));
+ const state=await fresh.StudioStorage.snapshot();for(const original of originals)assert.deepEqual(state.find(f=>f.key===original.key).value,original.value);
+ const bad=structuredClone(backup);bad.files.find(f=>f.key.startsWith('alphabets/')).value.choices.a=webcrypto.randomUUID();await assert.rejects(browser().StudioStorage.importBackup(bad),/missing its saved sample/);
+ const invalid=await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'a',capture_id:webcrypto.randomUUID()});assert.equal(invalid.status,400);assert.equal((await call(b,'/api/letters/writers')).data.writers[0].preferred.a,request.capture_id);
+ assert.equal((await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'a',capture_id:null})).status,200);assert.equal((await call(b,'/api/letters/writers')).data.writers[0].preferred.a,undefined);
+});

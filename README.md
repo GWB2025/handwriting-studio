@@ -8,7 +8,7 @@ The GitHub Pages version runs entirely in Safari or Chrome, including on an iPad
 
 **Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** to download a JSON backup regularly and move writing between devices. Clearing website data or using private browsing can remove saved writing. The app requests persistent browser storage where supported, but backups are still needed. Unsaved drafts are not part of a backup: save your sheet or page first.
 
-Import validates every record before adding anything. Identical records are skipped. Conflicting versions of the same record reject the entire import; use a fresh browser for the other version. Import does not overwrite captures or review choices. The import limit is 100 MB.
+Import validates every record before adding anything. Identical records are skipped. Conflicting versions of the same record reject the entire import; use a fresh browser for the other version. Import does not overwrite captures, review choices or alphabet preferences. The import limit is 100 MB.
 
 
 ### Extended handwriting workflow (public website)
@@ -19,9 +19,13 @@ Review has matching groups, with individual inclusion and baseline controls. Exi
 
 Compose supports captured capitals, digits and the symbols offered by Capture. It wraps whole words, uses neighbouring stroke shapes to adjust spacing, and accepts up to 2,000 characters when they fit on one A4 page. Oversized words and overflowing pages produce a message instead of clipping.
 
-Choose **Blend compatible examples** to resample matching strokes at equal arc-length intervals and blend two examples. Stroke counts and corresponding geometry/direction must match; unsuitable combinations use an original sample. This is a conservative heuristic, not handwriting recognition: inspect the preview before plotting. Saved raw strokes are never resampled or overwritten. Each generated preview is fixed for downloading; generating again chooses fresh blend weights. **Use saved joined pairs** substitutes included pairs where available and otherwise uses individual characters. Full cursive joining is not included.
+Use **Blend a character** to select two or four original captures, mix them live, and save a new sample. **My alphabet** shows which characters have included originals, saved blends and preferred versions. Choose a group and character to compare samples and set or clear its preferred version. An excluded preferred sample is shown as unavailable and is never used. Preferences belong to the selected writer; source captures and blends are unchanged.
 
-Direct plotter control and an editable pending plot queue remain dependent on the controller and connection used by the T-A4. This release exports SVGs for the existing plotting workflow.
+In **Compose**, choose **Original samples only**, **Saved blends only**, or **Originals and saved blends**. The default includes both. **Use preferred versions when available** selects the preferred sample for every occurrence of that character, but only if it is included and matches the selected source type. Otherwise the normal newest-sample selection applies within that type. Saved-blends-only reports missing blends instead of substituting originals. Joined pairs follow the same source and preference rules. Changing these choices or a saved preference invalidates the old SVG and G-code until a fresh preview is generated.
+
+Alphabet choices are stored separately under `alphabets/`, included in Backup / Import, and verified against their saved samples when imported. Older backups remain supported; conflicting settings are handled like conflicting review choices. These browser features do not change the original Mac capture server.
+
+Compose exports SVG or G-code using the verified plotter calibration. The reusable Mac sender can transmit downloaded G-code over USB; a graphical plotting screen and page queue are still future work.
 
 ### Bring existing Mac handwriting to the website
 

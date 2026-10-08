@@ -13,14 +13,14 @@ async function composer(extended=false) {
     return target;
   }
   const elements = {};
-  for (const id of ['compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
-  elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
+  elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -43,7 +43,7 @@ async function composer(extended=false) {
       if (server.offline) throw Error('Offline');
       const limit = url === '/api/compose' && JSON.parse(options.body).samples === 'latest_only' ? 1 : 3;
       return {ok: true, json: async () => url === '/api/letters/writers'
-        ? {writers: [{writer: 'Writer', counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])), latest_saved_at: server.savedAt, revision:server.revision}]}
+        ? {writers: [{writer: 'Writer', counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])), original_counts:{a:7,b:8,c:8,d:8,e:8},blend_counts:{a:1},preferred:{},latest_saved_at: server.savedAt, revision:server.revision}]}
         : {svg: '<svg/>', used_samples: [{letter: 'a'}], sample_selection: {
           available_counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])),
           counts: {a: limit, b: limit, c: limit, d: limit, e: limit}, newest_saved_at: server.savedAt,writer_revision:server.revision}}};
@@ -170,4 +170,11 @@ test('live slider rebuilds with a fixed seed and four-source settings',async()=>
  e['blend-count'].value='4';e['blend-count'].emit('change');e['blend-vertical'].value='80';e['blend-vertical'].emit('input');
  assert.equal(e['compose-gcode'].disabled,true);await new Promise(r=>setTimeout(r,150));await settle();
  const body=JSON.parse(c.requests.at(-1).options.body);assert.equal(body.seed,seed);assert.equal(body.blend_count,4);assert.equal(body.blend_vertical,80);assert.equal(body.samples,'latest_four');assert.equal(e['compose-gcode'].disabled,false);
+});
+
+test('source and preferred controls reach Compose and invalidate both downloads without replacing typed text',async()=>{
+ const c=await composer(true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});
+ e.phrase.value='my phrase';e.phrase.emit('input');e['compose-source'].value='blends';e['compose-source'].emit('change');assert.equal(e.phrase.value,'my phrase');assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-download'].disabled,true);assert.match(e['compose-counts'].textContent,/a × 1/);assert(!e['compose-counts'].textContent.includes('b ×'));
+ e['compose-preferred'].checked=false;e['compose-preferred'].emit('change');await e['compose-form'].onsubmit({preventDefault(){}});const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.source,'blends');assert.equal(data.use_preferred,false);
+ c.server.revision='new-preferred-version';c.document.emit('visibilitychange');await settle();assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-download'].disabled,true);
 });

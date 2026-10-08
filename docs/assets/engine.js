@@ -103,7 +103,29 @@
       const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
     }
   }
+  const alphabetKey=writer=>'alphabets/'+encodeURIComponent(writer)+'.json';
+  function validateAlphabetReferences(files){
+    const cat=catalog(files);
+    for(const f of files.filter(f=>f.key.startsWith('alphabets/'))){const r=f.value,all=cat.byWriter.get(r.writer)||[];
+      for(const [letter,id] of Object.entries(r.choices))if(!all.some(s=>s.letter===letter&&s.capture_id===id))fail('A preferred character is missing its saved sample.');
+    }
+  }
+  function choosePreferred(files,data){
+    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||![...characters,...pairs].includes(data.letter)||(data.capture_id!==null&&!uuid(data.capture_id)))fail('Choose a writer, character and preferred sample.');
+    const all=catalog(files).byWriter.get(data.writer);if(!all)fail('This writer is unavailable.');
+    if(data.capture_id!==null&&!all.some(s=>s.letter===data.letter&&s.capture_id===data.capture_id&&s.included))fail('Choose an included sample belonging to this writer and character.');
+    const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value,choices=clone(old?.choices||{});
+    if(data.capture_id===null)delete choices[data.letter];else choices[data.letter]=data.capture_id;
+    return {key,value:old&&same(old.choices,choices)?old:{schema_version:1,writer:data.writer,choices,updated_at:new Date().toISOString()}};
+  }
+  function countsFor(profile,source='both'){
+    return profile?(source==='originals'?profile.original_counts||profile.counts:source==='blends'?profile.blend_counts||{}:profile.counts):{};
+  }
   function validateRecord(key,r){
+    if(key.startsWith('alphabets/')){
+      if(!r||r.schema_version!==1||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==alphabetKey(r.writer)||!r.choices||typeof r.choices!=='object'||Array.isArray(r.choices)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid alphabet preferences.');
+      size(r);for(const [letter,id] of Object.entries(r.choices))if(![...characters,...pairs].includes(letter)||!uuid(id))fail('Invalid preferred character.');return;
+    }
     if(!r||!uuid(r.id||r.capture_id))fail('Unsupported backup record.');
     if(key==='letter_reviews/'+r.capture_id+'.json'){
       if(r.schema_version!==1||!r.reviews||typeof r.reviews!=='object'||Array.isArray(r.reviews))fail('Invalid review record.');
@@ -128,7 +150,7 @@
     const reviews=new Map(files.filter(f=>f.key.startsWith('letter_reviews/')).map(f=>[f.value.capture_id,f.value.reviews]));
     const profiles=new Map(),byWriter=new Map(),states=new Map(),next=new Set();
     for(const r of records){
-      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
+      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
       profile.capture_progress??={};
       if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id])profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%getPlan(r.plan_id).orders.length,capture_orders:clone(r.capture_orders||getPlan(r.plan_id).orders)};
@@ -136,10 +158,11 @@
       states.get(r.writer).push([r.id,r.saved_at,review]);
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
+        if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
         byWriter.get(r.writer).push({...s,...setting,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
-    for(const [writer,p] of profiles){p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
+    for(const [writer,p] of profiles){p.preferred=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});states.get(writer).push(['preferred',p.preferred]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
     return {writers:[...profiles.values()].sort((a,b)=>a.writer.toLowerCase().localeCompare(b.writer.toLowerCase())),byWriter};
   }
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -188,7 +211,8 @@
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
   function compose(files,data){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true}=data;
+    if(!['originals','blends','both'].includes(source)||typeof use_preferred!=='boolean')fail('Choose original samples, saved blends or both.');
     if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
@@ -198,12 +222,12 @@
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
     const previews=[];
-    const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={};
-    for(const s of all){variants[s.letter]??=[];if(s.included)variants[s.letter].push(s);}
-    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;variants[letter]=list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
+    const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred||{};
+    for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
+    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred&&list.find(s=>s.capture_id===preferences[letter]);variants[letter]=preferred?[preferred]:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
     const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
     const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
-    if(missing.length)fail('No included samples for: '+missing.join(', ')+'. Capture them or include a saved example in Review samples.');
+    if(missing.length)fail('No included '+(source==='blends'?'saved blends':source==='originals'?'original samples':'samples')+' for: '+missing.join(', ')+'. '+(source==='blends'?'Save blends for these characters or choose Both.':'Capture them or include a saved example in Review samples.'));
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
     let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{
@@ -235,7 +259,7 @@
     }
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b)),profile=cat.writers.find(p=>p.writer===writer.trim());
     return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
-      sample_selection:{mode,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
+      sample_selection:{mode,source,use_preferred,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
@@ -250,6 +274,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

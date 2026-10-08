@@ -9,7 +9,7 @@ assets = DEST / 'assets'
 assets.mkdir(exist_ok=True)
 notice = '''<aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
-route = {'/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
+route = {'/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
 def adapt(text):
     text = text.replace('fetch(', 'window.studioFetch(')
     for old,new in sorted(route.items(), key=lambda pair: -len(pair[0])):
@@ -26,17 +26,19 @@ for name in ['app.js','capture.js','compose.js','review.js','library.js','calibr
 style=(ROOT/'static/style.css').read_text()
 style+='\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
 (assets/'style.css').write_text(style)
-for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js']:
+for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
-for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html')]:
+for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html')]:
     html=adapt((ROOT/'static'/source).read_text())
-    if source!='blending.html':html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
+    if source!='alphabet.html':html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
+    if source not in ['blending.html','alphabet.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
     html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
     html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>\n</head>')
     if(source=='review.html'):
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs</option></select></label><label>Character <select')
     if(source=='compose.html'):
+        html=html.replace('<div class="compose-actions">','<div class="compose-settings"><label>Use <select id="compose-source"><option value="both">Originals and saved blends</option><option value="originals">Original samples only</option><option value="blends">Saved blends only</option></select></label><label><input id="compose-preferred" type="checkbox" checked> Use preferred versions when available</label></div><p>Preferred versions must match the chosen source type. Missing saved blends are reported before generating. <a href="alphabet.html">Manage my alphabet</a></p><div class="compose-actions">')
         html=html.replace('<div class="compose-actions">','<label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label><select id="compose-variation" hidden><option value="original">Saved examples</option></select><p><a href="blending.html">Blend and save a single character</a>, then use it here as a saved sample.</p><div class="compose-actions">')
         html=html.replace('<option value="all">','<option value="latest_four">Latest four per character</option><option value="all">')
         html=html.replace('maxlength="200"','maxlength="2000"')
@@ -52,4 +54,4 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     html=re.sub(r'assets/([a-z.-]+)', lambda m: m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12], html)
     (DEST/target).write_text(html)
 (DEST/'.nojekyll').write_text('')
-print('Built six Pages screens and browser-only assets in docs/. No handwriting data was copied.')
+print('Built seven Pages screens and browser-only assets in docs/. No handwriting data was copied.')
