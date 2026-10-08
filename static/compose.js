@@ -14,7 +14,7 @@
     byID('phrase').value=automaticPhrase;
   }
   function clearPreview(){
-    previewSVG='';if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
+    previewSVG='';window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';
     byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');
     byID('compose-empty').hidden=false;byID('compose-download').disabled=true;
@@ -64,9 +64,9 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:crypto.randomUUID()}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:crypto.randomUUID(),...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
-      previewSVG=data.svg;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
+      previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
       imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
       byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
       byID('compose-download').disabled=false;
@@ -75,6 +75,7 @@
       showCounts(data.sample_selection.counts);
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. Download exports exactly this preview.';
+      if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=error.name==='AbortError'?'The Mac took too long to respond. Try Generate preview again.':error.message;}
     finally{clearTimeout(timeout);if(ticket===requestNumber){loading=false;controller=null;byID('generate').disabled=false;byID('generate').textContent='Generate preview';}}
@@ -95,7 +96,8 @@
   };
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
-  for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
+  for(const id of ['compose-variation','compose-joined','blend-mix'])byID(id)?.addEventListener('change',invalidate);
+  byID('blend-mix')?.addEventListener('input',()=>{byID('blend-mix-value').textContent=byID('blend-mix').value+'% source B';invalidate();});
   byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){

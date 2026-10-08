@@ -145,3 +145,12 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .review-alphabet button[aria-pressed="true"] { background: #245e4c; color: white; border-color: #245e4c; }
 
 #capture-kind { font: inherit; font-size: 16px; padding: 8px; border: 1px solid #bccbc1; border-radius: 7px; background: white; max-width: 100%; }
+#blend-comparison {max-width:1000px;margin:1rem auto;padding:16px;background:#edf3ed;border-radius:12px;}
+#blend-cards {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+#blend-cards figure {margin:0;min-width:0;}
+#blend-cards img {width:100%;height:auto;background:white;}
+#blend-cards figcaption {font-size:.85rem;padding:8px 0;}
+#blend-mix-label {display:block;margin:12px 0;}
+#blend-mix {display:block;width:260px;max-width:100%;}
+@media(max-width:600px){#blend-cards{grid-template-columns:1fr;}}
+#blend-mix-label[hidden], #blend-comparison[hidden] {display:none;}

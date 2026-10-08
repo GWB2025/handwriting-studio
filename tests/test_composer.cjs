@@ -14,13 +14,13 @@ async function composer(extended=false) {
   }
   const elements = {};
   for (const id of ['compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
-    'compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
+    'blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
-  elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
+  elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -152,4 +152,13 @@ test('G-code export uses the displayed preview and clears when settings change',
  assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.gcode');
  e.phrase.value='abc';e.phrase.emit('input');assert.equal(e['compose-gcode'].disabled,true);
  e['compose-gcode'].onclick();assert.equal(c.exported.length,1);
+});
+
+test('blend mix reaches composition and slider input invalidates both exports',async()=>{
+ const c=await composer(true),e=c.elements;e['compose-variation'].value='blend';e['blend-mix'].value='70';
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ assert.equal(JSON.parse(c.requests.at(-1).options.body).blend_strength,70);
+ e['blend-mix'].value='30';e['blend-mix'].emit('input');
+ assert.equal(e['blend-mix-value'].textContent,'30% source B');
+ assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);
 });

@@ -55,3 +55,23 @@ test('whole words share a baseline at wrap and oversized words are rejected',()=
  assert.ok(new Set(starts).size>1);
  assert.throws(()=>E.compose(files(),{writer:'Writer',phrase:'a'.repeat(150),height:12}),/word is too wide/);
 });
+test('blend mix is reflected in output and comparison previews share a scale',()=>{
+ const records=files(),raw=JSON.stringify(records);
+ for(const strength of [10,50,90]){
+  const r=E.compose(records,{writer:'Writer',phrase:'aaaaaaaa',variation:'blend',seed:'same',blend_strength:strength});
+  assert.equal(r.variation.previews.length,6);
+  for(const sample of r.used_samples)assert(Math.abs(sample.weight-(1-strength/100))<1e-10);
+  for(const preview of r.variation.previews){assert.equal(preview.source_b_percent,strength);assert.equal(preview.svgs.length,3);assert.equal(new Set(preview.svgs.map(s=>s.match(/viewBox="([^"]+)"/)[1])).size,1);}
+ }
+ assert.equal(JSON.stringify(records),raw);
+ for(const strength of [0,100,NaN,'50'])assert.throws(()=>E.compose(records,{writer:'Writer',phrase:'a',blend_strength:strength}),/blend mix/);
+});
+test('normalised blending preserves separate dots and crossbars and rejects mismatched strokes',()=>{
+ const base=E.catalog(files()).byWriter.get('Writer')[0],a=E.clone(base),b=E.clone(base);
+ const strokes=[{points:[{x:0,y:0},{x:10,y:-50}]},{points:[{x:5,y:-70}]},{points:[{x:0,y:-30},{x:10,y:-30}]}];
+ a.processed_strokes=E.clone(strokes);b.processed_strokes=E.clone(strokes);
+ const before=JSON.stringify([a,b]),r=E.blend(a,b,.5);assert(r);assert.equal(r.processed_strokes.length,3);
+ assert(r.processed_strokes[1].points.every(p=>p.x===5&&p.y===-70));
+ assert(r.processed_strokes[2].points.every(p=>p.y===-30));assert.equal(JSON.stringify([a,b]),before);
+ b.processed_strokes.pop();assert.equal(E.blend(a,b,.5),null);
+});

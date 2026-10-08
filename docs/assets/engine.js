@@ -162,13 +162,15 @@
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
   function compose(files,data){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength}=data;
     if(!['latest_three','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
     if(typeof phrase!=='string'||phrase.length>2000||![...phrase].some(c=>characters.includes(c)))fail('Type a phrase (up to 2000 characters).');
     if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
     if(!finite(height,2,12)||typeof smooth!=='boolean'||typeof joined!=='boolean')fail('Choose a writing size from 2 to 12 mm.');
+    if(blend_strength!==undefined&&!finite(blend_strength,10,90))fail('Choose a blend mix from 10 to 90 percent.');
+    const previews=[];
     const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={};
     for(const s of all){variants[s.letter]??=[];if(s.included)variants[s.letter].push(s);}
     for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;variants[letter]=list.slice(0,{latest_three:3,latest_only:1,all:undefined}[mode]);}
@@ -177,7 +179,7 @@
     if(missing.length)fail('No included samples for: '+missing.join(', ')+'. Capture them or include a saved example in Review samples.');
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
-    let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=list[n%list.length];if(variation==='blend'){const candidates=list.filter(s=>s!==original&&compatible(original,s));if(candidates.length){const result=blend(original,candidates[Math.floor(random()*candidates.length)],.2+random()*.6);blended++;return result;}fallback++;}return original;});
+    let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=list[n%list.length];if(variation==='blend'){const candidates=list.filter(s=>s!==original&&compatible(original,s));if(candidates.length){const other=candidates[Math.floor(random()*candidates.length)],weight=blend_strength===undefined?.2+random()*.6:1-blend_strength/100,result=blend(original,other,weight);if(previews.length<6)previews.push({letter:c,source_a:original.capture_id,source_b:other.capture_id,source_a_saved_at:original.saved_at,source_b_saved_at:other.saved_at,source_b_percent:Math.round((1-weight)*100),...comparisonSVG(original,other,result)});blended++;return result;}fallback++;}return original;});
     const scale=height/80;let above=0,below=0;
     for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*scale+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}
     let x=20,baseline=20+above;const line=above+below+height*.8,paths=[],chosen=[];
@@ -193,8 +195,13 @@
       x+=height*.22;i=end;
     }
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b)),profile=cat.writers.find(p=>p.writer===writer.trim());
-    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed)},
+    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),previews},
       sample_selection:{mode,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
+  }
+  function comparisonSVG(a,b,result){
+    const svgs=[a,b,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
+    const left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
+    return {svgs:svgs.map(svg=>svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`))};
   }
   function reviewSVG(sample){
     const shift=sample.baseline_shift_mm*16;let top=-180,bottom=110,width=240;
