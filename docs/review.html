@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Review samples</title>
-<link rel="stylesheet" href="assets/style.css?v=cf297898eab3">
+<link rel="stylesheet" href="assets/style.css?v=033f322d8622">
 <script src="assets/engine.js?v=5997ef9d68e0"></script><script src="assets/browser-api.js?v=73e7adf68edf"></script>
 </head>
 <body class="compose-page">
@@ -25,18 +25,18 @@
     <section id="sample-detail" hidden aria-label="Selected sample">
       <h2 id="sample-title"></h2>
       <p id="sample-date" class="subtle"></p>
-      <div class="sample-paper"><img id="sample-image" alt="Selected handwriting sample with a baseline" /></div>
+      <div class="sample-paper"><div id="sample-image" role="img" aria-label="Selected handwriting sample with fixed baseline guides"></div></div>
       <form id="review-form">
         <label class="sample-include"><input type="checkbox" id="sample-included"> Use this sample in composition</label>
         <label class="sample-shift">Baseline shift (mm) <input id="sample-shift" type="number" min="-10" max="10" step="any" inputmode="decimal" required value="0"></label>
-        <p class="subtle">Positive moves the letter down; negative moves it up. Preview shown at Medium (5 mm). Save changes to update the preview.</p>
+        <p class="subtle">Positive moves the letter down; negative moves it up. The preview moves as you edit, against fixed guides at Medium (5 mm). Save changes keeps the offset; Reset changes restores the saved position.</p>
         <div class="compose-actions"><button id="review-save" class="primary" disabled>Save changes</button><button id="review-reset" type="button" disabled>Reset changes</button></div>
       </form>
     </section>
   </div>
   <p class="subtle">Original writing is kept. Review choices apply to this individual sample. Generate a fresh Compose preview after reviewing.</p>
 </div>
-<script src="assets/review.js?v=c9622e89d4ad"></script>
+<script src="assets/review.js?v=4f8612109c46"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=29be55bc4a60"></script>
 </body>

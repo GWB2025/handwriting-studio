@@ -38,8 +38,8 @@ For f, g, j, p, q and y, keep the body on the baseline and tails below. These lo
 Choose a writer, group and character, then an example from the newest-first list. Original captures and saved blends share this workflow, with blends labelled separately.
 
 - **Use this sample in composition** includes or excludes that example. Excluded originals are also unavailable as blend sources. Exclusion is reversible and does not delete a sample.
-- **Baseline shift (mm)** moves a character down for positive values and up for negative values, from −10 to +10 mm. The preview uses Medium (5 mm); the offset applies as the same physical distance at every Compose size. It does not resize a character.
-- **Save changes** confirms the choice and refreshes the preview. **Reset changes** discards pending edits. Save or reset before switching samples.
+- **Baseline shift (mm)** moves a character down for positive values and up for negative values, from −10 to +10 mm. The preview moves immediately against fixed guide lines as you edit, using Medium (5 mm); the offset applies as the same physical distance at every Compose size. It does not resize a character.
+- **Save changes** stores the choice and offset. **Reset changes** discards pending edits and restores the saved preview position. Save or reset before switching samples.
 
 Review settings are separate from original captures. Generate a fresh Compose preview after reviewing. Saved blends retain the source adjustments used when they were created; later changes to an original do not remake existing blends.
 
