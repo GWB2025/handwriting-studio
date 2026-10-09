@@ -90,12 +90,31 @@
   function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10))fail('Choose whether to use this sample and a baseline shift between −10 and 10 mm.');}
   function createSavedBlend(files,data){
     if(!uuid(data.id)||(typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80)||!Array.isArray(data.source_ids)||![2,4].includes(data.source_ids.length)||new Set(data.source_ids).size!==data.source_ids.length||!finite(data.horizontal,0,100)||!finite(data.vertical,0,100))fail('Choose two or four distinct source samples and valid mix controls.');
-    const all=[...catalog(files).byWriter.values()].flat(),sources=data.source_ids.map(id=>all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived));
+    const all=[...catalog(files).byWriter.values()].flat();
+    if(data.source_shifts!==undefined&&(!Array.isArray(data.source_shifts)||data.source_shifts.length!==data.source_ids.length||!data.source_shifts.every(v=>finite(v,-10,10))))fail('Invalid source baseline adjustments.');
+    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived);return s&&{...s,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
     if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
     const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
     if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
     const sample={letter:data.letter,processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm};
     return {schema_version:4,derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
+  }
+  function savedBlendRecipe(files,id){
+    const record=files.find(f=>f.key==='blends/'+id+'.json')?.value;
+    if(!record)fail('This saved blend is unavailable.');
+    const recipe={writer:record.writer,letter:record.order[0],source_ids:record.source_ids.slice(),source_shifts:record.source_shifts.slice(),horizontal:record.horizontal,vertical:record.vertical};
+    // Validate availability without changing the saved record or its source adjustments.
+    createSavedBlend(files,{...recipe,id:record.id});return recipe;
+  }
+  function proofSheet(files,data){
+    const {writer,kind='lowercase',source='both',height=5,sentence=''}=data,p=plans[kind];
+    if(!p)fail('Choose a proof sheet group.');
+    if(typeof sentence!=='string')fail('Enter a test sentence.');
+    const profile=catalog(files).writers.find(p=>p.writer===writer),counts=countsFor(profile,source);
+    const ready=tokens(p.alphabet).filter(c=>counts[c]>0),missing=tokens(p.alphabet).filter(c=>!counts[c]);
+    if(!ready.length)fail('No included samples for this group and source type.');
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase:ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'')});
+    return {...result,missing,characters:ready};
   }
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
@@ -211,7 +230,8 @@
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
   function compose(files,data){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
+    if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
     if(!['originals','blends','both'].includes(source)||typeof use_preferred!=='boolean')fail('Choose original samples, saved blends or both.');
     if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
@@ -245,11 +265,11 @@
     });
     const scale=height/80;let above=0,below=0;
     for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*scale+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}
-    let x=20,baseline=20+above;const line=above+below+height*.8,paths=[],chosen=[];
+    let x=20,baseline=20+above;const line=above+below+height*.8*line_spacing,paths=[],chosen=[];
     for(let i=0;i<letters.length;){
-      if(letters[i]==='\n'){x=20;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7;i++;continue;}
+      if(letters[i]==='\n'){x=20;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
       let end=i;while(end<letters.length && used[end])end++;
-      const advances=[];for(let j=i;j<end;j++)advances.push(j+1<end?spacing(used[j],used[j+1],scale,height):(used[j].bounds.right-used[j].bounds.left)*scale);
+      const advances=[];for(let j=i;j<end;j++)advances.push(j+1<end?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale);
       const wordWidth=Math.max(...advances.map((_,j)=>advances.slice(0,j).reduce((a,b)=>a+b,0)+(used[i+j].bounds.right-used[i+j].bounds.left)*scale));
       if(wordWidth>170)fail('A word is too wide for the page. Choose a smaller writing size or add a space.');
       if(x+wordWidth>190){x=20;baseline+=line;}
@@ -274,6 +294,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

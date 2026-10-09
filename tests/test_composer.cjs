@@ -13,14 +13,14 @@ async function composer(extended=false) {
     return target;
   }
   const elements = {};
-  for (const id of ['compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
-  elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
+  for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -42,7 +42,7 @@ async function composer(extended=false) {
       requests.push({url, options});
       if (server.offline) throw Error('Offline');
       const limit = url === '/api/compose' && JSON.parse(options.body).samples === 'latest_only' ? 1 : 3;
-      return {ok: true, json: async () => url === '/api/letters/writers'
+      return {ok: !server.error, json: async () => server.error?{error:server.error}:url === '/api/letters/writers'
         ? {writers: [{writer: 'Writer', counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])), original_counts:{a:7,b:8,c:8,d:8,e:8},blend_counts:{a:1},preferred:{},latest_saved_at: server.savedAt, revision:server.revision}]}
         : {svg: '<svg/>', used_samples: [{letter: 'a'}], sample_selection: {
           available_counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])),
@@ -177,4 +177,20 @@ test('source and preferred controls reach Compose and invalidate both downloads 
  e.phrase.value='my phrase';e.phrase.emit('input');e['compose-source'].value='blends';e['compose-source'].emit('change');assert.equal(e.phrase.value,'my phrase');assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-download'].disabled,true);assert.match(e['compose-counts'].textContent,/a × 1/);assert(!e['compose-counts'].textContent.includes('b ×'));
  e['compose-preferred'].checked=false;e['compose-preferred'].emit('change');await e['compose-form'].onsubmit({preventDefault(){}});const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.source,'blends');assert.equal(data.use_preferred,false);
  c.server.revision='new-preferred-version';c.document.emit('visibilitychange');await settle();assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-download'].disabled,true);
+});
+
+test('spacing updates live while keeping the image in place and downloads disabled until refreshed',async()=>{
+ const c=await composer(true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});const old=e['composed-image'].src;
+ e['compose-letter-spacing'].value='150';e['compose-letter-spacing'].emit('input');e['compose-word-spacing'].value='75';e['compose-word-spacing'].emit('input');
+ assert.equal(e['composed-image'].src,old);assert.equal(e['composed-image'].hidden,false);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-download'].disabled,true);
+ await new Promise(r=>setTimeout(r,230));await settle();const body=JSON.parse(c.requests.at(-1).options.body);assert.equal(body.letter_spacing,1.5);assert.equal(body.word_spacing,.75);assert.equal(body.line_spacing,1);assert.equal(e['compose-download'].disabled,false);assert.notEqual(e['composed-image'].src,old);
+ e['compose-spacing-reset'].onclick();assert.equal(e['compose-letter-spacing'].value,'100');assert.equal(e['compose-word-spacing'].value,'100');assert.equal(e['compose-download'].disabled,true);
+ await new Promise(r=>setTimeout(r,230));await settle();assert.equal(JSON.parse(c.requests.at(-1).options.body).letter_spacing,1);
+});
+
+test('failed live spacing keeps the previous image labelled and cannot export old geometry',async()=>{
+ const c=await composer(true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});const old=e['composed-image'].src;c.server.error='This phrase does not fit on one A4 page.';
+ e['compose-line-spacing'].value='200';e['compose-line-spacing'].emit('input');await new Promise(r=>setTimeout(r,230));await settle();
+ assert.equal(e['composed-image'].src,old);assert.match(e['compose-status'].textContent,/Previous preview shown/);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);e['compose-gcode'].onclick();e['compose-download'].onclick();assert.equal(c.exported.length,0);assert.equal(c.downloads.length,0);
+ c.server.error='';e['compose-spacing-reset'].onclick();await new Promise(r=>setTimeout(r,230));await settle();assert.equal(e['compose-download'].disabled,false);
 });

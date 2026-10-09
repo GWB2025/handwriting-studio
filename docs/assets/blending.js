@@ -1,10 +1,11 @@
 'use strict';
 (async()=>{
  const E=window.StudioEngine,$=id=>document.getElementById(id);let files=[],samples=[],sources=[],result=null,saveID='',previewKey='',views=[],busy=false;
- let horizontal=50,vertical=50,drag=null;
+ let horizontal=50,vertical=50,drag=null,recipeShifts=null,lastSaved=null;
+ const query=new URLSearchParams(window.location.search),requestedLetter=query.get('letter');
  const status=text=>{if($('blend-status').textContent!==text)$('blend-status').textContent=text;};
  function release(){stopDrag();previewKey='';views=[];$('single-cards').replaceChildren();$('single-position').textContent='';}
- function render(){result=null;saveID='';$('single-save').disabled=true;$('single-centre').disabled=true;
+ function render(){lastSaved=null;$('single-saved').hidden=true;result=null;saveID='';$('single-save').disabled=true;$('single-centre').disabled=true;
   const count=Number($('single-count').value);$('single-cards').dataset.count=String(count);
   sources=Array.from($('single-sources').querySelectorAll('select')).map(s=>samples.find(p=>p.capture_id===s.value));
   if(samples.length<count){release();status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
@@ -65,9 +66,9 @@
   });
  }
  function pool(){const catalog=E.catalog(files);return ($('single-pool')?.value==='all'?[...catalog.byWriter].flatMap(([writer,list])=>list.map(s=>({...s,writer}))):(catalog.byWriter.get($('single-writer').value)||[]).map(s=>({...s,writer:$('single-writer').value})));}
- function sourceControls(){
-  const selected=Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
-  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
+ function sourceControls(selectedIDs){
+  const selected=selectedIDs||Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
+  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived).map(s=>({...s,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm}));
   const used=new Set();
   for(let i=0;i<count;i++){
    const label=document.createElement('label'),select=document.createElement('select');label.append('Source '+String.fromCharCode(65+i)+' ',select);
@@ -79,26 +80,59 @@
     const all=Array.from($('single-sources').querySelectorAll('select')),previous=select.dataset.previous;
     const other=select.value&&all.find(s=>s!==select&&s.value===select.value);
     if(other)other.value=previous||'';
-    all.forEach(s=>s.dataset.previous=s.value);render();
+    all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);render();savedChoices();
    });$('single-sources').append(label);
   }
-  render();
+  render();savedChoices();
  }
- function letters(){const old=$('single-letter').value,available=pool().filter(s=>s.included&&!s.derived);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
- async function load(){files=await window.StudioStorage.snapshot();const previous=$('single-writer').value;$('single-writer').replaceChildren();for(const writer of E.catalog(files).writers){const option=document.createElement('option');option.value=writer.writer;option.textContent=writer.writer;$('single-writer').append(option);}if([...$('single-writer').options].some(o=>o.value===previous))$('single-writer').value=previous;letters();}
+ function letters(){const old=$('single-letter').value||requestedLetter,available=pool().filter(s=>s.included&&!s.derived);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
+ async function load(){files=await window.StudioStorage.snapshot();const previous=$('single-writer').value||query.get('writer');$('single-writer').replaceChildren();for(const writer of E.catalog(files).writers){const option=document.createElement('option');option.value=writer.writer;option.textContent=writer.writer;$('single-writer').append(option);}if([...$('single-writer').options].some(o=>o.value===previous))$('single-writer').value=previous;letters();}
+ function savedChoices(selectedID){
+  const select=$('single-saved-choice'),previous=selectedID||select.value;select.replaceChildren();
+  const records=files.filter(f=>f.key.startsWith('blends/')&&f.value.writer===$('single-writer').value&&f.value.order[0]===$('single-letter').value).map(f=>f.value).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at));
+  for(const r of records){const option=document.createElement('option');option.value=r.id;option.textContent=new Date(r.saved_at).toLocaleString()+' · '+r.source_ids.length+' sources · '+r.id.slice(0,8);select.append(option);}
+  if(records.some(r=>r.id===previous))select.value=previous;
+  select.disabled=busy||!records.length;$('single-reopen').disabled=busy||!records.length;
+  $('single-next').disabled=busy||$('single-letter').options.length<2;
+ }
+ function showSaved(id){
+  const sample=E.catalog(files).byWriter.get($('single-writer').value)?.find(s=>s.capture_id===id&&s.letter===$('single-letter').value);
+  if(!sample)return;
+  lastSaved={id,writer:$('single-writer').value,letter:sample.letter};$('single-saved').hidden=false;
+  $('single-saved-name').textContent='Saved '+sample.letter+' under '+lastSaved.writer+' · '+id.slice(0,8);
+  $('single-saved-preview').innerHTML=E.reviewSVG(sample).replace(/<line\b[^>]*\/>|<text\b[^>]*>[^<]*<\/text>/g,'');
+  $('single-view').href='alphabet.html?'+new URLSearchParams({writer:lastSaved.writer,letter:lastSaved.letter,sample:id})+'#alphabet-detail';
+  $('single-prefer').disabled=!sample.included;$('single-prefer').textContent='Use as preferred';
+  savedChoices(id);
+ }
+ function reopen(id){
+  if(busy||!id)return;
+  try{const recipe=E.savedBlendRecipe(files,id);stopDrag();recipeShifts=null;
+   $('single-writer').value=recipe.writer;$('single-pool').value='all';letters();$('single-letter').value=recipe.letter;$('single-count').value=String(recipe.source_ids.length);
+   horizontal=recipe.horizontal;vertical=recipe.vertical;recipeShifts=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_shifts[i]]));sourceControls(recipe.source_ids);savedChoices(id);
+   status('Reopened '+recipe.letter+' from its original sources and saved blend position. Source baseline adjustments are restored. Save creates a new version; any later Review adjustment stays with the old sample.');
+  }catch(error){status('Could not reopen: '+error.message);}
+ }
+ $('single-reopen').onclick=()=>reopen($('single-saved-choice').value);
+ $('single-next').onclick=()=>{if(busy)return;stopDrag();recipeShifts=null;const list=Array.from($('single-letter').options).map(o=>o.value),i=list.indexOf($('single-letter').value);if(list.length<2)return;$('single-letter').value=list[(i+1)%list.length];horizontal=50;vertical=50;sourceControls();};
+ $('single-prefer').onclick=async()=>{
+  if(busy||!lastSaved)return;const saved={...lastSaved},controls=Array.from(document.querySelectorAll('select,input,button')).map(c=>[c,c.disabled]);stopDrag();busy=true;controls.forEach(([c])=>c.disabled=true);let preferred=false;
+  try{const response=await window.studioFetch('/api/alphabet/preferred',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writer:saved.writer,letter:saved.letter,capture_id:saved.id})});const data=await response.json();if(!response.ok)throw Error(data.error);files=await window.StudioStorage.snapshot();preferred=true;$('single-prefer').textContent='Preferred version saved';status(saved.letter+' is now preferred for '+saved.writer+'. Compose uses it when the source type allows saved blends.');}
+  catch(error){status('Could not save preference: '+error.message);}finally{busy=false;controls.forEach(([c,disabled])=>c.disabled=disabled);$('single-prefer').disabled=preferred;}
+ };
  function previewControls(){
   stopDrag();
   $('single-cards').dataset.guides=String($('single-guides').checked);
   const zoom=Number($('single-zoom').value);$('single-cards').style.width=zoom+'%';$('single-zoom-value').textContent=zoom+'%';
  }
  $('single-guides').addEventListener('change',previewControls);$('single-zoom').addEventListener('input',previewControls);previewControls();
- $('single-pool')?.addEventListener('change',letters);$('single-writer').addEventListener('change',letters);$('single-letter').addEventListener('change',sourceControls);$('single-count').addEventListener('change',sourceControls);
+ for(const id of ['single-pool','single-writer'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;letters();});for(const id of ['single-letter','single-count'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;sourceControls();});
  $('single-centre').onclick=()=>{if(busy)return;stopDrag();horizontal=50;vertical=50;render();};
- $('single-refresh').onclick=()=>load().catch(e=>status(e.message));
- $('single-save').onclick=async()=>{if(!result||busy)return;stopDrag();busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.preview-controls input'),$('single-refresh'),$('single-centre')];controls.forEach(c=>c.disabled=true);
-  try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal,vertical})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();}
+ $('single-refresh').onclick=()=>{if(busy)return;recipeShifts=null;return load().catch(e=>status(e.message));};
+ $('single-save').onclick=async()=>{if(!result||busy)return;stopDrag();busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.preview-controls input'),$('single-refresh'),$('single-centre'),$('single-next'),$('single-reopen'),$('single-saved-choice')];controls.forEach(c=>c.disabled=true);
+  try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal,vertical,source_shifts:sources.map(s=>s.baseline_shift_mm)})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' under '+$('single-writer').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();showSaved(data.id);}
   catch(e){status('Could not save: '+e.message);$('single-save').disabled=false;}
-  finally{busy=false;controls.forEach(c=>c.disabled=false);}
+  finally{busy=false;controls.forEach(c=>c.disabled=false);savedChoices(saveID);}
  };
- try{await load();}catch(e){status(e.message);}
+ try{await load();if(query.get('blend'))reopen(query.get('blend'));}catch(e){status(e.message);}
 })();

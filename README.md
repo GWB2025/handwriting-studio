@@ -14,7 +14,7 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 2. **Review samples** to include/exclude individual originals or saved blends and adjust baseline placement.
 3. **Blend a character** from two or four different original captures by dragging the live result towards its sources. Save the result as a new sample.
 4. **My alphabet** shows coverage, original/blend counts and preferred versions for each writer and group.
-5. **Compose** uses originals, saved blends or both, with optional preferred versions and saved joined pairs. Export A4 SVG or plotter G-code.
+5. **Alphabet proof sheet**, opened from My alphabet, tests your chosen characters and an optional sentence at physical writing sizes. **Compose** adds live letter spacing, word spacing and line-gap controls. Both export A4 SVG or plotter G-code.
 6. **Calibration** provides the verified A4 checking procedure and downloadable stages. Send G-code from the Mac connected to the plotter.
 
 **Free writing** and **Saved pages** are also available through Capture’s Show help and the Help guide. They store notebook pages separately from labelled character samples.
@@ -53,6 +53,10 @@ The workspace follows the letter-level workflow shown around 22–24 minutes in 
 4. Drag the **green-bordered blended character** with a finger, Pencil or mouse. With two sources it moves horizontally between A and B. With four it moves in two dimensions between A/B above and C/D below. Moving towards a source increases that source’s contribution immediately.
 5. **Save blended sample** saves the displayed result under the chosen writer, ready for Review, My alphabet and Compose. Source captures remain unchanged.
 
+After saving, a confirmation panel shows the character, destination writer and a preview. **Use as preferred** selects that saved result for the writer immediately. **View saved blend** opens its character in My alphabet and highlights the saved sample. **Blend next character** moves to the next character in the current list, wrapping at the end, and centres the mix. Save before moving on if you want to keep the current result.
+
+**Saved versions → Reopen source mix**, or **Reopen source mix** on a blend in My alphabet, restores the source captures, their stored baseline adjustments and the saved blend position. Drag to adjust, then save a new version. The existing blend stays unchanged. Later Review adjustments on that saved blend are separate and are not applied to the reopened source mix. Excluded or missing source originals must be made available before reopening. Changing source selections switches to their current Review adjustments.
+
 The draggable result has a **transparent background**, so sources remain visible underneath. Blending no longer uses horizontal or vertical sliders. **Centre blend** returns to equal contributions. Arrow keys adjust the focused result by 1%; Shift + arrow keys use 10% steps. Up/down apply to four sources.
 
 **Show guides** is off by default. **Preview size** enlarges the display from 100% to 200% and does not change the saved character size. Scroll or swipe outside the draggable result to navigate an enlarged preview. Fixed preview dimensions and in-place path updates avoid rebuilding the page during a drag.
@@ -71,6 +75,14 @@ Choose a writer and group to see included original counts, saved-blend counts, m
 
 Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. A preferred sample is used for every occurrence only if it is included and matches the selected source type. Otherwise normal selection applies within the allowed samples. Turn the option off to cycle through variations.
 
+## Alphabet proof sheet
+
+Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm) or Large (8 mm). The proof uses an included preferred version when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
+
+Missing group characters are listed and omitted from the character row. A test sentence requiring unavailable characters reports the missing samples and prevents export; edit it or leave it blank. The initial sentence uses the lowercase pangram when all lowercase letters are available, otherwise a short selection of available characters. Edited text is preserved across setting changes. Settings and sentence edits update the preview automatically; **Refresh preview** also reloads saved choices.
+
+Download `alphabet-proof-a4.svg` or `alphabet-proof-a4.gcode`. Both contain the displayed handwriting on A4 with 20 mm margins, using the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
+
 ## Compose and export
 
 Choose a writer and type text using captured lowercase, capitals, digits and supported punctuation, plus spaces and line breaks. The initial example uses available characters; text you have edited is preserved when settings change. The limit is 2,000 characters, all of which must fit on one A4 page.
@@ -82,6 +94,10 @@ Choose a writer and type text using captured lowercase, capitals, digits and sup
 **Use saved joined pairs** replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
 
 Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm), retaining natural proportions. A review baseline shift is applied as a physical offset afterwards. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word or overflowing page prompts a smaller writing size or less text rather than clipping.
+
+**Letter spacing**, **Word spacing** and **Line gap** range from 50% to 200%, with 100% preserving the normal layout. Letter spacing changes the distance between character starts; word spacing changes the space width; line gap changes the clearance between lines. Character shape and writing size stay unchanged. Tight letter spacing can overlap characters, so inspect the preview. **Reset spacing** restores all three to 100%.
+
+After the first generated preview, spacing changes update it automatically. The previous image remains visible while updating, with SVG and G-code downloads disabled until the new result is ready. If wider spacing makes the text overflow, reduce spacing, size or text. Other setting changes still require Generate preview. Spacing settings belong to the current Compose session; they do not edit stored handwriting.
 
 **Generate preview**, then **Download A4 SVG** or **Download plotter G-code**. SVG exports the displayed drawing on A4 portrait (210 × 297 mm) with 20 mm margins, one unfilled line path per pen stroke, in captured order and direction, with nominal width 0.3 mm. The G-code follows the same preview; curves are flattened within 0.02 mm and dots receive a brief dwell.
 
@@ -148,7 +164,7 @@ For missing sources, backup conflicts, stale controls or missing Compose charact
 
 ## Development and publishing
 
-`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds seven working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
+`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds eight working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
 
 ```sh
 npm ci --ignore-scripts
@@ -159,7 +175,7 @@ STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs 
 python3 -m unittest discover -s tests
 ```
 
-Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions and export. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
+Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions, saved-mix reopening, proof sheets, live spacing and export. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
 
 In repository Settings → Pages, choose **GitHub Actions**. The **Publish Handwriting Studio** workflow tests and deploys `docs/` on pushes to `main`. The build copies only named UI files, never local handwriting or backups. When a feature changes, update this README, its Help guide section and nearby control instructions, rebuild, and check help links before publishing.
 

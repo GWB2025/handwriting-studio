@@ -160,6 +160,7 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 #blend-count-label[hidden], #blend-vertical-label[hidden] {display:none;}
 #blend-vertical {display:block;width:260px;max-width:100%;}
 
+.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}
 .browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
 #backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }
 #backup-dialog::backdrop { background: #10231c66; }

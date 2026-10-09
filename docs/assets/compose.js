@@ -14,14 +14,13 @@
     automaticPhrase=available===alphabet?fullExample:available==='abcde'?'a bad cab\naaaa bbbb cccc dddd eeee':[...available].join(' ');
     byID('phrase').value=automaticPhrase;
   }
-  function clearPreview(){
+  function clearPreview(keepImage=false){
     previewSVG='';window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
-    if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';
-    byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');
-    byID('compose-empty').hidden=false;byID('compose-download').disabled=true;
+    if(!keepImage){if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');byID('compose-empty').hidden=false;}
+    byID('compose-download').disabled=true;
   }
-  function invalidate(){
-    clearTimeout(liveTimer);requestNumber++;controller?.abort();controller=null;loading=false;clearPreview();
+  function invalidate(options){
+    clearTimeout(liveTimer);requestNumber++;controller?.abort();controller=null;loading=false;clearPreview(options?.keepImage===true);
     byID('generate').disabled=!byID('compose-writer').value;
     byID('generate').textContent='Generate preview';
     byID('compose-status').textContent='Settings changed. Generate a new preview before downloading.';
@@ -39,7 +38,7 @@
     const selected=byID('compose-writer').value || new URLSearchParams(window.location.search).get('writer');
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
-    for(const id of ['compose-source','compose-preferred'])if(byID(id))byID(id).disabled=true;
+    for(const id of ['compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
     byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;
     for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=true;
     byID('compose-status').textContent='Loading your saved letters…';
@@ -55,23 +54,23 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Try reopening this page in a regular browser window, then tap Refresh samples.';}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-source','compose-preferred'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
     if(!event.live)blendSeed=crypto.randomUUID();
-    clearPreview();loading=true;const ticket=++requestNumber;
+    clearPreview(!!event.live);loading=true;const ticket=++requestNumber;
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
     byID('generate').disabled=true;byID('generate').textContent='Composing…';
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await window.studioFetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
-      imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
-      byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
+      const oldImageURL=imageURL;imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
+      byID('composed-image').src=imageURL;if(oldImageURL)URL.revokeObjectURL(oldImageURL);byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
       byID('compose-download').disabled=false;
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
       if(profile){profile.counts=data.sample_selection.all_counts||data.sample_selection.available_counts;for(const key of ['original_counts','blend_counts','preferred'])if(data.sample_selection[key])profile[key]=data.sample_selection[key];profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
@@ -80,11 +79,11 @@
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. Download exports exactly this preview.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';
-    }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=error.name==='AbortError'?'Browser storage took too long to respond. Try Generate preview again.':error.message;}
+    }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=(error.name==='AbortError'?'Browser storage took too long to respond. Try Generate preview again.':error.message)+(event.live&&imageURL?' Previous preview shown; adjust settings to update it.':'');}
     finally{clearTimeout(timeout);if(ticket===requestNumber){loading=false;controller=null;byID('generate').disabled=false;byID('generate').textContent='Generate preview';}}
   };
   byID('compose-download').onclick=()=>{
-    if(!imageURL)return;
+    if(!imageURL||!previewSVG||byID('compose-download').disabled)return;
     const a=document.createElement('a');a.href=imageURL;a.download='composed-handwriting-a4.svg';a.hidden=true;
     // Keep the download link in the document for Safari's native download path.
     document.body.append(a);a.click();setTimeout(()=>a.remove(),1000);
@@ -110,6 +109,14 @@
   byID('blend-vertical')?.addEventListener('input',()=>{byID('blend-vertical-value').textContent=byID('blend-vertical').value+'% bottom row';liveBlend();});
   byID('blend-count')?.addEventListener('change',()=>{if(byID('blend-count').value==='4'&&byID('compose-samples').value==='latest_three')byID('compose-samples').value='latest_four';liveBlend();});
   byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
+  function spacingData(){return Object.fromEntries(['letter','word','line'].map(name=>[name+'_spacing',Number(byID('compose-'+name+'-spacing')?.value||100)/100]));}
+  function liveSpacing(){
+    for(const name of ['letter','word','line'])if(byID('compose-'+name+'-value'))byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
+    const active=hasPreview;invalidate({keepImage:active});
+    if(active){byID('compose-status').textContent='Updating spacing… Downloads will be ready when the preview is updated.';liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),180);}
+  }
+  for(const name of ['letter','word','line'])byID('compose-'+name+'-spacing')?.addEventListener('input',liveSpacing);
+  if(byID('compose-spacing-reset'))byID('compose-spacing-reset').onclick=()=>{for(const name of ['letter','word','line'])byID('compose-'+name+'-spacing').value='100';liveSpacing();};
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){
     if(checkingSamples || loading || byID('compose-writer').disabled)return;
