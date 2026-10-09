@@ -78,3 +78,19 @@ test('alphabet preferences save atomically, affect composition and survive backu
  const invalid=await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'a',capture_id:webcrypto.randomUUID()});assert.equal(invalid.status,400);assert.equal((await call(b,'/api/letters/writers')).data.writers[0].preferred.a,request.capture_id);
  assert.equal((await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'a',capture_id:null})).status,200);assert.equal((await call(b,'/api/letters/writers')).data.writers[0].preferred.a,undefined);
 });
+
+test('size reviews, frozen blend sizes, multiple preferences and compositions round-trip in one backup',async()=>{
+ const b=browser(),originals=files();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:originals});
+ const sources=E.catalog(originals).byWriter.get('Writer').filter(s=>s.letter==='a').slice(0,2);
+ for(const s of sources)assert.equal((await call(b,'/api/letters/samples/'+s.capture_id+'/a/review',{included:true,baseline_shift_mm:.5,scale_factor:1.4})).status,200);
+ const blend=await call(b,'/api/blends',{id:webcrypto.randomUUID(),writer:'Writer',letter:'a',source_ids:sources.map(s=>s.capture_id),horizontal:50,vertical:50});assert.equal(blend.status,201);
+ await call(b,'/api/alphabet/preferred',{writer:'Writer',letter:'a',capture_ids:[sources[0].capture_id,blend.data.id]});
+ const composition={id:webcrypto.randomUUID(),title:'Practice page',settings:{writer:'Writer',phrase:'a cat',height:8,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5,source:'both',use_preferred:true,samples:'latest_four',smooth:true,joined:false}};
+ assert.equal((await call(b,'/api/compositions',composition)).status,200);const fresh=browser();await fresh.StudioStorage.importBackup(await b.StudioStorage.backup());
+ assert.deepEqual((await call(fresh,'/api/compositions')).data.compositions[0].settings,composition.settings);
+ const catalog=E.catalog(await fresh.StudioStorage.snapshot());assert.deepEqual(catalog.writers[0].preferred_sets.a,[sources[0].capture_id,blend.data.id]);assert.equal(catalog.byWriter.get('Writer').find(s=>s.capture_id===sources[0].capture_id&&s.letter==='a').scale_factor,1.4);
+ assert.equal((await call(fresh,'/api/compose',composition.settings)).status,200);
+ const state=await fresh.StudioStorage.snapshot();for(const original of originals)assert.deepEqual(state.find(f=>f.key===original.key).value,original.value);
+ const bad=await fresh.StudioStorage.backup();bad.files.find(f=>f.key.startsWith('compositions/')).value.settings.letter_spacing=0;await assert.rejects(browser().StudioStorage.importBackup(bad),/composition settings/);
+ const invalid=await call(fresh,'/api/compositions',{...composition,settings:{...composition.settings,height:99}});assert.equal(invalid.status,400);assert.equal((await call(fresh,'/api/compositions')).data.compositions[0].settings.height,8);
+});

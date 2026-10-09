@@ -40,3 +40,12 @@ test('separate strokes are coloured and samples share a fitted frame that contai
  assert.deepEqual([...plain.matchAll(/<path d="([^"]+)"/g)].map(m=>m[1]),[...colour.matchAll(/<path d="([^"]+)"/g)].map(m=>m[1]));assert(!plain.includes('#1463d6'));
  const composed=E.compose(records,{writer:'Writer',phrase:'tt',samples:'all'});assert(!composed.svg.includes('#1463d6'));assert(composed.svg.includes('stroke="black"'));
 });
+
+test('adding and removing preferred versions preserves other choices and their order',async()=>{
+ const w=await workspace(),{ids}=w,cards=()=>ids['alphabet-samples'].children;
+ await cards()[0].children[2].onclick();await cards()[2].children[2].onclick();
+ let chosen=E.catalog(w.records).writers[0].preferred_sets.a;assert.equal(chosen.length,2);assert.match(ids['alphabet-choice'].textContent,/2 included versions/);
+ assert.deepEqual(E.compose(w.records,{writer:'Writer',phrase:'aaaa',joined:false}).used_samples.map(s=>s.capture_id),[...chosen,...chosen]);
+ assert.equal(cards()[0].children[2].textContent,'Remove from preferred');const kept=chosen[1];await cards()[0].children[2].onclick();
+ assert.deepEqual(E.catalog(w.records).writers[0].preferred_sets.a,[kept]);assert.equal(cards()[0].children[2].textContent,'Add to preferred');
+});

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Review samples</title>
-<link rel="stylesheet" href="assets/style.css?v=08c0bf02b3b7">
-<script src="assets/engine.js?v=5997ef9d68e0"></script><script src="assets/browser-api.js?v=73e7adf68edf"></script>
+<link rel="stylesheet" href="assets/style.css?v=00fa35dca0a1">
+<script src="assets/engine.js?v=a50fd9c9011b"></script><script src="assets/browser-api.js?v=7d44bac09025"></script>
 </head>
 <body class="compose-page">
 <div class="compose-shell">
@@ -25,13 +25,15 @@
     <section id="sample-detail" hidden aria-label="Selected sample">
       <h2 id="sample-title"></h2>
       <p id="sample-date" class="subtle"></p>
-      <div class="sample-preview-row">
+      <fieldset class="inspection-controls"><legend>Inspect the sample</legend><label>Preview size <output id="review-zoom-value">100%</output><input id="review-zoom" type="range" min="100" max="300" step="25" value="100"></label><label><input id="review-colours" type="checkbox" checked> Colour separate strokes</label><label><input id="review-starts" type="checkbox"> Show numbered stroke starts</label><span>First stroke dark, second blue; later strokes use other colours. Preview size only enlarges the display.</span></fieldset>
+<div class="sample-preview-row">
         <div class="sample-paper"><div id="sample-image" role="img" aria-label="Horizontally centred handwriting sample with fixed baseline guides"></div></div>
         <div class="sample-position"><label for="sample-shift">Position</label><span aria-hidden="true">Up</span><input id="sample-shift" type="range" min="-10" max="10" step="any" value="0" form="review-form" aria-orientation="vertical" aria-describedby="sample-shift-help"><span aria-hidden="true">Down</span></div>
       </div>
       <form id="review-form">
         <label class="sample-include"><input type="checkbox" id="sample-included"> Use this sample in composition</label>
-        <div class="sample-shift-readout"><output id="sample-shift-value" for="sample-shift">Original baseline</output><button id="sample-zero" type="button">Original baseline</button></div>
+        <fieldset class="sample-sizing"><legend>Adjust this letter’s size</legend><label for="sample-size">Letter size <output id="sample-size-value">100%</output></label><input id="sample-size" type="range" min="50" max="200" step="any" value="100"><button id="sample-size-reset" type="button">Original size</button><p class="subtle">Scales height and width together around the original baseline. Save changes to use this size in blends, My alphabet and Compose. Original strokes are kept.</p><label for="review-word">Try a short word</label><input id="review-word" type="text" maxlength="40" value="" spellcheck="false"><p id="review-word-status" class="subtle" role="status"></p><div id="review-word-preview" role="img" aria-label="Word preview with the pending letter adjustment"></div></fieldset>
+<div class="sample-shift-readout"><output id="sample-shift-value" for="sample-shift">Original baseline</output><button id="sample-zero" type="button">Original baseline</button></div>
         <p class="subtle" id="sample-shift-help">Slide up to move the letter up, or down to move it down, by up to 10 mm. The letter stays centred left to right. Original baseline returns to zero offset; Save changes keeps the position and Reset changes restores the last saved position. Arrow keys move by 0.1 mm; hold Shift for 1 mm. Preview shown at Medium (5 mm).</p>
         <div class="compose-actions"><button id="review-save" class="primary" disabled>Save changes</button><button id="review-reset" type="button" disabled>Reset changes</button></div>
       </form>
@@ -39,7 +41,7 @@
   </div>
   <p class="subtle">Original writing is kept. Review choices apply to this individual sample. Generate a fresh Compose preview after reviewing.</p>
 </div>
-<script src="assets/review.js?v=584432f891e6"></script>
+<script src="assets/review.js?v=9f24e6f5d31e"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=29be55bc4a60"></script>
 </body>

@@ -87,22 +87,48 @@
     size(record);return record;
   }
   function size(record){if(new TextEncoder().encode(JSON.stringify(record)).length>8*1024*1024)fail('This page is too large to save. Download its SVG and start a smaller page.');}
-  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10))fail('Choose whether to use this sample and a baseline shift between −10 and 10 mm.');}
+  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10)||!finite(review.scale_factor??1,.5,2))fail('Choose inclusion, a position within 10 mm of the baseline, and a size from 50% to 200%.');}
+  function scaleSample(sample,factor){
+    const result=clone(sample);if(factor===1)return result;
+    for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
+    result.bounds={...result.bounds,left:0,right:(sample.bounds.right-sample.bounds.left)*factor};return result;
+  }
+  function sampleAtSize(files,s,factor){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(raw,factor),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
+  const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
+  function compositionSettings(data){
+    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>2000)fail('Choose a writer and enter text before saving a composition.');
+    const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??true,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
+    if(![3,5,8].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    return result;
+  }
+  function createComposition(data){
+    if(!data||!uuid(data.id)||typeof data.title!=='string'||!data.title.trim()||data.title.length>100)fail('Give the composition a name (up to 100 characters).');
+    return {schema_version:1,id:data.id,title:data.title.trim(),updated_at:new Date().toISOString(),settings:compositionSettings(data.settings)};
+  }
+  function reviewWord(files,data){
+    validateReview(data);if(typeof data.text!=='string'||data.text.length>40)fail('Use up to 40 characters in the word preview.');
+    const copy=clone(files),key='letter_reviews/'+data.capture_id+'.json',old=copy.find(f=>f.key===key),r=old?.value||{schema_version:1,capture_id:data.capture_id,reviews:{}};
+    r.reviews[data.letter]={included:true,baseline_shift_mm:data.baseline_shift_mm,scale_factor:data.scale_factor??1};if(!old)copy.push({key,value:r});
+    const sample=catalog(copy).byWriter.get(data.writer)?.find(s=>s.capture_id===data.capture_id&&s.letter===data.letter);if(!sample)fail('This sample is unavailable.');
+    const pref=choosePreferred(copy,{writer:data.writer,letter:data.letter,capture_id:data.capture_id}),index=copy.findIndex(f=>f.key===pref.key);if(index<0)copy.push(pref);else copy[index]=pref;
+    return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:false,samples:'latest_only'});
+  }
   function createSavedBlend(files,data){
     if(!uuid(data.id)||(typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80)||!Array.isArray(data.source_ids)||![2,4].includes(data.source_ids.length)||new Set(data.source_ids).size!==data.source_ids.length||!finite(data.horizontal,0,100)||!finite(data.vertical,0,100))fail('Choose two or four distinct source samples and valid mix controls.');
     const all=[...catalog(files).byWriter.values()].flat();
     if(data.source_shifts!==undefined&&(!Array.isArray(data.source_shifts)||data.source_shifts.length!==data.source_ids.length||!data.source_shifts.every(v=>finite(v,-10,10))))fail('Invalid source baseline adjustments.');
-    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived);return s&&{...s,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
+    if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,2))))fail('Invalid source sizes.');
+    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
     if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
     const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
     if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
     const sample={letter:data.letter,processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm};
-    return {schema_version:4,derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
+    return {schema_version:sources.some(s=>s.scale_factor!==1)?5:4,...(sources.some(s=>s.scale_factor!==1)?{source_scales:sources.map(s=>s.scale_factor)}:{}),derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
   }
   function savedBlendRecipe(files,id){
     const record=files.find(f=>f.key==='blends/'+id+'.json')?.value;
     if(!record)fail('This saved blend is unavailable.');
-    const recipe={writer:record.writer,letter:record.order[0],source_ids:record.source_ids.slice(),source_shifts:record.source_shifts.slice(),horizontal:record.horizontal,vertical:record.vertical};
+    const recipe={writer:record.writer,letter:record.order[0],source_ids:record.source_ids.slice(),source_shifts:record.source_shifts.slice(),source_scales:record.source_scales?.slice()||record.source_ids.map(()=>1),horizontal:record.horizontal,vertical:record.vertical};
     // Validate availability without changing the saved record or its source adjustments.
     createSavedBlend(files,{...recipe,id:record.id});return recipe;
   }
@@ -118,7 +144,7 @@
   }
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
-    for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...sample,capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
+    for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...scaleSample(sample,r.source_scales?.[i]??1),capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
       const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
     }
   }
@@ -126,24 +152,31 @@
   function validateAlphabetReferences(files){
     const cat=catalog(files);
     for(const f of files.filter(f=>f.key.startsWith('alphabets/'))){const r=f.value,all=cat.byWriter.get(r.writer)||[];
-      for(const [letter,id] of Object.entries(r.choices))if(!all.some(s=>s.letter===letter&&s.capture_id===id))fail('A preferred character is missing its saved sample.');
+      for(const [letter,ids] of Object.entries(r.choices))for(const id of preferenceIDs(ids))if(!all.some(s=>s.letter===letter&&s.capture_id===id))fail('A preferred character is missing its saved sample.');
     }
   }
   function choosePreferred(files,data){
-    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||![...characters,...pairs].includes(data.letter)||(data.capture_id!==null&&!uuid(data.capture_id)))fail('Choose a writer, character and preferred sample.');
+    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||![...characters,...pairs].includes(data.letter))fail('Choose a writer, character and preferred sample.');
+    const ids=data.capture_ids??(data.capture_id===null?[]:[data.capture_id]);
+    if(!Array.isArray(ids)||ids.length>100||new Set(ids).size!==ids.length||!ids.every(uuid))fail('Choose distinct preferred samples.');
     const all=catalog(files).byWriter.get(data.writer);if(!all)fail('This writer is unavailable.');
-    if(data.capture_id!==null&&!all.some(s=>s.letter===data.letter&&s.capture_id===data.capture_id&&s.included))fail('Choose an included sample belonging to this writer and character.');
-    const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value,choices=clone(old?.choices||{});
-    if(data.capture_id===null)delete choices[data.letter];else choices[data.letter]=data.capture_id;
-    return {key,value:old&&same(old.choices,choices)?old:{schema_version:1,writer:data.writer,choices,updated_at:new Date().toISOString()}};
+    if(ids.some(id=>!all.some(s=>s.letter===data.letter&&s.capture_id===id&&(s.included||(data.capture_ids&&preferenceIDs(files.find(f=>f.key===alphabetKey(data.writer))?.value.choices[data.letter]).includes(id))))))fail('Choose an included sample belonging to this writer and character.');
+    const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value,multi=data.capture_ids!==undefined||old?.schema_version===2;
+    const choices=clone(old?.choices||{});if(multi)for(const letter of Object.keys(choices))choices[letter]=preferenceIDs(choices[letter]);
+    if(!ids.length)delete choices[data.letter];else choices[data.letter]=multi?ids.slice():ids[0];
+    return {key,value:old&&same(old.choices,choices)?old:{schema_version:multi?2:1,writer:data.writer,choices,updated_at:new Date().toISOString()}};
   }
   function countsFor(profile,source='both'){
     return profile?(source==='originals'?profile.original_counts||profile.counts:source==='blends'?profile.blend_counts||{}:profile.counts):{};
   }
   function validateRecord(key,r){
+    if(key.startsWith('compositions/')){
+      if(!r||r.schema_version!==1||!uuid(r.id)||key!=='compositions/'+r.id+'.json'||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid saved composition.');
+      const normalized=createComposition(r);if(r.title!==normalized.title||!same(r.settings,normalized.settings))fail('Invalid saved composition settings.');size(r);return;
+    }
     if(key.startsWith('alphabets/')){
-      if(!r||r.schema_version!==1||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==alphabetKey(r.writer)||!r.choices||typeof r.choices!=='object'||Array.isArray(r.choices)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid alphabet preferences.');
-      size(r);for(const [letter,id] of Object.entries(r.choices))if(![...characters,...pairs].includes(letter)||!uuid(id))fail('Invalid preferred character.');return;
+      if(!r||![1,2].includes(r.schema_version)||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==alphabetKey(r.writer)||!r.choices||typeof r.choices!=='object'||Array.isArray(r.choices)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid alphabet preferences.');
+      size(r);for(const [letter,value] of Object.entries(r.choices)){const ids=preferenceIDs(value);if(![...characters,...pairs].includes(letter)||(r.schema_version===1?!uuid(value):!Array.isArray(value))||!ids.length||ids.length>100||new Set(ids).size!==ids.length||!ids.every(uuid))fail('Invalid preferred character.');}return;
     }
     if(!r||!uuid(r.id||r.capture_id))fail('Unsupported backup record.');
     if(key==='letter_reviews/'+r.capture_id+'.json'){
@@ -151,7 +184,8 @@
       for(const [letter,review] of Object.entries(r.reviews)){if(!([...characters,...pairs].includes(letter)))fail('Invalid review letter.');validateReview(review);}return;
     }
     if(key==='blends/'+r.id+'.json'){
-      size(r);if(r.schema_version!==4||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
+      size(r);if(![4,5].includes(r.schema_version)||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
+      if((r.schema_version===4&&r.source_scales!==undefined)||(r.schema_version===5&&(!Array.isArray(r.source_scales)||r.source_scales.length!==r.source_ids.length||!r.source_scales.every(v=>finite(v,.5,2)))))fail('Invalid saved blend sizes.');
       const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
     size(r);validateContent(r.writer,r.raw_strokes,r.display_smoothing);
@@ -178,10 +212,10 @@
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...s,...setting,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(s,setting.scale_factor??1),...setting,scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
-    for(const [writer,p] of profiles){p.preferred=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});states.get(writer).push(['preferred',p.preferred]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
+    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));states.get(writer).push(['preferred',choices]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
     return {writers:[...profiles.values()].sort((a,b)=>a.writer.toLowerCase().localeCompare(b.writer.toLowerCase())),byWriter};
   }
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -268,9 +302,9 @@
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
     const previews=[];
-    const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred||{};
+    const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred_sets||{};
     for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
-    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred&&list.find(s=>s.capture_id===preferences[letter]);variants[letter]=preferred?[preferred]:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
+    for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred?preferenceIDs(preferences[letter]).map(id=>list.find(s=>s.capture_id===id)).filter(Boolean):[];variants[letter]=preferred.length?preferred:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
     const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
     const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
     if(missing.length)fail('No included '+(source==='blends'?'saved blends':source==='originals'?'original samples':'samples')+' for: '+missing.join(', ')+'. '+(source==='blends'?'Save blends for these characters or choose Both.':'Capture them or include a saved example in Review samples.'));
@@ -312,15 +346,16 @@
     const left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
     return svgs.map(svg=>svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`));
   }
-  function reviewSVG(sample,{colourStrokes=false}={}){
+  function reviewSVG(sample,{colourStrokes=false,showStarts=false}={}){
     const shift=sample.baseline_shift_mm*16;let top=-180,bottom=110,width=240;
     for(const stroke of sample.processed_strokes)for(const p of stroke.points){top=Math.min(top,p.y+shift-25);bottom=Math.max(bottom,p.y+shift+25);width=Math.max(width,p.x+60);}
     let svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 '+top+' '+width+' '+(bottom-top)+'">';
     for(const [y,label] of [[-80,'small-letter height'],[0,'baseline'],[80,'tail guide']])svg+='<line x1="-20" x2="'+(width-40)+'" y1="'+y+'" y2="'+y+'" stroke="'+(y===0?'#93ad9b':'#d1dcd1')+'" stroke-width="1" stroke-dasharray="'+(y===0?'none':'4 4')+'"/><text x="-18" y="'+(y-5)+'" fill="#52675f" font-size="9" font-family="sans-serif">'+label+'</text>';
     const colours=['#203832','#1463d6','#a74700','#813ca6','#06736e','#ba285f'];
     sample.processed_strokes.forEach((stroke,i)=>{svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="'+colours[colourStrokes?i%colours.length:0]+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';});
+    if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

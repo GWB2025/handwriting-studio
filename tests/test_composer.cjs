@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer(extended=false) {
+async function composer(extended=false,savedCompositions=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -33,6 +33,7 @@ async function composer(extended=false) {
     } : {}});
   const exported=[];
   const window = events({StudioPlotter:{fromSVG:svg=>{exported.push(svg);return 'G21\n';}},...(extended?{StudioEngine:require('../web/engine.js')} : {}),location: {search: '?writer=Writer'}});
+  if(savedCompositions)window.StudioCompositions={init(handlers){window.compositions=handlers;}};
   const requests = [], revoked = [];
   const server = {count: 8, savedAt: '2026-10-05T10:15:00Z', offline: false, revision:'original'};
   let serial = 0;
@@ -71,6 +72,14 @@ test('sample choice reaches the server and changing it invalidates the old downl
   request = c.requests.at(-1);
   assert.equal(JSON.parse(request.options.body).samples, 'latest_only');
   assert.match(e['compose-counts'].textContent, /a × 1/);
+});
+
+test('opening a saved composition restores the complete form and invalidates earlier exports',async()=>{
+ const c=await composer(true,true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(e['compose-download'].disabled,false);
+ const settings={...c.window.compositions.read(),phrase:'a saved letter',height:8,samples:'all',source:'blends',use_preferred:false,joined:false,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
+ await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),settings);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
+ await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');
+ await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
 });
 
 test('returning to an unchanged composer keeps its preview and download ready', async () => {

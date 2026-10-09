@@ -11,7 +11,7 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 ## Current workflow
 
 1. **Capture** lowercase, uppercase, numbers, punctuation and symbols, or common joined pairs. Repeat sets to collect variations.
-2. **Review samples** to include/exclude individual originals or saved blends and adjust baseline placement.
+2. **Review samples** to include/exclude individual originals or saved blends, adjust their size and baseline, and compare a short word live.
 3. **Blend a character** from two or four different original captures by dragging the live result towards its sources. Save the result as a new sample.
 4. **My alphabet** shows coverage, original/blend counts and preferred versions for each writer and group.
 5. **Alphabet proof sheet**, opened from My alphabet, tests your chosen characters and an optional sentence at physical writing sizes. **Compose** adds live letter spacing, word spacing and line-gap controls. Both export A4 SVG or plotter G-code.
@@ -39,9 +39,11 @@ Choose a writer, group and character, then an example from the newest-first list
 
 - **Use this sample in composition** includes or excludes that example. Excluded originals are also unavailable as blend sources. Exclusion is reversible and does not delete a sample.
 - The vertical **Position** slider sits beside the preview. Slide up to raise the letter or down to lower it, by up to 10 mm. The readout says how far up or down it sits, and the preview moves immediately against fixed guide lines at Medium (5 mm). The whole character, including dots and crossbars, stays centred horizontally in the preview. **Original baseline** returns to zero offset; save to keep it. Arrow keys adjust by 0.1 mm, or 1 mm with Shift. The offset applies as the same physical distance at every Compose size; preview centring does not alter saved writing or composition spacing.
-- **Save changes** stores the choice and offset. **Reset changes** discards pending edits and restores the saved preview position. Save or reset before switching samples.
+- **Letter size** adjusts this sample from 50% to 200%, scaling height and width together around its original baseline. The preview updates immediately; **Original size** returns to 100%. **Try a short word** compares the pending adjustment with your other saved characters at Medium (5 mm). Edit the suggested word if it needs characters you have not captured. This preview always includes the selected sample, even while reviewing an excluded one; it does not save changes or change preferences.
+- **Preview size** enlarges the display from 100% to 300% without resizing the saved letter. **Colour separate strokes** starts on; **Show numbered stroke starts** optionally labels where each stroke begins, in capture order. These inspection controls do not affect exported writing.
+- **Save changes** stores inclusion, letter size and position. **Reset changes** restores all three saved settings. Save or reset before switching samples.
 
-Review settings are separate from original captures. Generate a fresh Compose preview after reviewing. Saved blends retain the source adjustments used when they were created; later changes to an original do not remake existing blends.
+Review settings are separate from original captures. Saved letter sizes apply in My alphabet, new blends, proof sheets and Compose. Original strokes are kept, and 100% restores the original size. This is a manual, proportion-preserving adjustment, not automatic equalisation of character heights. Generate a fresh Compose preview after reviewing. Saved blends retain the source sizes and positions used when they were created; later changes to an original do not remake existing blends.
 
 ## Blend a character
 
@@ -53,13 +55,15 @@ The workspace follows the letter-level workflow shown around 22–24 minutes in 
 4. Drag the **green-bordered blended character** with a finger, Pencil or mouse. With two sources it moves horizontally between A and B. With four it moves in two dimensions between A/B above and C/D below. Moving towards a source increases that source’s contribution immediately.
 5. **Save blended sample** saves the displayed result under the chosen writer, ready for Review, My alphabet and Compose. Source captures remain unchanged.
 
-After saving, a confirmation panel shows the character, destination writer and a preview. **Use as preferred** selects that saved result for the writer immediately. **View saved blend** opens its character in My alphabet and highlights the saved sample. **Blend next character** moves to the next character in the current list, wrapping at the end, and centres the mix. Save before moving on if you want to keep the current result.
+After saving, a confirmation panel shows the character, destination writer and a preview. **Use as preferred** adds that result to the writer’s preferred choices without removing other choices. **View saved blend** opens its character in My alphabet and highlights the saved sample. **Blend next character** moves to the next character in the current list, wrapping at the end, and centres the mix. Save before moving on if you want to keep the current result.
 
-**Saved versions → Reopen source mix**, or **Reopen source mix** on a blend in My alphabet, restores the source captures, their stored baseline adjustments and the saved blend position. Drag to adjust, then save a new version. The existing blend stays unchanged. Later Review adjustments on that saved blend are separate and are not applied to the reopened source mix. Excluded or missing source originals must be made available before reopening. Changing source selections switches to their current Review adjustments.
+**Saved versions → Reopen source mix**, or **Reopen source mix** on a blend in My alphabet, restores the source captures, their stored sizes and baseline adjustments, and the saved blend position. Older blends restore their original source sizes. Drag to adjust, then save a new version. The existing blend stays unchanged. Later Review adjustments on that saved blend are separate and are not applied to the reopened source mix. Excluded or missing source originals must be made available before reopening. Changing source selections switches to their current Review adjustments.
 
 The draggable result has a **transparent background**, so sources remain visible underneath. Blending no longer uses horizontal or vertical sliders. **Centre blend** returns to equal contributions. Arrow keys adjust the focused result by 1%; Shift + arrow keys use 10% steps. Up/down apply to four sources.
 
 **Show guides** is off by default. **Preview size** enlarges the display from 100% to 200% and does not change the saved character size. Scroll or swipe outside the draggable result to navigate an enlarged preview. Fixed preview dimensions and in-place path updates avoid rebuilding the page during a drag.
+
+**Colour separate strokes** and **Show numbered stroke starts** work as in Review. The first stroke is dark, the second blue, and later strokes use other colours. Numbered starts help compare stroke order and follow the result as you drag. These inspection aids do not reorder strokes or change exported ink.
 
 ### Normalisation and compatibility
 
@@ -67,19 +71,19 @@ Original samples are translated to their left edge and appropriate baseline with
 
 For four sources, weights are `(1-h)(1-v), h(1-v), (1-h)v, hv`, where `h` and `v` range from 0 to 1. The centre gives 25% per source; a corner gives 100% to that source. Two sources use `1-h, h`. Baseline adjustments are blended with the same weights.
 
-Saved blends record their source IDs, source baseline shifts and weights. Backup import validates the result against those original sources. Retrying the same blend save keeps one record.
+Saved blends record their source IDs, source baseline shifts, source sizes and weights. Backup import validates the result against those original sources. Retrying the same blend save keeps one record.
 
 ## My alphabet and preferred versions
 
-Choose a writer and group to see included original counts, saved-blend counts, missing characters and preferred versions. Select a character to compare its samples, then choose **Use as preferred** on an included original or blend. Choices save immediately. **Clear preferred version** restores normal selection for that character. An excluded preferred sample is shown as unavailable and is never used.
+Choose a writer and group to see included original counts, saved-blend counts, missing characters and preferred versions. Select a character to compare its samples, then choose **Add to preferred** on one or more included originals or blends. Choices save immediately, in the order added. **Remove from preferred** removes just that choice; **Clear preferred choices** restores normal selection for that character. Existing single preferences remain selected. An excluded preferred sample is shown as unavailable and is never used.
 
 **Preview size** enlarges the alphabet tiles and sample cards from 100% to 300%; **Reset size** returns to 100%. The display controls stay at the top while you scroll. Previews crop unused guide space and share a frame within each comparison, keeping relative sample sizes visible. **Colour separate strokes** is enabled initially: the first pen stroke is dark, the second blue, and later strokes use other colours (repeating after six). A “t” crossbar is blue when drawn as the second stroke after lifting the pen. Untick the checkbox for one colour. Zoom and colours affect this page only; saved strokes, preferred choices, SVG exports and plotter dimensions stay unchanged.
 
-Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. A preferred sample is used for every occurrence only if it is included and matches the selected source type. Otherwise normal selection applies within the allowed samples. Turn the option off to cycle through variations.
+Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. Repeated characters cycle through your included preferred choices in the order added, provided they match the selected source type. One eligible choice is reused for every occurrence. If none qualify, normal selection applies within the allowed sample pool. Turn the option off to use that pool instead. Preferred choices are not limited by the Latest three/four/only setting.
 
 ## Alphabet proof sheet
 
-Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm) or Large (8 mm). The proof uses an included preferred version when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
+Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm) or Large (8 mm). The proof cycles through included preferred choices when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
 
 Missing group characters are listed and omitted from the character row. A test sentence requiring unavailable characters reports the missing samples and prevents export; edit it or leave it blank. The initial sentence uses the lowercase pangram when all lowercase letters are available, otherwise a short selection of available characters. Edited text is preserved across setting changes. Settings and sentence edits update the preview automatically; **Refresh preview** also reloads saved choices.
 
@@ -99,15 +103,21 @@ Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm)
 
 **Letter spacing**, **Word spacing** and **Line gap** range from 50% to 200%, with 100% preserving the normal layout. Letter spacing changes the distance between character starts; word spacing changes the space width; line gap changes the clearance between lines. Character shape and writing size stay unchanged. Tight letter spacing can overlap characters, so inspect the preview. **Reset spacing** restores all three to 100%.
 
-After the first generated preview, spacing changes update it automatically. The previous image remains visible while updating, with SVG and G-code downloads disabled until the new result is ready. If wider spacing makes the text overflow, reduce spacing, size or text. Other setting changes still require Generate preview. Spacing settings belong to the current Compose session; they do not edit stored handwriting.
+After the first generated preview, spacing changes update it automatically. The previous image remains visible while updating, with SVG and G-code downloads disabled until the new result is ready. If wider spacing makes the text overflow, reduce spacing, size or text. Other setting changes still require Generate preview. Spacing settings do not edit stored handwriting and can be kept in a saved composition.
 
 **Generate preview**, then **Download A4 SVG** or **Download plotter G-code**. SVG exports the displayed drawing on A4 portrait (210 × 297 mm) with 20 mm margins, one unfilled line path per pen stroke, in captured order and direction, with nominal width 0.3 mm. The G-code follows the same preview; curves are flattened within 0.02 mm and dots receive a brief dwell.
 
 Changes to text, settings, captures, reviews or preferences invalidate stale previews and disable downloads until regenerated. Returning to the tab checks for changed samples. If that check fails, an already displayed preview remains downloadable. Downloads are named `composed-handwriting-a4.svg` and `composed-handwriting-a4.gcode`.
 
+### Save and reopen compositions
+
+In Compose, give the page a name under **Saved compositions**, then tap **Save composition**. This keeps its text, writer, writing size, smoothing, sample pool, source type, preferred-version and joined-pair options and all three spacing settings. Save updates the current composition; **Save a copy** keeps a separate version. You can save a draft before generating a preview.
+
+Choose a saved page and tap **Open composition**. Confirm replacement if there are unsaved edits. Then **Generate preview** uses the current saved handwriting, review settings and preferred choices. A saved composition is a reusable set of text and settings, not a frozen drawing; retain its downloaded SVG/G-code if you need exactly the old output. Saved compositions stay in this browser and are included in Backup / Import.
+
 ## Backup and import
 
-Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
+Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences, compositions and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
 
 Import validates all records and references before adding anything. Identical records are skipped. Conflicting versions of an existing record reject the entire import without overwriting work. Keep both backups and use a separate browser/profile with no Studio data to inspect the other version. Do not clear current writing to resolve a conflict. Refresh samples or reopen Capture after import. The file limit is 100 MB.
 
@@ -172,7 +182,7 @@ For missing sources, backup conflicts, stale controls or missing Compose charact
 npm ci --ignore-scripts
 npm run build
 npm test
-STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs
+STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs
 # With the Python app dependencies installed:
 python3 -m unittest discover -s tests
 ```
@@ -187,15 +197,16 @@ The public app stores records in IndexedDB; these paths are logical record keys,
 
 - `<uuid>.json`: notebook schema 2, writer, original strokes and smoothing setting.
 - `letters/<uuid>.json`: original capture schema 1 (legacy a–e), 2 (lowercase) or 3 (extended characters); raw strokes, labels, guides, order and separately processed samples.
-- `letter_reviews/<capture-id>.json`: separate inclusion and baseline settings for original captures or saved blends.
-- `blends/<uuid>.json`: derived schema 4; source IDs/shifts, weights and blended strokes, without replacing the originals.
-- `alphabets/<encoded-writer>.json`: preferred character choices for that writer.
+- `letter_reviews/<capture-id>.json`: separate inclusion, baseline and optional scale settings for original captures or saved blends.
+- `blends/<uuid>.json`: derived schema 4 or 5; source IDs/shifts, weights and blended strokes, without replacing originals. Schema 5 also freezes source size factors; schema 4 implies 100%.
+- `alphabets/<encoded-writer>.json`: preferred character choices for that writer; schema 1 stores one ID per character, schema 2 stores ordered lists.
+- `compositions/<uuid>.json`: schema 1; title, update time, text, writer and layout/source settings. Save updates this record; Save a copy creates another.
 
-Capture coordinates are 1000 × 500 with Y down and timestamps measured from first contact. Raw time, pressure, tilt, coordinates and stroke order are preserved where available. Validation checks records, finite values, bounds, chronology, cell assignment and source references. Original captures and blends are immutable; review settings and preferences update separately. Browser writes/imports use transactions. Retrying a sheet or blend save uses the same identifier; different content under an existing ID is rejected.
+Capture coordinates are 1000 × 500 with Y down and timestamps measured from first contact. Raw time, pressure, tilt, coordinates and stroke order are preserved where available. Validation checks records, finite values, bounds, chronology, cell assignment and source references. Original captures and blends are immutable; review settings and preferences update separately. Saved compositions keep settings, not rendered snapshots. Browser writes/imports use transactions. Retrying a sheet or blend save uses the same identifier; different content under an existing ID is rejected.
 
 ## Older local Mac app
 
-The current features above describe the **public website**. The original Flask server remains available for lowercase capture, review, composition, free writing and calibration. It uses local `data/` files and fixed lowercase capture groups. It does not offer the browser app’s extended capture groups, single-character blend workspace, preferred alphabet or browser Backup / Import. Its composition limits and sample controls differ from the public app. Do not copy newer browser records directly into its data folder.
+The current features above describe the **public website**. The original Flask server remains available for lowercase capture, review, composition, free writing and calibration. It uses local `data/` files and fixed lowercase capture groups. It does not offer the browser app’s extended capture groups, single-character blend workspace, preferred alphabet, letter-size adjustment, saved compositions or browser Backup / Import. Its composition limits and sample controls differ from the public app. Do not copy newer browser records directly into its data folder.
 
 For everyday local use, double-click **Start Handwriting Studio.command**. It runs `launch_handwriting_studio.py`, starts or reuses this app on port 8766, and opens Capture. A server started by the launcher continues after its Terminal window closes; logs go to `logs/server.log`. The earlier port-8765 app and its data are separate.
 
