@@ -4,6 +4,8 @@
   let alphabet='abcdefghijklmnopqrstuvwxyz';
   let profiles=[],samples=[],selected=null,busy=false,dirty=false,previewInk=null,previewX=0,previewCentre=0,previewInkCentre=0,previewPaths=[];
   let wordTimer=null,wordTicket=0,wordLetter='';
+  let strokeEdit=null,strokeUndo=[],strokeID=0;
+  const strokeEnabled=()=>!!($('review-strokes')&&selected?.stroke_sample&&window.StudioEngine);
   // The slider increases upwards; stored offsets retain the existing down-positive convention.
   function shiftValue(){const text=$('sample-shift').value.trim();return text?-Number(text):NaN;}
   function shiftLabel(shift){return shift===0?'Original baseline':Number(Math.abs(shift).toFixed(3))+' mm '+(shift<0?'up':'down');}
@@ -34,6 +36,7 @@
     $('review-save').disabled=busy || !dirty || !Number.isFinite(number) || number < -10 || number > 10 || !validSize();
     $('review-reset').disabled=busy || !dirty;
     for(const button of $('sample-list').querySelectorAll('button'))button.disabled=busy || dirty;
+    strokeControls();
     $('review-compose').href='compose.html?writer='+encodeURIComponent($('review-writer').value);
   }
   function coverage(){
@@ -58,14 +61,9 @@
     const missing=[...alphabet].filter(letter=>!profile?.counts[letter]);
     $('review-coverage').textContent=profile?(alphabet.length-missing.length)+' of '+alphabet.length+' characters/pairs ready to compose.'+(missing.length?' Still needed: '+missing.join(', ')+'.':' All characters in this group are ready.'):'No saved letters yet. Start on Capture letters.';
   }
-  function showSample(sample){
-    selected=sample;dirty=false;wordTicket++;clearTimeout(wordTimer);
-    previewInk=null;previewX=0;$('sample-image').replaceChildren();
-    $('sample-detail').hidden=!sample;
-    if(!sample){controls();return;}
-    $('sample-title').textContent=sample.letter+' · '+(sample.included?'Included':'Excluded');
-    $('sample-date').textContent=(sample.derived?'Saved blend · ':'Saved ')+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
-    $('sample-image').innerHTML=sample.svg;
+  function drawInk(svgText){
+    const sample=selected;previewInk=null;previewX=0;previewPaths=[];
+    $('sample-image').innerHTML=svgText;
     const svg=$('sample-image').querySelector('svg');
     if(svg){
       const paths=Array.from(svg.querySelectorAll('path')),box=svg.getAttribute('viewBox').split(/\s+/).map(Number),savedShift=sample.baseline_shift_mm*16;
@@ -80,6 +78,41 @@
       for(const path of [...paths,...svg.querySelectorAll('.stroke-start')])previewInk.append(path);svg.append(previewInk);
       previewInk.setAttribute('transform',`translate(${previewX} 0)`);
     }
+  }
+  function renderStrokeChoices(){
+    if(!$('review-strokes'))return;$('review-strokes').hidden=!strokeEnabled();if(!strokeEnabled())return;
+    $('stroke-target').replaceChildren();strokeEdit.order.forEach((id,i)=>{const option=document.createElement('option');option.value=String(id);option.textContent=(i+1)+' · original stroke '+(id+1)+(strokeEdit.reversed[id]?' · reversed':'');$('stroke-target').append(option);});$('stroke-target').value=String(strokeID);strokeControls();
+  }
+  function strokeControls(){
+    if(!$('review-strokes'))return;const active=strokeEnabled()&&strokeEdit;const index=active?strokeEdit.order.indexOf(strokeID):-1;
+    $('stroke-target').disabled=busy||!active;
+    for(const id of ['stroke-earlier','stroke-later','stroke-reverse','stroke-undo','stroke-original'])$(id).disabled=busy||!active;
+    if(active){$('stroke-earlier').disabled=busy||index===0;$('stroke-later').disabled=busy||index===strokeEdit.order.length-1;$('stroke-undo').disabled=busy||!strokeUndo.length;$('stroke-original').disabled=busy||window.StudioEngine.same(strokeEdit,window.StudioEngine.originalStrokeEdit(selected.stroke_count));$('stroke-detail').textContent='Stroke '+(index+1)+' of '+strokeEdit.order.length+' · '+(strokeEdit.reversed[strokeID]?'direction reversed':'original direction')+'. Numbered markers show where each stroke starts.';}
+  }
+  function changeStroke(action){
+    if(busy||!strokeEnabled())return;const E=window.StudioEngine,previous=E.clone(strokeEdit),index=strokeEdit.order.indexOf(strokeID);
+    if(action==='undo'){if(!strokeUndo.length)return;strokeEdit=strokeUndo.pop();}
+    else{
+      if(action==='earlier'&&index>0)[strokeEdit.order[index-1],strokeEdit.order[index]]=[strokeEdit.order[index],strokeEdit.order[index-1]];
+      if(action==='later'&&index<strokeEdit.order.length-1)[strokeEdit.order[index+1],strokeEdit.order[index]]=[strokeEdit.order[index],strokeEdit.order[index+1]];
+      if(action==='reverse')strokeEdit.reversed[strokeID]=!strokeEdit.reversed[strokeID];
+      if(action==='original')strokeEdit=E.originalStrokeEdit(selected.stroke_count);
+      if(E.same(previous,strokeEdit))return;strokeUndo.push(previous);if(strokeUndo.length>50)strokeUndo.shift();
+    }
+    const sample={...E.scaleSample(E.editStrokes(selected.stroke_sample,strokeEdit),selected.scale_factor??1),baseline_shift_mm:selected.baseline_shift_mm};
+    drawInk(E.reviewSVG(sample,{colourStrokes:true,showStarts:true}));$('review-starts').checked=true;renderStrokeChoices();inspection();changed();
+    status('Stroke correction preview · save to use it in new blends and writing. Originals and existing blends are kept.');
+  }
+  if($('review-strokes')){for(const action of ['earlier','later','reverse','undo','original'])$('stroke-'+action).onclick=()=>changeStroke(action);$('stroke-target').onchange=()=>{strokeID=Number($('stroke-target').value);$('review-starts').checked=true;inspection();strokeControls();};}
+  function showSample(sample){
+    selected=sample;dirty=false;strokeEdit=null;strokeUndo=[];wordTicket++;clearTimeout(wordTimer);
+    previewInk=null;previewX=0;$('sample-image').replaceChildren();
+    $('sample-detail').hidden=!sample;
+    if(!sample){controls();return;}
+    $('sample-title').textContent=sample.letter+' · '+(sample.included?'Included':'Excluded');
+    $('sample-date').textContent=(sample.derived?'Saved blend · ':'Saved ')+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
+    drawInk(sample.svg);
+    strokeEdit=strokeEnabled()?window.StudioEngine.clone(sample.stroke_edit??window.StudioEngine.originalStrokeEdit(sample.stroke_count)):null;strokeUndo=[];strokeID=strokeEdit?.order[0]??0;renderStrokeChoices();
     $('sample-included').checked=sample.included;$('sample-shift').value=-sample.baseline_shift_mm;shiftReadout(sample.baseline_shift_mm);
     if($('sample-size')){$('sample-size').value=(sample.scale_factor??1)*100;$('sample-size-value').textContent=$('sample-size').value+'%';}
     if($('review-word')&&wordLetter!==sample.letter){wordLetter=sample.letter;const words={a:'cat',b:'baby',c:'cat',d:'day',e:'the',f:'of',g:'going',h:'the',i:'writing',j:'jump',k:'like',l:'hello',m:'moon',n:'hand',o:'moon',p:'paper',q:'quick',r:'writing',s:'same',t:'the',u:'quick',v:'very',w:'word',x:'box',y:'day',z:'lazy'};$('review-word').value=words[sample.letter]||sample.letter.repeat(3);$('review-word-preview').replaceChildren();}
@@ -128,7 +161,7 @@
   function wordPreview(){
     if(!$('review-word')||!selected)return;clearTimeout(wordTimer);const ticket=++wordTicket;
     if(!validSize()||!Number.isFinite(shiftValue()))return;
-    const request={writer:$('review-writer').value,capture_id:selected.capture_id,letter:selected.letter,text:$('review-word').value,included:true,baseline_shift_mm:shiftValue(),scale_factor:sizeValue()};
+    const request={writer:$('review-writer').value,capture_id:selected.capture_id,letter:selected.letter,text:$('review-word').value,included:true,...(strokeEnabled()?{stroke_edit:strokeEdit}:{}),baseline_shift_mm:shiftValue(),scale_factor:sizeValue()};
     $('review-word-status').textContent='Updating word preview…';
     wordTimer=setTimeout(async()=>{try{const result=await api('/api/review-preview',request);if(ticket!==wordTicket)return;
       $('review-word-preview').innerHTML=result.svg;const svg=$('review-word-preview').querySelector('svg'),box=svg.querySelector('g').getBBox();svg.setAttribute('viewBox',`${box.x-2} ${box.y-2} ${box.width+4} ${box.height+4}`);svg.removeAttribute('width');svg.removeAttribute('height');
@@ -138,7 +171,7 @@
   function changed(){
     if(busy||!selected)return;
     const shift=shiftValue(),valid=Number.isFinite(shift)&&shift>=-10&&shift<=10&&validSize();
-    dirty=$('sample-included').checked!==selected.included || shift!==selected.baseline_shift_mm || sizeValue()!==(selected.scale_factor??1);
+    dirty=$('sample-included').checked!==selected.included || shift!==selected.baseline_shift_mm || sizeValue()!==(selected.scale_factor??1) || (strokeEnabled()&&!window.StudioEngine.same(strokeEdit,selected.stroke_edit??window.StudioEngine.originalStrokeEdit(selected.stroke_count)));
     if(valid){shiftReadout(shift);const ratio=sizeValue()/(selected.scale_factor??1);previewX=previewCentre-previewInkCentre*ratio;if(previewInk)previewInk.setAttribute('transform',`translate(${previewX} ${(shift-selected.baseline_shift_mm*ratio)*16})`+(ratio===1?'':` scale(${ratio})`));for(const path of previewPaths)path.setAttribute('stroke-width',1.8/ratio);if($('sample-size-value'))$('sample-size-value').textContent=Number((sizeValue()*100).toFixed(2))+'%';}wordPreview();
     controls();status(!valid?'Choose a position within 10 mm up or down and a size from 50% to 200%. The preview keeps the last valid position.':dirty?'Preview: '+shiftLabel(shift)+'. Changes not saved yet. Tap Save changes or Reset changes.':'This sample has no unsaved changes.');
   }
@@ -157,8 +190,8 @@
     busy=true;controls();status('Saving your review…');
     try{
       const result=await api('/api/letters/samples/'+selected.capture_id+'/'+encodeURIComponent(selected.letter)+'/review',
-        {included:$('sample-included').checked,baseline_shift_mm:shiftValue(),...($('sample-size')?{scale_factor:sizeValue()}:{})});
-      Object.assign(selected,{included:result.included,baseline_shift_mm:result.baseline_shift_mm,scale_factor:result.scale_factor??selected.scale_factor??1,svg:result.svg});
+        {included:$('sample-included').checked,baseline_shift_mm:shiftValue(),...(strokeEnabled()?{stroke_edit:strokeEdit}:{}),...($('sample-size')?{scale_factor:sizeValue()}:{})});
+      Object.assign(selected,{included:result.included,baseline_shift_mm:result.baseline_shift_mm,scale_factor:result.scale_factor??selected.scale_factor??1,svg:result.svg,stroke_edit:result.stroke_edit??selected.stroke_edit});
       const profile=profiles.find(p=>p.writer===$('review-writer').value);
       if(profile)profile.counts[selected.letter]=samples.filter(s=>s.included).length;
       coverage();drawList({samples},selected.capture_id);

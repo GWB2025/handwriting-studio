@@ -32,6 +32,7 @@
       for(const [key,r] of merged)if(key.startsWith('letter_reviews/')){
         const capture=merged.get('letters/'+r.capture_id+'.json')||merged.get('blends/'+r.capture_id+'.json');
         if(!capture||Object.keys(r.reviews).some(letter=>!capture.order.includes(letter)))throw Error('A review is missing its original letter capture. Nothing was imported.');
+        for(const [letter,setting] of Object.entries(r.reviews))if(setting.stroke_edit!==undefined)E.validateStrokeEdit(setting.stroke_edit,capture.samples.find(s=>s.letter===letter).processed_strokes.length);
       }
       E.validateBlendReferences([...merged].map(([key,value])=>({key,value})));
       E.validateAlphabetReferences([...merged].map(([key,value])=>({key,value})));
@@ -49,7 +50,7 @@
       if(method==='POST'&&path==='/api/alphabet/preferred')return await transaction((files,store)=>{const record=E.choosePreferred(files,data);store.put(record);return json({saved:true,preferred:record.value.choices});});
       if(method==='POST'&&path==='/api/blends')return await transaction((files,store)=>{
         const record=E.createSavedBlend(files,data),key='blends/'+record.id+'.json',old=files.find(f=>f.key===key)?.value;
-        if(old){if(!['writer','order','source_ids','source_shifts','source_scales','weights','samples'].every(k=>E.same(old[k],record[k])))return json({error:'Save identifier is already in use.'},409);return json({id:old.id,saved_at:old.saved_at});}
+        if(old){if(!['writer','order','source_ids','source_shifts','source_scales','source_edits','weights','samples'].every(k=>E.same(old[k],record[k])))return json({error:'Save identifier is already in use.'},409);return json({id:old.id,saved_at:old.saved_at});}
         store.add({key,value:record});return json({id:record.id,saved_at:record.saved_at},201);
       });
       if(method==='POST'&&path==='/api/letters/pages'){
@@ -73,8 +74,9 @@
           const capture=files.find(f=>f.key==='letters/'+review[1]+'.json'||f.key==='blends/'+review[1]+'.json')?.value,sample=capture?.samples.find(s=>s.letter===review[2]);
           if(!sample)return json({error:'This capture is no longer available.'},404);
           const key='letter_reviews/'+capture.id+'.json',reviews=E.clone(files.find(f=>f.key===key)?.value.reviews||{}),setting={included:data.included,baseline_shift_mm:data.baseline_shift_mm,scale_factor:data.scale_factor??reviews[review[2]]?.scale_factor??1,reviewed_at:new Date().toISOString()};
+          const edit=data.stroke_edit??reviews[review[2]]?.stroke_edit;if(edit!==undefined){E.validateStrokeEdit(edit,sample.processed_strokes.length);setting.stroke_edit=E.clone(edit);}
           reviews[review[2]]=setting;store.put({key,value:{schema_version:1,capture_id:capture.id,reviews}});
-          return json({saved:true,...setting,svg:E.reviewSVG({...E.scaleSample(sample,setting.scale_factor),...setting},{colourStrokes:true,showStarts:true})});
+          return json({saved:true,...setting,svg:E.reviewSVG({...E.scaleSample(E.editStrokes(sample,setting.stroke_edit),setting.scale_factor),...setting},{colourStrokes:true,showStarts:true})});
         });
       }
       const files=await transaction();
@@ -87,7 +89,7 @@
       if(method==='GET'&&path==='/api/letters/writers')return json({writers:E.catalog(files).writers,unavailable_count:0});
       if(method==='GET'&&path==='/api/letters/samples'){
         const letter=u.searchParams.get('letter');if(!letter||![...E.characters,...E.pairs].includes(letter))throw Error('Choose a captured character or joined pair.');
-        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,scale_factor:s.scale_factor,derived:!!s.derived,stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s,{colourStrokes:true,showStarts:true})})),unavailable_count:0});
+        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,scale_factor:s.scale_factor,derived:!!s.derived,stroke_edit:s.stroke_edit,stroke_sample:files.find(f=>f.key===(s.derived?'blends/':'letters/')+s.capture_id+'.json').value.samples.find(p=>p.letter===s.letter),stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s,{colourStrokes:true,showStarts:true})})),unavailable_count:0});
       }
       if(method==='POST'&&path==='/api/compose')return json(E.compose(files,data));
       return json({error:'Unknown browser operation.'},404);

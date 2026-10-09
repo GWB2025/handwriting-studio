@@ -171,3 +171,5 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .saved-compositions{border:1px solid #b9c9bf;border-radius:8px;padding:14px;margin:16px 0}.saved-compositions label{display:block;margin:8px 0}.saved-compositions input,.saved-compositions select{font:inherit;padding:8px;max-width:100%}
 
 #character-spacing{margin:20px 0;background:#f4f7f2}#character-spacing>label{display:block;margin-top:10px}#character-spacing input[type=range]{width:min(100%,400px)}#spacing-preview{height:140px;background:white;overflow-anchor:none}#spacing-preview svg{display:block;width:100%;height:100%}
+
+.sample-sizing select {font:inherit;font-size:16px;min-height:44px;max-width:100%;padding:8px;border:1px solid #b9c9bf;border-radius:7px;background:white;color:#203832}#review-strokes .compose-actions{margin-top:12px}

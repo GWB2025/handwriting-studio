@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const dialog=document.getElementById('backup-dialog'),status=document.getElementById('backup-status'),file=document.getElementById('backup-file');
-  document.getElementById('backup-open').onclick=()=>{dialog.showModal();status.textContent='Backups include letter captures, saved blends, alphabet preferences, review choices and free-writing pages.';};
+  document.getElementById('backup-open').onclick=()=>{dialog.showModal();status.textContent='Backups include captures, blends, stroke corrections, review choices, preferences, spacing, saved compositions with finished drawings, and free-writing pages.';};
   document.getElementById('backup-close').onclick=()=>dialog.close();
   document.getElementById('backup-download').onclick=async()=>{
     try{

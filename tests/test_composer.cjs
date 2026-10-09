@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer(extended=false,savedCompositions=false) {
+async function composer(extended=false,savedCompositions=false,shuffle=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -20,6 +20,7 @@ async function composer(extended=false,savedCompositions=false) {
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
+  if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
   for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
@@ -211,4 +212,16 @@ test('failed live spacing keeps the previous image labelled and cannot export ol
  e['compose-line-spacing'].value='200';e['compose-line-spacing'].emit('input');await new Promise(r=>setTimeout(r,230));await settle();
  assert.equal(e['composed-image'].src,old);assert.match(e['compose-status'].textContent,/Previous preview shown/);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);e['compose-gcode'].onclick();e['compose-download'].onclick();assert.equal(c.exported.length,0);assert.equal(c.downloads.length,0);
  c.server.error='';e['compose-spacing-reset'].onclick();await new Promise(r=>setTimeout(r,230));await settle();assert.equal(e['compose-download'].disabled,false);
+});
+
+test('shuffled Compose persists its variation, keeps it through spacing and regenerate, and refreshes it on request',async()=>{
+ const c=await composer(true,true,true),e=c.elements;assert.equal(e['compose-shuffle'].disabled,true);
+ e['compose-order'].value='shuffle';e['compose-order'].emit('change');assert.equal(e['compose-shuffle'].disabled,false);
+ await e['compose-form'].onsubmit({preventDefault(){}});const first=JSON.parse(c.requests.at(-1).options.body);assert.equal(first.sample_order,'shuffle');assert(first.sample_seed);
+ await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,first.sample_seed);
+ e['compose-letter-spacing'].value='120';e['compose-letter-spacing'].emit('input');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,first.sample_seed);
+ const request=e['compose-shuffle'].onclick();assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-shuffle'].disabled,true);await request;assert.notEqual(JSON.parse(c.requests.at(-1).options.body).sample_seed,first.sample_seed);
+ const settings=c.window.compositions.read();await c.window.compositions.restore(settings);await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,settings.sample_seed);
+ const legacy={...settings};delete legacy.sample_order;delete legacy.sample_seed;await c.window.compositions.restore(legacy);assert.equal(e['compose-order'].value,'cycle');assert.equal(e['compose-shuffle'].disabled,true);
+ c.server.error='Does not fit';e['compose-order'].value='shuffle';e['compose-order'].emit('change');await e['compose-shuffle'].onclick();assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-shuffle'].disabled,false);
 });

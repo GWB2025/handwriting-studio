@@ -40,15 +40,19 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
     html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>\n</head>')
+    if(source=='blending.html'):
+        html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
         html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
         html=html.replace('<script src="assets/alphabet.js">','<script src="assets/character-spacing.js"></script><script src="assets/alphabet.js">')
     if(source=='review.html'):
+        html=html.replace('<div class="sample-shift-readout">',(ROOT/'web/review-strokes.html').read_text()+'<div class="sample-shift-readout">')
         html=html.replace('<div class="sample-preview-row">',(ROOT/'web/review-tools.html').read_text()+'<div class="sample-preview-row">')
         html=html.replace('<div class="sample-shift-readout">',(ROOT/'web/review-sizing.html').read_text()+'<div class="sample-shift-readout">')
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs</option></select></label><label>Character <select')
         html=html.replace('Choose a letter and inspect its saved examples, newest first.', 'Choose a writer, group and character, then inspect its originals and saved blends, newest first. Blends are labelled.')
     if(source=='compose.html'):
+        html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-order.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<script src="assets/compose.js"></script>','<script src="assets/compositions.js"></script><script src="assets/compose.js"></script>')
         html=html.replace('<div class="compose-actions">','<div class="compose-settings"><label>Use <select id="compose-source"><option value="both">Originals and saved blends</option><option value="originals">Original samples only</option><option value="blends">Saved blends only</option></select></label><label><input id="compose-preferred" type="checkbox" checked> Use preferred versions when available</label></div><p>Preferred versions must match the chosen source type. Missing saved blends are reported before generating. <a href="alphabet.html">Manage my alphabet</a></p><div class="compose-actions">')
         html=html.replace('<div class="compose-actions">','<label><input id="compose-joined" type="checkbox" checked> Use saved joined pairs</label><select id="compose-variation" hidden><option value="original">Saved examples</option></select><p><a href="blending.html">Blend and save a single character</a>, then use it here as a saved sample.</p><div class="compose-actions">')
@@ -60,7 +64,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<div class="compose-actions">',spacing_controls+'<div class="compose-actions">',1)
         html=html.replace('maxlength="200"','maxlength="2000"')
         html=html.replace('Type with your saved lowercase a–z captures.', 'Type with your saved letters, numbers and punctuation.')
-        html=html.replace('Repeated letters cycle through the newest three included examples of each letter.', 'Included preferred versions cycle in your chosen order when enabled and allowed by the source type. Otherwise, repeated characters cycle through your chosen sample pool, newest first.')
+        html=html.replace('Repeated letters cycle through the newest three included examples of each letter.', 'Choose a fixed sequence or shuffled selection below. Included preferred versions are used when enabled and allowed by the source type; otherwise the chosen sample pool is used.')
         html=html.replace('Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.', 'Use captured capitals, lowercase, numbers and supported punctuation, plus spaces and line breaks. Up to 2,000 characters must fit on one A4 page. Size refers to the small-letter guide, keeping your natural proportions.')
         html=html.replace('Capitals, punctuation and cursive joins come later.', 'Capture capitals, numbers, punctuation and common joined pairs as needed. Words wrap together; full cursive is not included.')
         html=html.replace('<form id="compose-form">',(ROOT/'web/compositions.html').read_text()+'<form id="compose-form">')

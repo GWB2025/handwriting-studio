@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),test=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,(process.env.STUDIO_PAGES_TEST?'../docs/assets/':'../static/')+'review.js'),'utf8');
 const settle=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
-async function review(extended=false,{initialShift=0,initialScale=1,enhanced=false,failSave=false,wideCrossbar=false}={}){
+async function review(extended=false,{initialShift=0,initialScale=1,enhanced=false,failSave=false,wideCrossbar=false,strokeTools=false}={}){
   function node(tag='div'){let value='';return {tag,parent:null,style:{},get value(){return value;},set value(v){value=String(v);},checked:false,dataset:{},children:[],attributes:{},
     append(...items){for(const item of items){if(item.parent)item.parent.children=item.parent.children.filter(c=>c!==item);item.parent=this;this.children.push(item);}if(!this.value&&items[0]?.value)this.value=items[0].value;},
     replaceChildren(){for(const c of this.children)c.parent=null;this.children=[];this.value='';},
@@ -10,19 +10,21 @@ async function review(extended=false,{initialShift=0,initialScale=1,enhanced=fal
     getBBox(){if(!this.attributes.d){const boxes=this.querySelectorAll('path').map(p=>p.getBBox()),x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y));return {x,y,width:Math.max(...boxes.map(b=>b.x+b.width))-x,height:Math.max(...boxes.map(b=>b.y+b.height))-y};}const values=this.attributes.d.match(/-?\d+(?:\.\d+)?/g).map(Number),xs=values.filter((_,i)=>i%2===0),ys=values.filter((_,i)=>i%2);return {x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};},
     set innerHTML(text){this.replaceChildren();const stack=[this];for(const m of text.matchAll(/<(\/?)(svg|g|line|text|path|circle)\b([^>]*)>/g)){if(m[1]){stack.pop();continue;}const child=node(m[2]);for(const attr of m[3].matchAll(/([\w-]+)="([^"]*)"/g))child.setAttribute(attr[1],attr[2]);stack.at(-1).append(child);if(!m[3].endsWith('/'))stack.push(child);}}
   };}
-  const svg=(shift,scale=1)=>require('../web/engine.js').reviewSVG({baseline_shift_mm:shift,processed_strokes:[{points:[{x:0,y:-60},{x:40,y:0}]},{points:[{x:5,y:-40},{x:wideCrossbar?100:35,y:-40}]}].map(s=>({points:s.points.map(p=>({x:p.x*scale,y:p.y*scale}))}))},{colourStrokes:enhanced,showStarts:enhanced});
+  const E=require('../web/engine'),raw={bounds:{left:0,right:wideCrossbar?100:40},processed_strokes:[{points:[{x:0,y:-60},{x:40,y:0}]},{points:[{x:5,y:-40},{x:wideCrossbar?100:35,y:-40}]}]};
+  const svg=(shift,scale=1,edit)=>E.reviewSVG({...E.scaleSample(E.editStrokes(raw,edit),scale),baseline_shift_mm:shift},{colourStrokes:enhanced,showStarts:enhanced});
   const elements={};
   for(const id of ['review-status','review-writer','review-letter','review-refresh','sample-included','sample-shift','sample-shift-value','sample-zero','review-save','review-reset','sample-list','review-compose','review-coverage','sample-detail','sample-image','sample-title','sample-date','review-form','review-alphabet','review-kind'])elements[id]=node();
   elements['review-kind'].value='lowercase';
   if(enhanced){for(const id of ['sample-size','sample-size-value','sample-size-reset','review-word','review-word-status','review-word-preview','review-zoom','review-zoom-value','review-colours','review-starts'])elements[id]=node();elements['review-zoom'].value=100;elements['review-colours'].checked=true;}
+  if(strokeTools)for(const id of ['review-strokes','stroke-target','stroke-earlier','stroke-later','stroke-reverse','stroke-undo','stroke-original','stroke-detail'])elements[id]=node();
   const requests=[],settings={};
   const fetch=async(url,options={})=>{
     requests.push({url,options});
     let data;
     if(url==='/api/letters/writers')data={writers:[{writer:'Writer',counts:{a:1,j:1,z:1},total_counts:{a:1,j:1,z:1}}]};
     else if(url==='/api/review-preview')data={svg:'<svg viewBox="0 0 210 297"><g><path d="M20 20 L25 25"/></g></svg>'};
-    else if(options.method==='POST'){if(failSave)return {ok:false,json:async()=>({error:'Storage unavailable'})};Object.assign(settings,JSON.parse(options.body));data={...settings,svg:svg(settings.baseline_shift_mm,settings.scale_factor??1)};}
-    else{const letter=new URL('https://test.invalid'+url).searchParams.get('letter');data={samples:['a','j','z'].includes(letter)?[{letter,capture_id:'id-'+letter,saved_at:'2026-10-08T12:00:00Z',stroke_count:2,included:true,baseline_shift_mm:initialShift,scale_factor:initialScale,svg:svg(initialShift,initialScale)}]:[]};}
+    else if(options.method==='POST'){if(failSave)return {ok:false,json:async()=>({error:'Storage unavailable'})};Object.assign(settings,JSON.parse(options.body));data={...settings,svg:svg(settings.baseline_shift_mm,settings.scale_factor??1,settings.stroke_edit)};}
+    else{const letter=new URL('https://test.invalid'+url).searchParams.get('letter');data={samples:['a','j','z'].includes(letter)?[{letter,capture_id:'id-'+letter,saved_at:'2026-10-08T12:00:00Z',stroke_count:2,...(strokeTools?{stroke_sample:raw,stroke_edit:E.originalStrokeEdit(2)}:{}),included:true,baseline_shift_mm:initialShift,scale_factor:initialScale,svg:svg(initialShift,initialScale)}]:[]};}
     return {ok:true,json:async()=>data};
   };
   const window={...(extended?{StudioEngine:require('../web/engine.js')} : {}),location:{search:'?writer=Writer'},addEventListener(){},studioFetch:fetch};
@@ -131,4 +133,29 @@ test('size edits scale ink and numbered starts live while zoom remains display-o
  e['sample-size-reset'].onclick();assert.equal(e['sample-size'].value,'100');assert.equal(e['review-save'].disabled,false);
  e['review-reset'].onclick();assert.equal(e['sample-size'].value,'150');assert.equal(e['review-save'].disabled,true);assert.equal(e['sample-image'].dataset.starts,'true');
  await new Promise(resolve=>setTimeout(resolve,150));
+});
+
+test('stroke edits update numbered paths, support undo and reset, save separately and protect unsaved choices',async()=>{
+ const r=await review(true,{enhanced:true,strokeTools:true}),e=r.elements,path=()=>e['sample-image'].querySelector('path').getAttribute('d');
+ const original=path();assert.equal(e['stroke-earlier'].disabled,true);assert.equal(e['stroke-undo'].disabled,true);
+ e['stroke-later'].onclick();assert.notEqual(path(),original);assert.equal(e['stroke-target'].children[0].value,'1');assert.equal(e['review-letter'].disabled,true);assert.equal(e['review-starts'].checked,true);
+ e['stroke-reverse'].onclick();assert.match(e['stroke-detail'].textContent,/reversed/);assert.equal(e['review-save'].disabled,false);
+ await new Promise(resolve=>setTimeout(resolve,150));const word=r.requests.filter(r=>r.url==='/api/review-preview').at(-1);assert.deepEqual(JSON.parse(word.options.body).stroke_edit,{order:[1,0],reversed:[true,false]});
+ e['stroke-undo'].onclick();assert.match(e['stroke-detail'].textContent,/original direction/);e['stroke-undo'].onclick();assert.equal(path(),original);assert.equal(e['review-save'].disabled,true);
+ e['stroke-reverse'].onclick();await e['review-form'].onsubmit({preventDefault(){}});assert.deepEqual(r.settings.stroke_edit,{order:[0,1],reversed:[true,false]});assert.equal(e['review-letter'].disabled,false);assert.equal(e['stroke-undo'].disabled,true);
+ const saved=path();e['stroke-original'].onclick();assert.equal(path(),original);assert.equal(e['review-save'].disabled,false);e['review-reset'].onclick();assert.equal(path(),saved);
+ e['stroke-original'].onclick();await e['review-form'].onsubmit({preventDefault(){}});assert.deepEqual(r.settings.stroke_edit,{order:[0,1],reversed:[false,false]});assert.equal(path(),original);
+});
+test('failed stroke saves retain pending corrections and allow reset without altering the saved sample',async()=>{
+ const r=await review(true,{enhanced:true,strokeTools:true,failSave:true}),e=r.elements,original=e['sample-image'].querySelector('path').getAttribute('d');
+ e['stroke-later'].onclick();await e['review-form'].onsubmit({preventDefault(){}});assert.match(e['review-status'].textContent,/Not saved/);assert.equal(e['review-letter'].disabled,true);assert.equal(e['stroke-target'].children[0].value,'1');assert.deepEqual(r.settings,{});
+ e['review-reset'].onclick();assert.equal(e['sample-image'].querySelector('path').getAttribute('d'),original);assert.equal(e['review-letter'].disabled,false);
+});
+
+test('stroke edits preserve pending size and baseline adjustments without applying either twice',async()=>{
+ const r=await review(true,{enhanced:true,strokeTools:true,initialShift:2,initialScale:1.25}),e=r.elements;
+ e['sample-size'].value='150';e['sample-size'].oninput();e['sample-shift'].value='3';e['sample-shift'].oninput();const before=e['sample-image'].querySelector('g').getAttribute('transform');
+ e['stroke-later'].onclick();assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),before);assert.equal(e['sample-size'].value,'150');assert.equal(e['sample-shift'].value,'3');
+ await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.scale_factor,1.5);assert.equal(r.settings.baseline_shift_mm,-3);assert.deepEqual(r.settings.stroke_edit,{order:[1,0],reversed:[false,false]});
+ const first=e['sample-image'].querySelector('path').getBBox();assert.equal(first.y,-108);assert.equal(first.width,45);
 });

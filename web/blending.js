@@ -1,7 +1,7 @@
 'use strict';
 (async()=>{
  const E=window.StudioEngine,$=id=>document.getElementById(id);let files=[],samples=[],sources=[],result=null,saveID='',previewKey='',views=[],busy=false;
- let horizontal=50,vertical=50,drag=null,recipeShifts=null,recipeScales=null,lastSaved=null;
+ let horizontal=50,vertical=50,drag=null,recipeShifts=null,recipeEdits=null,recipeScales=null,lastSaved=null;
  const query=new URLSearchParams(window.location.search),requestedLetter=query.get('letter');
  const status=text=>{if($('blend-status').textContent!==text)$('blend-status').textContent=text;};
  function release(){stopDrag();previewKey='';views=[];$('single-cards').replaceChildren();$('single-position').textContent='';}
@@ -13,7 +13,7 @@
   if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){release();status('Choose '+count+' distinct original samples.');return;}
   const h=horizontal/100,v=vertical/100,weights=count===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];
   result=E.blendMany(sources,weights);const items=result?[...sources,result]:sources;
-  const key=JSON.stringify(sources.map(s=>[s.capture_id,s.letter,s.baseline_shift_mm,s.scale_factor]))+'|'+Boolean(result);
+  const key=JSON.stringify(sources.map(s=>[s.capture_id,s.letter,s.baseline_shift_mm,s.scale_factor,s.stroke_edit]))+'|'+Boolean(result);
   if(key!==previewKey){
    release();previewKey=key;
    // Source bounds are fixed for the entire drag; the result is their weighted blend.
@@ -79,7 +79,7 @@
  }
  function sourceControls(selectedIDs){
   const selected=selectedIDs||Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
-  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived).map(s=>{const factor=recipeScales?.get(s.capture_id)??s.scale_factor??1;return {...E.sampleAtSize(files,s,factor),scale_factor:factor,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm};});
+  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived).map(s=>{const factor=recipeScales?.get(s.capture_id)??s.scale_factor??1;return {...E.sampleAtSize(files,s,factor,recipeEdits?.get(s.capture_id)??s.stroke_edit),scale_factor:factor,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm};});
   const used=new Set();
   for(let i=0;i<count;i++){
    const label=document.createElement('label'),select=document.createElement('select');label.append('Source '+String.fromCharCode(65+i)+' ',select);
@@ -91,7 +91,7 @@
     const all=Array.from($('single-sources').querySelectorAll('select')),previous=select.dataset.previous;
     const other=select.value&&all.find(s=>s!==select&&s.value===select.value);
     if(other)other.value=previous||'';
-    all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);render();savedChoices();
+    all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);render();savedChoices();
    });$('single-sources').append(label);
   }
   // Explicit sources belong to a reopened recipe; preserve them exactly.
@@ -120,19 +120,19 @@
  }
  function reopen(id){
   if(busy||!id)return;
-  try{const recipe=E.savedBlendRecipe(files,id);stopDrag();recipeShifts=null;recipeScales=null;
+  try{const recipe=E.savedBlendRecipe(files,id);stopDrag();recipeShifts=null;recipeEdits=null;recipeScales=null;
    $('single-writer').value=recipe.writer;$('single-pool').value='all';letters();$('single-letter').value=recipe.letter;$('single-count').value=String(recipe.source_ids.length);
-   horizontal=recipe.horizontal;vertical=recipe.vertical;recipeShifts=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_shifts[i]]));recipeScales=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_scales[i]]));sourceControls(recipe.source_ids);savedChoices(id);
-   status('Reopened '+recipe.letter+' from its original sources and saved blend position. Source sizes and baseline adjustments are restored. Save creates a new version; any later Review adjustment stays with the old sample.');
+   horizontal=recipe.horizontal;vertical=recipe.vertical;recipeShifts=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_shifts[i]]));recipeScales=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_scales[i]]));recipeEdits=new Map(recipe.source_ids.map((id,i)=>[id,recipe.source_edits[i]]));sourceControls(recipe.source_ids);savedChoices(id);
+   status('Reopened '+recipe.letter+' from its original sources and saved blend position. Source sizes, baseline adjustments and stroke corrections are restored. Save creates a new version; any later Review adjustment stays with the old sample.');
   }catch(error){status('Could not reopen: '+error.message);}
  }
  $('single-reopen').onclick=()=>reopen($('single-saved-choice').value);
  $('single-find').onclick=()=>{
-  if(busy)return;stopDrag();recipeShifts=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
+  if(busy)return;stopDrag();recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
   const found=selectCompatible();render();savedChoices();
   status(found?'Compatible sources selected. Drag the result to adjust the mix, then save.':'Could not find '+$('single-count').value+' compatible originals in this source pool. Try two sources, All saved writers / sets, or capture more examples with consistent stroke order and direction.');
  };
- $('single-next').onclick=()=>{if(busy)return;stopDrag();recipeShifts=null;recipeScales=null;const list=Array.from($('single-letter').options).map(o=>o.value),i=list.indexOf($('single-letter').value);if(list.length<2)return;$('single-letter').value=list[(i+1)%list.length];horizontal=50;vertical=50;sourceControls();};
+ $('single-next').onclick=()=>{if(busy)return;stopDrag();recipeShifts=null;recipeEdits=null;recipeScales=null;const list=Array.from($('single-letter').options).map(o=>o.value),i=list.indexOf($('single-letter').value);if(list.length<2)return;$('single-letter').value=list[(i+1)%list.length];horizontal=50;vertical=50;sourceControls();};
  $('single-prefer').onclick=async()=>{
   if(busy||!lastSaved)return;const saved={...lastSaved},controls=Array.from(document.querySelectorAll('select,input,button')).map(c=>[c,c.disabled]);stopDrag();busy=true;controls.forEach(([c])=>c.disabled=true);let preferred=false;
   try{const response=await window.studioFetch('/api/alphabet/preferred',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writer:saved.writer,letter:saved.letter,capture_ids:[...new Set([...(E.catalog(files).writers.find(p=>p.writer===saved.writer)?.preferred_sets[saved.letter]||[]),saved.id])]})});const data=await response.json();if(!response.ok)throw Error(data.error);files=await window.StudioStorage.snapshot();preferred=true;$('single-prefer').textContent='Preferred version saved';status(saved.letter+' is now preferred for '+saved.writer+'. Compose uses it when the source type allows saved blends.');}
@@ -144,11 +144,11 @@
   const zoom=Number($('single-zoom').value);$('single-cards').style.width=zoom+'%';$('single-zoom-value').textContent=zoom+'%';
  }
  for(const id of ['single-colours','single-starts'])$(id)?.addEventListener('change',previewControls);$('single-guides').addEventListener('change',previewControls);$('single-zoom').addEventListener('input',previewControls);previewControls();
- for(const id of ['single-pool','single-writer'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;recipeScales=null;letters();});for(const id of ['single-letter','single-count'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;recipeScales=null;sourceControls();});
+ for(const id of ['single-pool','single-writer'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;recipeEdits=null;recipeScales=null;letters();});for(const id of ['single-letter','single-count'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;recipeEdits=null;recipeScales=null;sourceControls();});
  $('single-centre').onclick=()=>{if(busy)return;stopDrag();horizontal=50;vertical=50;render();};
- $('single-refresh').onclick=()=>{if(busy)return;recipeShifts=null;recipeScales=null;return load().catch(e=>status(e.message));};
+ $('single-refresh').onclick=()=>{if(busy)return;recipeShifts=null;recipeEdits=null;recipeScales=null;return load().catch(e=>status(e.message));};
  $('single-save').onclick=async()=>{if(!result||busy)return;stopDrag();busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.preview-controls input'),$('single-refresh'),$('single-centre'),$('single-find'),$('single-next'),$('single-reopen'),$('single-saved-choice')];controls.forEach(c=>c.disabled=true);
-  try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal,vertical,source_shifts:sources.map(s=>s.baseline_shift_mm),source_scales:sources.map(s=>s.scale_factor??1)})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' under '+$('single-writer').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();showSaved(data.id);}
+  try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal,vertical,source_shifts:sources.map(s=>s.baseline_shift_mm),source_scales:sources.map(s=>s.scale_factor??1),source_edits:sources.map(s=>s.stroke_edit??E.originalStrokeEdit(s.processed_strokes.length))})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' under '+$('single-writer').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();showSaved(data.id);}
   catch(e){status('Could not save: '+e.message);$('single-save').disabled=false;}
   finally{busy=false;controls.forEach(c=>c.disabled=false);savedChoices(saveID);}
  };

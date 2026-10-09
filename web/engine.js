@@ -87,13 +87,22 @@
     size(record);return record;
   }
   function size(record){if(new TextEncoder().encode(JSON.stringify(record)).length>8*1024*1024)fail('This page is too large to save. Download its SVG and start a smaller page.');}
-  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10)||!finite(review.scale_factor??1,.5,2))fail('Choose inclusion, a position within 10 mm of the baseline, and a size from 50% to 200%.');}
+  // Both order entries and reversal flags refer to the immutable original stroke index.
+  const originalStrokeEdit=count=>({order:Array.from({length:count},(_,i)=>i),reversed:Array(count).fill(false)});
+  function validateStrokeEdit(edit,count=edit?.order?.length){
+    if(!edit||!Number.isInteger(count)||count<1||count>1000||!Array.isArray(edit.order)||edit.order.length!==count||new Set(edit.order).size!==count||!edit.order.every(i=>Number.isInteger(i)&&i>=0&&i<count)||!Array.isArray(edit.reversed)||edit.reversed.length!==count||!edit.reversed.every(v=>typeof v==='boolean'))fail('Choose each stroke once, with a valid direction.');
+  }
+  function editStrokes(sample,edit){
+    const result=clone(sample);if(edit===undefined)return result;validateStrokeEdit(edit,sample.processed_strokes.length);
+    const strokes=result.processed_strokes;result.processed_strokes=edit.order.map(i=>{const stroke=strokes[i];if(edit.reversed[i])stroke.points.reverse();return stroke;});return result;
+  }
+  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10)||!finite(review.scale_factor??1,.5,2))fail('Choose inclusion, a position within 10 mm of the baseline, and a size from 50% to 200%.');if(review.stroke_edit!==undefined)validateStrokeEdit(review.stroke_edit);}
   function scaleSample(sample,factor){
     const result=clone(sample);if(factor===1)return result;
     for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
     result.bounds={...result.bounds,left:0,right:(sample.bounds.right-sample.bounds.left)*factor};return result;
   }
-  function sampleAtSize(files,s,factor){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(raw,factor),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
+  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
   const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
   const characterSpacingKey=writer=>'character_spacing/'+encodeURIComponent(writer)+'.json';
   function validateCharacterSpacing(setting){if(!setting||!finite(setting.before_mm,-2,3)||!finite(setting.after_mm,-2,3))fail('Character spacing must be between −2 and +3 mm at Medium size.');}
@@ -130,6 +139,7 @@
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>2000)fail('Choose a writer and enter text before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??true,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
     if(![3,5,8].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
     return result;
   }
   function createComposition(data){
@@ -140,7 +150,7 @@
   function reviewWord(files,data){
     validateReview(data);if(typeof data.text!=='string'||data.text.length>40)fail('Use up to 40 characters in the word preview.');
     const copy=clone(files),key='letter_reviews/'+data.capture_id+'.json',old=copy.find(f=>f.key===key),r=old?.value||{schema_version:1,capture_id:data.capture_id,reviews:{}};
-    r.reviews[data.letter]={included:true,baseline_shift_mm:data.baseline_shift_mm,scale_factor:data.scale_factor??1};if(!old)copy.push({key,value:r});
+    r.reviews[data.letter]={...r.reviews[data.letter],included:true,baseline_shift_mm:data.baseline_shift_mm,scale_factor:data.scale_factor??1,...(data.stroke_edit!==undefined?{stroke_edit:clone(data.stroke_edit)}:{})};if(!old)copy.push({key,value:r});
     const sample=catalog(copy).byWriter.get(data.writer)?.find(s=>s.capture_id===data.capture_id&&s.letter===data.letter);if(!sample)fail('This sample is unavailable.');
     const pref=choosePreferred(copy,{writer:data.writer,letter:data.letter,capture_id:data.capture_id}),index=copy.findIndex(f=>f.key===pref.key);if(index<0)copy.push(pref);else copy[index]=pref;
     return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:false,samples:'latest_only'});
@@ -150,17 +160,21 @@
     const all=[...catalog(files).byWriter.values()].flat();
     if(data.source_shifts!==undefined&&(!Array.isArray(data.source_shifts)||data.source_shifts.length!==data.source_ids.length||!data.source_shifts.every(v=>finite(v,-10,10))))fail('Invalid source baseline adjustments.');
     if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,2))))fail('Invalid source sizes.');
-    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
+    if(data.source_edits!==undefined&&(!Array.isArray(data.source_edits)||data.source_edits.length!==data.source_ids.length))fail('Invalid source stroke corrections.');
+    if(data.source_edits!==undefined)data.source_edits.forEach(e=>validateStrokeEdit(e));
+    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
     if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
     const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
     if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
     const sample={letter:data.letter,processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm};
-    return {schema_version:sources.some(s=>s.scale_factor!==1)?5:4,...(sources.some(s=>s.scale_factor!==1)?{source_scales:sources.map(s=>s.scale_factor)}:{}),derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
+    const corrected=sources.some(s=>!same(s.stroke_edit,originalStrokeEdit(s.processed_strokes.length))),scaled=sources.some(s=>s.scale_factor!==1);
+    return {schema_version:corrected?6:scaled?5:4,...(corrected?{source_edits:sources.map(s=>clone(s.stroke_edit))}:{}),...(corrected||scaled?{source_scales:sources.map(s=>s.scale_factor)}:{}),derived:true,id:data.id,writer:data.writer,saved_at:new Date().toISOString(),order:[data.letter],samples:[sample],source_ids:data.source_ids.slice(),source_shifts:sources.map(s=>s.baseline_shift_mm),weights,horizontal:data.horizontal,vertical:data.vertical};
   }
   function savedBlendRecipe(files,id){
     const record=files.find(f=>f.key==='blends/'+id+'.json')?.value;
     if(!record)fail('This saved blend is unavailable.');
     const recipe={writer:record.writer,letter:record.order[0],source_ids:record.source_ids.slice(),source_shifts:record.source_shifts.slice(),source_scales:record.source_scales?.slice()||record.source_ids.map(()=>1),horizontal:record.horizontal,vertical:record.vertical};
+    recipe.source_edits=record.source_ids.map((id,i)=>{const raw=files.find(f=>f.key==='letters/'+id+'.json')?.value.samples.find(s=>s.letter===recipe.letter);if(!raw)fail('A saved blend is missing an original source.');return clone(record.source_edits?.[i]??originalStrokeEdit(raw.processed_strokes.length));});
     // Validate availability without changing the saved record or its source adjustments.
     createSavedBlend(files,{...recipe,id:record.id});return recipe;
   }
@@ -176,7 +190,7 @@
   }
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
-    for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...scaleSample(sample,r.source_scales?.[i]??1),capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
+    for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...scaleSample(editStrokes(sample,r.source_edits?.[i]),r.source_scales?.[i]??1),capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
       const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
     }
   }
@@ -221,8 +235,9 @@
       for(const [letter,review] of Object.entries(r.reviews)){if(!([...characters,...pairs].includes(letter)))fail('Invalid review letter.');validateReview(review);}return;
     }
     if(key==='blends/'+r.id+'.json'){
-      size(r);if(![4,5].includes(r.schema_version)||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
-      if((r.schema_version===4&&r.source_scales!==undefined)||(r.schema_version===5&&(!Array.isArray(r.source_scales)||r.source_scales.length!==r.source_ids.length||!r.source_scales.every(v=>finite(v,.5,2)))))fail('Invalid saved blend sizes.');
+      size(r);if(![4,5,6].includes(r.schema_version)||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
+      if((r.schema_version===4&&r.source_scales!==undefined)||(r.schema_version>=5&&(!Array.isArray(r.source_scales)||r.source_scales.length!==r.source_ids.length||!r.source_scales.every(v=>finite(v,.5,2)))))fail('Invalid saved blend sizes.');
+      if(r.schema_version===6){if(!Array.isArray(r.source_edits)||r.source_edits.length!==r.source_ids.length)fail('Invalid saved stroke corrections.');r.source_edits.forEach(e=>validateStrokeEdit(e));}else if(r.source_edits!==undefined)fail('Unexpected saved stroke corrections.');
       const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
     size(r);validateContent(r.writer,r.raw_strokes,r.display_smoothing);
@@ -249,7 +264,7 @@
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...scaleSample(s,setting.scale_factor??1),...setting,scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(editStrokes(s,setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
     for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
@@ -344,8 +359,22 @@
     }
     return {paths,chosen,height:baseline+below-frame.y};
   }
+  function validateSampleOrder(order,seed){if(!['cycle','shuffle'].includes(order)||typeof seed!=='string'||!seed.length||seed.length>80)fail('Choose a sample order and a valid variation.');}
+  function samplePicker(order,seed){
+    validateSampleOrder(order,seed);const states=new Map();
+    return (letter,list,n)=>{
+      if(order==='cycle')return list[n%list.length];
+      if(!states.has(letter)){let value=2166136261;for(const c of seed+'|'+letter)value=Math.imul(value^c.charCodeAt(0),16777619)>>>0;states.set(letter,{value,bag:[],last:null});}
+      const state=states.get(letter),random=()=>{state.value=(Math.imul(state.value,1664525)+1013904223)>>>0;return state.value/4294967296;};
+      if(!state.bag.length){state.bag=list.slice();for(let i=state.bag.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[state.bag[i],state.bag[j]]=[state.bag[j],state.bag[i]];}
+        if(state.bag.length>1&&state.bag[0]===state.last){const j=1+Math.floor(random()*(state.bag.length-1));[state.bag[0],state.bag[j]]=[state.bag[j],state.bag[0]];}
+      }
+      state.last=state.bag.shift();return state.last;
+    };
+  }
   function compose(files,data){
     const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
+    const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
     if(!['originals','blends','both'].includes(source)||typeof use_preferred!=='boolean')fail('Choose original samples, saved blends or both.');
     if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
@@ -366,7 +395,7 @@
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
     let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{
-      if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=list[n%list.length];
+      if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=pick(c,list,n);
       if(variation==='blend'){
         const candidates=list.filter(s=>s!==original&&compatible(original,s));
         // Seeded selection stays fixed when only the mix controls change.
@@ -381,7 +410,7 @@
     const profile=cat.writers.find(p=>p.writer===writer.trim()),layout=layoutWriting(letters,used,{height,smooth,letter_spacing,word_spacing,line_spacing},undefined,profile.character_spacing),paths=layout.paths,chosen=layout.chosen;
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     return {svg:drawingSVG(paths,'Handwriting: '+phrase),used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
-      sample_selection:{mode,source,use_preferred,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
+      sample_selection:{mode,source,use_preferred,sample_order,sample_seed,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
@@ -398,6 +427,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

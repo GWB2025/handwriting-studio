@@ -107,3 +107,23 @@ test('size reviews, frozen blend sizes, multiple preferences and compositions ro
  const bad=await fresh.StudioStorage.backup();bad.files.find(f=>f.key.startsWith('compositions/')).value.settings.letter_spacing=0;await assert.rejects(browser().StudioStorage.importBackup(bad),/composition settings/);
  const invalid=await call(fresh,'/api/compositions',{...composition,settings:{...composition.settings,height:99}});assert.equal(invalid.status,400);assert.equal((await call(fresh,'/api/compositions')).data.compositions[0].settings.height,8);
 });
+
+test('stroke repairs, frozen blend recipes and shuffled settings round-trip without altering original captures',async()=>{
+ const b=browser(),original=require('./browser_helpers').strokeFiles();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:original});
+ const samples=(await call(b,'/api/letters/samples?writer=Writer&letter=t')).data.samples,sourceIDs=original.map(f=>f.value.id),revision=(await call(b,'/api/letters/writers')).data.writers[0].revision;
+ assert.equal(samples[0].stroke_sample.processed_strokes.length,2);
+ for(const [i,id] of sourceIDs.entries()){
+  const edit=i%2?{order:[1,0],reversed:[false,true]}:E.originalStrokeEdit(2),result=await call(b,'/api/letters/samples/'+id+'/t/review',{included:true,baseline_shift_mm:0,stroke_edit:edit});assert.equal(result.status,200);assert.deepEqual(result.data.stroke_edit,edit);
+ }
+ assert.notEqual((await call(b,'/api/letters/writers')).data.writers[0].revision,revision);
+ const blend=await call(b,'/api/blends',{id:webcrypto.randomUUID(),writer:'Writer',letter:'t',source_ids:sourceIDs,horizontal:40,vertical:60});assert.equal(blend.status,201);
+ const settings=E.compositionSettings({writer:'Writer',phrase:'tut tutu',sample_order:'shuffle',sample_seed:'saved-variation'}),drawing=(await call(b,'/api/compose',settings)).data.svg;
+ const composition=await call(b,'/api/compositions',{id:webcrypto.randomUUID(),title:'Shuffled drawing',settings,drawing});assert.equal(composition.status,200);
+ const reviewURL='/api/letters/samples/'+sourceIDs[1]+'/t/review';await call(b,reviewURL,{included:true,baseline_shift_mm:1});assert.deepEqual((await call(b,'/api/letters/samples?writer=Writer&letter=t')).data.samples.find(s=>s.capture_id===sourceIDs[1]).stroke_edit,{order:[1,0],reversed:[false,true]});
+ const before=await b.StudioStorage.snapshot();assert.equal((await call(b,reviewURL,{included:true,baseline_shift_mm:0,stroke_edit:E.originalStrokeEdit(1)})).status,400);assert.deepEqual(await b.StudioStorage.snapshot(),before);
+ const backup=await b.StudioStorage.backup(),next=browser();await next.StudioStorage.importBackup(backup);assert.deepEqual(await next.StudioStorage.snapshot(),backup.files);assert.equal((await call(next,'/api/compositions')).data.compositions[0].drawing,drawing);
+ const importedBlend=backup.files.find(f=>f.key==='blends/'+blend.data.id+'.json');assert.equal(importedBlend.value.schema_version,6);
+ const bad=E.clone(backup);bad.files.find(f=>f.key==='letter_reviews/'+sourceIDs[0]+'.json').value.reviews.t.stroke_edit=E.originalStrokeEdit(1);const blank=browser();await assert.rejects(blank.StudioStorage.importBackup(bad));assert.equal((await blank.StudioStorage.snapshot()).length,0);
+ const wrong=E.clone(backup);wrong.files.find(f=>f.key===importedBlend.key).value.source_edits[0].reversed[0]=true;await assert.rejects(blank.StudioStorage.importBackup(wrong));assert.equal((await blank.StudioStorage.snapshot()).length,0);
+ assert.deepEqual(backup.files.filter(f=>f.key.startsWith('letters/')).sort((a,b)=>a.key.localeCompare(b.key)),original.sort((a,b)=>a.key.localeCompare(b.key)));
+});

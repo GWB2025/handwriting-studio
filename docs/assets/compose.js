@@ -4,6 +4,9 @@
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
+  let sampleSeed=crypto.randomUUID();
+  const sampleOrderData=()=>byID('compose-order')?{sample_order:byID('compose-order').value,sample_seed:sampleSeed}:{};
+  function orderControls(){if(byID('compose-shuffle'))byID('compose-shuffle').disabled=loading||byID('compose-writer').disabled||!byID('compose-writer').value||byID('compose-order').value!=='shuffle';}
   function sourceCounts(profile){return window.StudioEngine?.countsFor?window.StudioEngine.countsFor(profile,byID('compose-source')?.value||'both'):(profile?.counts||{});}
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
@@ -27,10 +30,12 @@
     showCounts();
   }
   function showCounts(counts){
+    orderControls();
     const supplied=!!counts;const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
     const limit={latest_three:3,latest_four:4,latest_only:1,all:Infinity}[byID('compose-samples').value];
     counts=counts || (profile && Object.fromEntries(Object.entries(sourceCounts(profile)).map(([letter,n])=>[letter,Math.min(n,limit)])));
     byID('compose-counts').textContent=counts?(supplied?'Preview samples: ':'Available samples: ')+Object.entries(counts).map(([letter,n])=>letter+' × '+n).join(' · ')+' · '+(byID('compose-preferred')?.checked?'preferred versions when available; otherwise newest first':'newest first'):'';
+    if(counts&&byID('compose-order')?.value==='shuffle')byID('compose-counts').textContent+=' · shuffled selection';
     byID('review-link').href='review.html?writer='+encodeURIComponent(byID('compose-writer').value);
   }
   async function loadWriters(){
@@ -38,8 +43,8 @@
     const selected=byID('compose-writer').value || new URLSearchParams(window.location.search).get('writer');
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
-    for(const id of ['compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
-    byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;
+    for(const id of ['compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
+    byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;orderControls();
     for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=true;
     byID('compose-status').textContent='Loading your saved letters…';
     try{
@@ -54,7 +59,7 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Try reopening this page in a regular browser window, then tap Refresh samples.';}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
@@ -62,11 +67,11 @@
     clearPreview(!!event.live);loading=true;const ticket=++requestNumber;
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
-    byID('generate').disabled=true;byID('generate').textContent='Composing…';
+    byID('generate').disabled=true;byID('generate').textContent='Composing…';orderControls();
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await window.studioFetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
       const oldImageURL=imageURL;imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
@@ -80,7 +85,7 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=(error.name==='AbortError'?'Browser storage took too long to respond. Try Generate preview again.':error.message)+(event.live&&imageURL?' Previous preview shown; adjust settings to update it.':'');}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){loading=false;controller=null;byID('generate').disabled=false;byID('generate').textContent='Generate preview';}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){loading=false;controller=null;byID('generate').disabled=false;byID('generate').textContent='Generate preview';orderControls();}}
   };
   byID('compose-download').onclick=()=>{
     if(!imageURL||!previewSVG||byID('compose-download').disabled)return;
@@ -101,6 +106,8 @@
   for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
   byID('compose-source')?.addEventListener('change',()=>{updateExample();invalidate();});
   byID('compose-preferred')?.addEventListener('change',invalidate);
+  byID('compose-order')?.addEventListener('change',invalidate);
+  if(byID('compose-shuffle'))byID('compose-shuffle').onclick=()=>{if(byID('compose-shuffle').disabled)return;sampleSeed=crypto.randomUUID();invalidate({keepImage:hasPreview});return byID('compose-form').onsubmit({preventDefault(){},live:true});};
   function liveBlend(){
     const active=hasPreview;invalidate();
     if(active&&byID('compose-variation').value==='blend')liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),100);
@@ -145,10 +152,11 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    window.StudioCompositions.init({readDrawing:()=>previewSVG,read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData()}),restore:async (settings,drawing='')=>{
+    window.StudioCompositions.init({readDrawing:()=>previewSVG,read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData()}),restore:async (settings,drawing='')=>{
       const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!drawing){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
       byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
+      if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
       hasPreview=false;invalidate();
       if(drawing){window.StudioEngine.validateDrawingSVG(drawing);previewSVG=drawing;frozenPreview=true;hasPreview=true;imageURL=URL.createObjectURL(new Blob([drawing],{type:'image/svg+xml'}));byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;byID('compose-download').disabled=false;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;byID('compose-status').textContent='Exact saved drawing · downloads reproduce this page. Generate preview uses your current handwriting.';}
     }});

@@ -91,3 +91,12 @@ test('blend inspection changes display only, while dragging moves numbered start
  const expected=[...E.reviewSVG(E.catalog(w.records).byWriter.get('Writer').find(s=>s.capture_id===ids['single-sources'].querySelectorAll('select')[0].value&&s.letter==='a'),{showStarts:true}).matchAll(/data-stroke-start="\d+" transform="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(marks.map(m=>m.attrs.transform),expected);
 });
+
+test('reopening a corrected blend restores its frozen stroke order even after source reviews change',async()=>{
+ const records=require('./browser_helpers').strokeFiles(),sourceIDs=records.map(f=>f.value.id);
+ for(const [i,id] of sourceIDs.entries())records.push({key:'letter_reviews/'+id+'.json',value:{schema_version:1,capture_id:id,reviews:{t:{included:true,baseline_shift_mm:0,stroke_edit:i%2?{order:[1,0],reversed:[false,true]}:E.originalStrokeEdit(2)}}}});
+ const blend=E.createSavedBlend(records,{id:webcrypto.randomUUID(),writer:'Writer',letter:'t',source_ids:sourceIDs,horizontal:40,vertical:60});records.push({key:'blends/'+blend.id+'.json',value:blend});
+ for(const r of records.filter(f=>f.key.startsWith('letter_reviews/')))r.value.reviews.t.stroke_edit={order:[0,1],reversed:[true,true]};
+ const w=await workspace(records,'?blend='+blend.id);assert.equal(w.ids['single-save'].disabled,false);await w.ids['single-save'].onclick();const request=w.requests.at(-1);assert.deepEqual(JSON.parse(JSON.stringify(request.source_edits)),blend.source_edits);
+ const saved=w.records.find(f=>f.key==='blends/'+request.id+'.json').value;assert.deepEqual(saved.samples,blend.samples);
+});
