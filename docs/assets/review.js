@@ -2,7 +2,11 @@
 (()=>{
   const $=id=>document.getElementById(id);
   let alphabet='abcdefghijklmnopqrstuvwxyz';
-  let profiles=[],samples=[],selected=null,busy=false,dirty=false,previewInk=null;
+  let profiles=[],samples=[],selected=null,busy=false,dirty=false,previewInk=null,previewX=0;
+  // The slider increases upwards; stored offsets retain the existing down-positive convention.
+  function shiftValue(){const text=$('sample-shift').value.trim();return text?-Number(text):NaN;}
+  function shiftLabel(shift){return shift===0?'Original baseline':Number(Math.abs(shift).toFixed(3))+' mm '+(shift<0?'up':'down');}
+  function shiftReadout(shift){const label=shiftLabel(shift);$('sample-shift-value').textContent=label;$('sample-shift').setAttribute('aria-valuetext',label);}
   function status(text){$('review-status').textContent=text;}
   async function api(url,body){
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
@@ -23,8 +27,9 @@
     }
     $('sample-included').disabled=busy || !selected;
     $('sample-shift').disabled=busy || !selected;
-    const shift=$('sample-shift').value.trim(),number=Number(shift);
-    $('review-save').disabled=busy || !dirty || !shift || !Number.isFinite(number) || number < -10 || number > 10;
+    $('sample-zero').disabled=busy || !selected;
+    const number=shiftValue();
+    $('review-save').disabled=busy || !dirty || !Number.isFinite(number) || number < -10 || number > 10;
     $('review-reset').disabled=busy || !dirty;
     for(const button of $('sample-list').querySelectorAll('button'))button.disabled=busy || dirty;
     $('review-compose').href='compose.html?writer='+encodeURIComponent($('review-writer').value);
@@ -53,7 +58,7 @@
   }
   function showSample(sample){
     selected=sample;dirty=false;
-    previewInk=null;$('sample-image').replaceChildren();
+    previewInk=null;previewX=0;$('sample-image').replaceChildren();
     $('sample-detail').hidden=!sample;
     if(!sample){controls();return;}
     $('sample-title').textContent=sample.letter+' · '+(sample.included?'Included':'Excluded');
@@ -63,14 +68,16 @@
     if(svg){
       const paths=Array.from(svg.querySelectorAll('path')),box=svg.getAttribute('viewBox').split(/\s+/).map(Number),savedShift=sample.baseline_shift_mm*16;
       // Keep guides and scale fixed throughout editing, including the full ±10 mm range.
-      let top=-180,bottom=110;
-      for(const path of paths){const bounds=path.getBBox();top=Math.min(top,bounds.y-savedShift-160-25);bottom=Math.max(bottom,bounds.y+bounds.height-savedShift+160+25);}
+      let top=-180,bottom=110,left=Infinity,right=-Infinity;
+      for(const path of paths){const bounds=path.getBBox();top=Math.min(top,bounds.y-savedShift-160-25);bottom=Math.max(bottom,bounds.y+bounds.height-savedShift+160+25);left=Math.min(left,bounds.x);right=Math.max(right,bounds.x+bounds.width);}
       svg.setAttribute('viewBox',`${box[0]} ${top} ${box[2]} ${bottom-top}`);
+      // Centre the complete letter, including separate dots and crossbars, in the preview only.
+      if(paths.length)previewX=box[0]+box[2]/2-(left+right)/2;
       previewInk=document.createElementNS('http://www.w3.org/2000/svg','g');previewInk.setAttribute('data-review-ink','');
       for(const path of paths)previewInk.append(path);svg.append(previewInk);
-      previewInk.setAttribute('transform','translate(0 0)');
+      previewInk.setAttribute('transform',`translate(${previewX} 0)`);
     }
-    $('sample-included').checked=sample.included;$('sample-shift').value=sample.baseline_shift_mm;
+    $('sample-included').checked=sample.included;$('sample-shift').value=-sample.baseline_shift_mm;shiftReadout(sample.baseline_shift_mm);
     for(const button of $('sample-list').querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.captureId===sample.capture_id));
     controls();
   }
@@ -107,24 +114,31 @@
   }
   function changed(){
     if(busy||!selected)return;
-    const text=$('sample-shift').value.trim(),shift=Number(text),valid=!!text&&Number.isFinite(shift)&&shift>=-10&&shift<=10;
-    dirty=!!selected && ($('sample-included').checked!==selected.included || $('sample-shift').value.trim()==='' || Number($('sample-shift').value)!==selected.baseline_shift_mm);
-    if(valid&&previewInk)previewInk.setAttribute('transform',`translate(0 ${(shift-selected.baseline_shift_mm)*16})`);
-    controls();status(!valid?'Enter a baseline shift from −10 to +10 mm. The preview keeps the last valid position.':dirty?'Preview baseline shift: '+shift+' mm. Changes not saved yet. Tap Save changes or Reset changes.':'This sample has no unsaved changes.');
+    const shift=shiftValue(),valid=Number.isFinite(shift)&&shift>=-10&&shift<=10;
+    dirty=$('sample-included').checked!==selected.included || shift!==selected.baseline_shift_mm;
+    if(valid){shiftReadout(shift);if(previewInk)previewInk.setAttribute('transform',`translate(${previewX} ${(shift-selected.baseline_shift_mm)*16})`);}
+    controls();status(!valid?'Choose a position within 10 mm up or down. The preview keeps the last valid position.':dirty?'Preview: '+shiftLabel(shift)+'. Changes not saved yet. Tap Save changes or Reset changes.':'This sample has no unsaved changes.');
   }
   $('sample-included').onchange=changed;$('sample-shift').oninput=changed;
+  $('sample-shift').onkeydown=event=>{
+    if(busy||!selected)return;
+    const step=event.shiftKey?1:.1,moves={ArrowUp:step,ArrowRight:step,ArrowDown:-step,ArrowLeft:-step};
+    if(!(event.key in moves))return;event.preventDefault();
+    $('sample-shift').value=Math.max(-10,Math.min(10,Number((Number($('sample-shift').value)+moves[event.key]).toFixed(6))));changed();
+  };
+  $('sample-zero').onclick=()=>{if(busy||!selected)return;$('sample-shift').value='0';changed();};
   $('review-reset').onclick=()=>{showSample(selected);status('Unsaved changes reset.');};
   $('review-form').onsubmit=async event=>{
     event.preventDefault();if(busy || !dirty || $('review-save').disabled)return;
     busy=true;controls();status('Saving your review…');
     try{
       const result=await api('/api/letters/samples/'+selected.capture_id+'/'+encodeURIComponent(selected.letter)+'/review',
-        {included:$('sample-included').checked,baseline_shift_mm:Number($('sample-shift').value)});
+        {included:$('sample-included').checked,baseline_shift_mm:shiftValue()});
       Object.assign(selected,{included:result.included,baseline_shift_mm:result.baseline_shift_mm,svg:result.svg});
       const profile=profiles.find(p=>p.writer===$('review-writer').value);
       if(profile)profile.counts[selected.letter]=samples.filter(s=>s.included).length;
       coverage();drawList({samples},selected.capture_id);
-      status('✓ Saved. This example is '+(selected.included?'included in':'excluded from')+' composition. Baseline shift: '+selected.baseline_shift_mm+' mm. Generate a new Compose preview to see the change.');
+      status('✓ Saved. This example is '+(selected.included?'included in':'excluded from')+' composition. Position: '+shiftLabel(selected.baseline_shift_mm)+'. Generate a new Compose preview to see the change.');
     }catch(error){status('Not saved: '+error.message+' Your edits are still here.');}
     finally{busy=false;controls();}
   };

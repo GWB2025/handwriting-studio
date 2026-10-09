@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),test=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,(process.env.STUDIO_PAGES_TEST?'../docs/assets/':'../static/')+'review.js'),'utf8');
 const settle=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
-async function review(extended=false,{initialShift=0,failSave=false}={}){
+async function review(extended=false,{initialShift=0,failSave=false,wideCrossbar=false}={}){
   function node(tag='div'){let value='';return {tag,parent:null,get value(){return value;},set value(v){value=String(v);},checked:false,dataset:{},children:[],attributes:{},
     append(...items){for(const item of items){if(item.parent)item.parent.children=item.parent.children.filter(c=>c!==item);item.parent=this;this.children.push(item);}if(!this.value&&items[0]?.value)this.value=items[0].value;},
     replaceChildren(){for(const c of this.children)c.parent=null;this.children=[];this.value='';},
@@ -10,9 +10,9 @@ async function review(extended=false,{initialShift=0,failSave=false}={}){
     getBBox(){const values=this.attributes.d.match(/-?\d+(?:\.\d+)?/g).map(Number),xs=values.filter((_,i)=>i%2===0),ys=values.filter((_,i)=>i%2);return {x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};},
     set innerHTML(text){this.replaceChildren();let svg;for(const m of text.matchAll(/<(svg|line|text|path)\b([^>]*)>/g)){const child=node(m[1]);for(const attr of m[2].matchAll(/([\w-]+)="([^"]*)"/g))child.setAttribute(attr[1],attr[2]);if(m[1]==='svg'){svg=child;this.append(svg);}else svg.append(child);}}
   };}
-  const svg=shift=>require('../web/engine.js').reviewSVG({baseline_shift_mm:shift,processed_strokes:[{points:[{x:0,y:-60},{x:40,y:0}]},{points:[{x:5,y:-40},{x:35,y:-40}]}]});
+  const svg=shift=>require('../web/engine.js').reviewSVG({baseline_shift_mm:shift,processed_strokes:[{points:[{x:0,y:-60},{x:40,y:0}]},{points:[{x:5,y:-40},{x:wideCrossbar?100:35,y:-40}]}]});
   const elements={};
-  for(const id of ['review-status','review-writer','review-letter','review-refresh','sample-included','sample-shift','review-save','review-reset','sample-list','review-compose','review-coverage','sample-detail','sample-image','sample-title','sample-date','review-form','review-alphabet','review-kind'])elements[id]=node();
+  for(const id of ['review-status','review-writer','review-letter','review-refresh','sample-included','sample-shift','sample-shift-value','sample-zero','review-save','review-reset','sample-list','review-compose','review-coverage','sample-detail','sample-image','sample-title','sample-date','review-form','review-alphabet','review-kind'])elements[id]=node();
   elements['review-kind'].value='lowercase';
   const requests=[],settings={};
   const fetch=async(url,options={})=>{
@@ -69,27 +69,47 @@ test('baseline edits move only the ink live, keep guides and scale fixed, and do
  e['review-alphabet'].children.find(b=>b.dataset.letter==='z').onclick();await settle();
  const svg=e['sample-image'].querySelector('svg'),ink=svg.querySelector('g'),guides=svg.querySelectorAll('line'),paths=ink.querySelectorAll('path'),frame=svg.getAttribute('viewBox'),guideY=guides.map(g=>g.getAttribute('y1')),pathData=paths.map(p=>p.getAttribute('d')),requestCount=r.requests.length;
  for(const offset of [3.5,-2,-10,10,0]){
-  e['sample-shift'].value=offset;e['sample-shift'].oninput();
-  assert.equal(e['sample-image'].querySelector('svg'),svg);assert.equal(ink.getAttribute('transform'),`translate(0 ${(offset-2)*16})`);assert.equal(svg.getAttribute('viewBox'),frame);
+  e['sample-shift'].value=-offset;e['sample-shift'].oninput();
+  assert.equal(e['sample-image'].querySelector('svg'),svg);assert.equal(ink.getAttribute('transform'),`translate(70 ${(offset-2)*16})`);assert.equal(svg.getAttribute('viewBox'),frame);
   assert.deepEqual(svg.querySelectorAll('line'),guides);assert.deepEqual(guides.map(g=>g.getAttribute('y1')),guideY);assert.deepEqual(paths.map(p=>p.getAttribute('d')),pathData);
   const [,top,,height]=frame.split(' ').map(Number);for(const p of paths){const b=p.getBBox(),shift=(offset-2)*16;assert(b.y+shift>=top&&b.y+b.height+shift<=top+height);}
  }
  assert.equal(r.requests.length,requestCount);assert.equal(e['review-save'].disabled,false);assert.equal(e['review-letter'].disabled,true);
- e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'2');assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(0 0)');assert.equal(e['review-save'].disabled,true);
- e['sample-shift'].value='-1.25';e['sample-shift'].oninput();await e['review-form'].onsubmit({preventDefault(){}});
- assert.equal(r.settings.baseline_shift_mm,-1.25);assert.equal(e['sample-image'].querySelector('svg').getAttribute('viewBox'),frame);assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(0 0)');
+ e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'-2');assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(70 0)');assert.equal(e['review-save'].disabled,true);
+ e['sample-shift'].value='1.25';e['sample-shift'].oninput();await e['review-form'].onsubmit({preventDefault(){}});
+ assert.equal(r.settings.baseline_shift_mm,-1.25);assert.equal(e['sample-image'].querySelector('svg').getAttribute('viewBox'),frame);assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(70 0)');
  assert.equal(e['sample-image'].querySelector('path').getBBox().y,-60-1.25*16);assert.equal(e['review-save'].disabled,true);
- e['sample-shift'].value='1';e['sample-shift'].oninput();assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(0 36)');
- e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'-1.25');
+ e['sample-shift'].value='1';e['sample-shift'].oninput();assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(70 4)');
+ e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'1.25');
 });
 
 test('invalid offsets retain the last valid preview and a failed save preserves the unsaved adjustment',async()=>{
  const r=await review(false,{failSave:true}),e=r.elements,ink=e['sample-image'].querySelector('g');
- e['sample-shift'].value='2';e['sample-shift'].oninput();assert.equal(ink.getAttribute('transform'),'translate(0 32)');
+ e['sample-shift'].value='2';e['sample-shift'].oninput();assert.equal(ink.getAttribute('transform'),'translate(70 -32)');
  for(const value of ['','-', 'NaN','Infinity','10.1','-11']){
-  e['sample-shift'].value=value;e['sample-shift'].oninput();assert.equal(ink.getAttribute('transform'),'translate(0 32)');assert.equal(e['review-save'].disabled,true);assert.match(e['review-status'].textContent,/last valid position/);
+  e['sample-shift'].value=value;e['sample-shift'].oninput();assert.equal(ink.getAttribute('transform'),'translate(70 -32)');assert.equal(e['review-save'].disabled,true);assert.match(e['review-status'].textContent,/last valid position/);
  }
  e['sample-shift'].value='-3';e['sample-shift'].oninput();await e['review-form'].onsubmit({preventDefault(){}});
- assert.equal(ink.getAttribute('transform'),'translate(0 -48)');assert.equal(e['sample-shift'].value,'-3');assert.equal(e['review-reset'].disabled,false);assert.equal(e['review-save'].disabled,false);assert.match(e['review-status'].textContent,/Not saved/);assert.deepEqual(r.settings,{});
- e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'0');assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(0 0)');
+ assert.equal(ink.getAttribute('transform'),'translate(70 48)');assert.equal(e['sample-shift'].value,'-3');assert.equal(e['review-reset'].disabled,false);assert.equal(e['review-save'].disabled,false);assert.match(e['review-status'].textContent,/Not saved/);assert.deepEqual(r.settings,{});
+ e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'0');assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),'translate(70 0)');
+});
+
+test('the upward slider direction, keyboard and zero button preserve existing stored offsets and horizontal centring',async()=>{
+ const r=await review(false,{initialShift:1.234567,wideCrossbar:true}),e=r.elements,svg=e['sample-image'].querySelector('svg'),ink=svg.querySelector('g');
+ assert.equal(e['sample-shift'].value,'-1.234567');assert.match(e['sample-shift-value'].textContent,/down/);
+ const [x,,width]=svg.getAttribute('viewBox').split(' ').map(Number),paths=ink.querySelectorAll('path'),bounds=paths.map(p=>p.getBBox()),left=Math.min(...bounds.map(b=>b.x)),right=Math.max(...bounds.map(b=>b.x+b.width));
+ function checkCentre(){const shift=Number(ink.getAttribute('transform').match(/translate\(([^ ]+)/)[1]);assert.equal((left+right)/2+shift,x+width/2);}
+ checkCentre();
+ // An inclusion-only save must not round or reverse an existing arbitrary-precision offset.
+ e['sample-included'].checked=false;e['sample-included'].onchange();await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.baseline_shift_mm,1.234567);
+ e['sample-zero'].onclick();assert.equal(e['sample-shift'].value,'0');assert.equal(e['sample-shift-value'].textContent,'Original baseline');assert.equal(e['review-save'].disabled,false);
+ const key=(key,shiftKey=false)=>{let prevented=false;e['sample-shift'].onkeydown({key,shiftKey,preventDefault(){prevented=true;}});assert(prevented);};
+ key('ArrowUp');assert.equal(e['sample-shift'].value,'0.1');assert.equal(e['sample-shift-value'].textContent,'0.1 mm up');
+ key('ArrowUp',true);assert.equal(e['sample-shift'].value,'1.1');key('ArrowDown');assert.equal(e['sample-shift'].value,'1');assert.equal(e['sample-shift'].attributes['aria-valuetext'],'1 mm up');
+ await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.baseline_shift_mm,-1);
+ assert.equal(e['sample-image'].querySelector('path').getBBox().y,-76);
+ e['sample-shift'].value='10';key('ArrowUp');assert.equal(e['sample-shift'].value,'10');
+ e['sample-shift'].value='-10';key('ArrowDown');assert.equal(e['sample-shift'].value,'-10');
+ e['review-reset'].onclick();assert.equal(e['sample-shift'].value,'1');assert.equal(e['sample-shift-value'].textContent,'1 mm up');
+ e['sample-zero'].onclick();await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.baseline_shift_mm,0);
 });

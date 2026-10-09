@@ -118,9 +118,14 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .sample-paper { background: white; border: 1px solid #e5e8e1; border-radius: 8px; }
 #sample-image { display: block; width: 100%; height: 280px; }
 #sample-image svg { display: block; width: 100%; height: 100%; }
-.sample-include, .sample-shift { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+.sample-preview-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 12px; }
+.sample-position { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 4px; }
+.sample-position label { font-weight: 600; }
+#sample-shift { writing-mode: vertical-lr; direction: rtl; width: 44px; height: 190px; margin: 0; touch-action: none; accent-color: #245e4b; }
+.sample-shift-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.sample-shift-readout output { min-width: 125px; }
+.sample-include { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
 .sample-include input { width: 20px; height: 20px; }
-.sample-shift input { width: 100px; padding: 10px; font: inherit; border: 1px solid #bccbc1; border-radius: 7px; }
 @media (max-width: 600px) {
   .review-layout { grid-template-columns: minmax(0, 1fr); }
   #sample-list { max-height: 180px; }

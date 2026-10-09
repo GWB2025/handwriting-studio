@@ -23,11 +23,14 @@
     <section id="sample-detail" hidden aria-label="Selected sample">
       <h2 id="sample-title"></h2>
       <p id="sample-date" class="subtle"></p>
-      <div class="sample-paper"><div id="sample-image" role="img" aria-label="Selected handwriting sample with fixed baseline guides"></div></div>
+      <div class="sample-preview-row">
+        <div class="sample-paper"><div id="sample-image" role="img" aria-label="Horizontally centred handwriting sample with fixed baseline guides"></div></div>
+        <div class="sample-position"><label for="sample-shift">Position</label><span aria-hidden="true">Up</span><input id="sample-shift" type="range" min="-10" max="10" step="any" value="0" form="review-form" aria-orientation="vertical" aria-describedby="sample-shift-help"><span aria-hidden="true">Down</span></div>
+      </div>
       <form id="review-form">
         <label class="sample-include"><input type="checkbox" id="sample-included"> Use this sample in composition</label>
-        <label class="sample-shift">Baseline shift (mm) <input id="sample-shift" type="number" min="-10" max="10" step="any" inputmode="decimal" required value="0"></label>
-        <p class="subtle">Positive moves the letter down; negative moves it up. The preview moves as you edit, against fixed guides at Medium (5 mm). Save changes keeps the offset; Reset changes restores the saved position.</p>
+        <div class="sample-shift-readout"><output id="sample-shift-value" for="sample-shift">Original baseline</output><button id="sample-zero" type="button">Original baseline</button></div>
+        <p class="subtle" id="sample-shift-help">Slide up to move the letter up, or down to move it down, by up to 10 mm. The letter stays centred left to right. Original baseline returns to zero offset; Save changes keeps the position and Reset changes restores the last saved position. Arrow keys move by 0.1 mm; hold Shift for 1 mm. Preview shown at Medium (5 mm).</p>
         <div class="compose-actions"><button id="review-save" class="primary" disabled>Save changes</button><button id="review-reset" type="button" disabled>Reset changes</button></div>
       </form>
     </section>
