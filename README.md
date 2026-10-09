@@ -1,207 +1,198 @@
-# Handwriting Studio — guided capture and composition
+# Handwriting Studio
 
-## Use the website
+[Open the public app](https://gwb2025.github.io/handwriting-studio/) · [Read the help guide](https://gwb2025.github.io/handwriting-studio/help.html)
 
-[Open Handwriting Studio](https://gwb2025.github.io/handwriting-studio/)
+Current public website documentation · updated 9 October 2026.
 
-The GitHub Pages version runs entirely in Safari or Chrome, including on an iPad. No Mac server, Python setup or login is needed. Capture all 26 lowercase letters, review individual samples, compose A4 handwriting and download SVGs. Free writing and Saved pages are also available.
+Handwriting Studio captures your handwriting, reviews and blends individual characters, and composes A4 pages for SVG export or a pen plotter. The website runs in Safari or Chrome, including on an iPad. No Mac server, Python setup or login is needed to use it. **Help guide** on each screen opens the relevant instructions in a separate tab; **Show help** on Capture and Free writing provides short instructions in place.
 
-**Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** to download a JSON backup regularly and move writing between devices. Clearing website data or using private browsing can remove saved writing. The app requests persistent browser storage where supported, but backups are still needed. Unsaved drafts are not part of a backup: save your sheet or page first.
+**Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** regularly. Save your current sheet or page before refreshing: unsaved drafts are not restored or included in backups.
 
-Import validates every record before adding anything. Identical records are skipped. Conflicting versions of the same record reject the entire import; use a fresh browser for the other version. Import does not overwrite captures, review choices or alphabet preferences. The import limit is 100 MB.
+## Current workflow
 
+1. **Capture** lowercase, uppercase, numbers, punctuation and symbols, or common joined pairs. Repeat sets to collect variations.
+2. **Review samples** to include/exclude individual originals or saved blends and adjust baseline placement.
+3. **Blend a character** from two or four different original captures by dragging the live result towards its sources. Save the result as a new sample.
+4. **My alphabet** shows coverage, original/blend counts and preferred versions for each writer and group.
+5. **Compose** uses originals, saved blends or both, with optional preferred versions and saved joined pairs. Export A4 SVG or plotter G-code.
+6. **Calibration** provides the verified A4 checking procedure and downloadable stages. Send G-code from the Mac connected to the plotter.
 
-### Extended handwriting workflow (public website)
+**Free writing** and **Saved pages** are also available through Capture’s Show help and the Help guide. They store notebook pages separately from labelled character samples.
 
-Choose **Capture** → **Lowercase**, **Uppercase**, **Numbers**, **Punctuation and symbols**, or **Joined pairs**. Each type has its own saved progress. Complete the current set before changing type; unsaved practice can be cleared with confirmation. Capture capitals to the tall-letter guide. New character types retain the drawn baseline, so write dots, commas and quotes at their normal positions. Joined pairs should be written as one connected shape in each box.
+## Capture
 
-Review has matching groups, with individual inclusion and baseline controls. Existing lowercase samples remain unchanged. Extended records use schema 3, supported by the public website and its backup/import; the original Mac app does not support these new records.
+Enter a writer name, tap **Done**, and choose a capture type. Use the same name for repeated sets belonging to the same person; names identify separate collections, not signed-in accounts. Practice is optional and is not saved. **Start capture** opens the next unsaved sheet for that writer and type.
 
-Compose supports captured capitals, digits and the symbols offered by Capture. It wraps whole words, uses neighbouring stroke shapes to adjust spacing, and accepts up to 2,000 characters when they fit on one A4 page. Oversized words and overflowing pages produce a message instead of clipping.
+Write one labelled character per box with a Pencil or mouse. Fingers can use controls but do not draw on Capture or Free writing. Keep all strokes, including dots and crossbars, in their own box. The app assigns strokes by box; it does not recognise whether you wrote the correct character.
 
-Use **Blend a character** to select two or four original captures, mix them live, and save a new sample. **My alphabet** shows which characters have included originals, saved blends and preferred versions. Choose a group and character to compare samples and set or clear its preferred version. An excluded preferred sample is shown as unavailable and is never used. Preferences belong to the selected writer; source captures and blends are unchanged.
+Each set covers every character in its group once, with shuffled positions. Lowercase uses six sheets for all 26 letters; other groups show their own sheet count. Saved orders preserve the labels when resuming or importing. Finish the current set before changing capture type. **Capture another set** adds more examples: two complete sets provide two originals per character, and four provide four.
 
-In **Compose**, choose **Original samples only**, **Saved blends only**, or **Originals and saved blends**. The default includes both. **Use preferred versions when available** selects the preferred sample for every occurrence of that character, but only if it is included and matches the selected source type. Otherwise the normal newest-sample selection applies within that type. Saved-blends-only reports missing blends instead of substituting originals. Joined pairs follow the same source and preference rules. Changing these choices or a saved preference invalidates the old SVG and G-code until a fresh preview is generated.
+**Save sheet** advances only after storage confirms the save. Undo/Redo and Clear sheet affect the current draft. Missing boxes, tiny marks or strokes crossing between boxes produce an explanation and leave the draft in place. The writer name is fixed during a set; save the current sheet and reopen Capture to change it. Reopening resumes saved progress, not unsaved strokes.
 
-Alphabet choices are stored separately under `alphabets/`, included in Backup / Import, and verified against their saved samples when imported. Older backups remain supported; conflicting settings are handled like conflicting review choices. These browser features do not change the original Mac capture server.
+For f, g, j, p, q and y, keep the body on the baseline and tails below. These lowercase letters retain the drawn baseline; other lowercase letters settle onto the baseline using their lowest point. Capitals, numbers, punctuation and joined pairs retain the drawn baseline. Write capitals near the tall-letter guide and joined pairs as connected shapes.
 
-Compose exports SVG or G-code using the verified plotter calibration. The reusable Mac sender can transmit downloaded G-code over USB; a graphical plotting screen and page queue are still future work.
+**Baseline**, **Small letters**, **Tall letters**, **Tails** and **Shading** can be shown independently. Labels and dividers remain visible. **Gentle smoothing** changes the display/export without rewriting original points. The writing surface suppresses scrolling, pinching and selection during capture; the other screens can be scrolled normally.
 
-### Bring existing Mac handwriting to the website
+## Review samples
 
-From the local app folder, export your original data without changing it:
+Choose a writer, group and character, then an example from the newest-first list. Original captures and saved blends share this workflow, with blends labelled separately.
 
-```
+- **Use this sample in composition** includes or excludes that example. Excluded originals are also unavailable as blend sources. Exclusion is reversible and does not delete a sample.
+- **Baseline shift (mm)** moves a character down for positive values and up for negative values, from −10 to +10 mm. The preview uses Medium (5 mm); the offset applies as the same physical distance at every Compose size. It does not resize a character.
+- **Save changes** confirms the choice and refreshes the preview. **Reset changes** discards pending edits. Save or reset before switching samples.
+
+Review settings are separate from original captures. Generate a fresh Compose preview after reviewing. Saved blends retain the source adjustments used when they were created; later changes to an original do not remake existing blends.
+
+## Blend a character
+
+The workspace follows the letter-level workflow shown around 22–24 minutes in Dan Catt’s video. It mixes different captures of one character, such as two versions of “a”.
+
+1. Choose **Save under writer**, the character and **Two** or **Four** sources.
+2. Choose distinct included original samples. If sets were captured under separate writer names, select **Source pool → All saved writers / sets**. The menus identify each source’s writer, date and sample. This does not merge writers or rename captures.
+3. Selecting a sample already used by another source swaps the two selections. If there are too few originals, the remaining slots are disabled and the page reports what is needed. Saved blends do not count as originals and cannot be used as further blend sources.
+4. Drag the **green-bordered blended character** with a finger, Pencil or mouse. With two sources it moves horizontally between A and B. With four it moves in two dimensions between A/B above and C/D below. Moving towards a source increases that source’s contribution immediately.
+5. **Save blended sample** saves the displayed result under the chosen writer, ready for Review, My alphabet and Compose. Source captures remain unchanged.
+
+The draggable result has a **transparent background**, so sources remain visible underneath. Blending no longer uses horizontal or vertical sliders. **Centre blend** returns to equal contributions. Arrow keys adjust the focused result by 1%; Shift + arrow keys use 10% steps. Up/down apply to four sources.
+
+**Show guides** is off by default. **Preview size** enlarges the display from 100% to 200% and does not change the saved character size. Scroll or swipe outside the draggable result to navigate an enlarged preview. Fixed preview dimensions and in-place path updates avoid rebuilding the page during a drag.
+
+### Normalisation and compatibility
+
+Original samples are translated to their left edge and appropriate baseline without forcing equal letter heights. The blend resamples each stroke to 64 evenly spaced points, then combines corresponding points. Sources need matching stroke counts, order and direction, and sufficiently similar shapes. Incompatible sources cannot be saved as a blend. For dotted or crossed letters, use a consistent stroke order when capturing. Inspect a compatible blend visually before saving; there is no automatic stroke reordering or manual point editor.
+
+For four sources, weights are `(1-h)(1-v), h(1-v), (1-h)v, hv`, where `h` and `v` range from 0 to 1. The centre gives 25% per source; a corner gives 100% to that source. Two sources use `1-h, h`. Baseline adjustments are blended with the same weights.
+
+Saved blends record their source IDs, source baseline shifts and weights. Backup import validates the result against those original sources. Retrying the same blend save keeps one record.
+
+## My alphabet and preferred versions
+
+Choose a writer and group to see included original counts, saved-blend counts, missing characters and preferred versions. Select a character to compare its samples, then choose **Use as preferred** on an included original or blend. Choices save immediately. **Clear preferred version** restores normal selection for that character. An excluded preferred sample is shown as unavailable and is never used.
+
+Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. A preferred sample is used for every occurrence only if it is included and matches the selected source type. Otherwise normal selection applies within the allowed samples. Turn the option off to cycle through variations.
+
+## Compose and export
+
+Choose a writer and type text using captured lowercase, capitals, digits and supported punctuation, plus spaces and line breaks. The initial example uses available characters; text you have edited is preserved when settings change. The limit is 2,000 characters, all of which must fit on one A4 page.
+
+**Use** selects **Original samples only**, **Saved blends only**, or **Originals and saved blends** (default). Saved-blends-only reports missing blends instead of silently substituting originals. Compose uses saved samples; create and save blends in the separate blending workspace.
+
+**Samples** chooses Latest three per letter (default), Latest four per character, Latest only, or All saved. Unless an eligible preferred version is enabled, repeated characters cycle through this pool, newest first. Excluded samples are skipped. Selection is deterministic for unchanged settings and data.
+
+**Use saved joined pairs** replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
+
+Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm), retaining natural proportions. A review baseline shift is applied as a physical offset afterwards. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word or overflowing page prompts a smaller writing size or less text rather than clipping.
+
+**Generate preview**, then **Download A4 SVG** or **Download plotter G-code**. SVG exports the displayed drawing on A4 portrait (210 × 297 mm) with 20 mm margins, one unfilled line path per pen stroke, in captured order and direction, with nominal width 0.3 mm. The G-code follows the same preview; curves are flattened within 0.02 mm and dots receive a brief dwell.
+
+Changes to text, settings, captures, reviews or preferences invalidate stale previews and disable downloads until regenerated. Returning to the tab checks for changed samples. If that check fails, an already displayed preview remains downloadable. Downloads are named `composed-handwriting-a4.svg` and `composed-handwriting-a4.gcode`.
+
+## Backup and import
+
+Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
+
+Import validates all records and references before adding anything. Identical records are skipped. Conflicting versions of an existing record reject the entire import without overwriting work. Keep both backups and use a separate browser/profile with no Studio data to inspect the other version. Do not clear current writing to resolve a conflict. Refresh samples or reopen Capture after import. The file limit is 100 MB.
+
+Clearing website data, private browsing or changing browser/device can make writing unavailable. The app requests persistent storage where supported, but backups are still needed. GitHub Pages hosts the application files, not your handwriting.
+
+To copy existing local Mac handwriting into the website without changing the original data, run from the repository:
+
+```sh
 python3 scripts/export_backup.py --output ~/Desktop/handwriting-studio-backup.json
 ```
 
-Then open the website, choose **Backup / Import**, select that JSON file and import it. Transfer the file to your iPad to import there too. Keep the original local data and the backup.
+Import that file through the website. Older supported capture backups remain compatible with the public app; the older Mac server does not support the newer browser-only records.
 
-### Build and publish
+## Free writing and Saved pages
 
-Browser capture and composition rules live in `web/`. `scripts/build_pages.py` adapts the established screens into `docs/` with relative links and browser storage. It copies only named UI assets, never `data/` or local backups. The original Python app below remains available.
+**Free writing** opens a notebook separate from labelled capture. Enter a name, write with a Pencil or mouse, then **Save page**. **Download SVG** exports the current page at 200 × 100 mm. Gentle smoothing affects the drawing/export only.
 
+**Saved pages** lists free-writing pages newest first and filters by writer. Choose a page, preview it, then **Open this page**. Opening restores original strokes and smoothing; saving edits creates a new copy. A warning protects an unsaved draft, including strokes held in redo history. Undo/Redo preserve original point data; new writing or Clear empties redo history. Notebook pages are not used as character samples by Compose.
+
+## Verified plotter calibration
+
+The owner physically verified the A4 procedure on 8 October 2026. Home is the paper’s top-left corner: **+X right, −Y down; Z0.5 pen up, Z5 pen down**. Drawing speed is 900 mm/min and the Mac USB connection uses 115200 baud.
+
+On **Calibration**, download and run these stages on one fixed A4 portrait sheet:
+
+1. Shapes with pen up, to check movement.
+2. Pen down, then up, with no X/Y movement.
+3. Draw shapes.
+4. Add dimensions.
+5. Mark page centre.
+
+After the movement and pen checks, the combined drawing stage can produce shapes, dimensions and centre together. Measure the 170 × 257 mm rectangle with 20 mm margins, 160 mm diameter circle, and 150 × 210 mm triangle. The 6 mm cross is centred at X105 Y−148.5: 105 mm from the left and 148.5 mm from the top.
+
+Downloads use millimetres and absolute coordinates, lift between strokes and finish pen up; drawing stages return to X0 Y0. The page checks the setup; it does not modify firmware calibration or connect to USB.
+
+## Sending G-code from the Mac
+
+Transfer the downloaded G-code to the Mac connected to the plotter. Place the paper, home at its top-left corner and raise the pen. From the repository folder:
+
+```sh
+# Check the file without opening a connection:
+python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode
+# Send it once the plotter is prepared:
+python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode --run
 ```
+
+Use the relevant downloaded filename for calibration stages. The sender validates the entire file, accepts the Studio command set, rejects coordinates outside A4, and requires an idle controller at X0 Y0 with zero work offset. It does not home automatically. It waits for each acknowledgement and then verifies physical completion at pen-up home. “All commands accepted” is not yet completion.
+
+The default port is `/dev/cu.usbmodem201912341`; override with `--port` if it changes. Install `requirements-plotter.txt` if pyserial is unavailable; the sender can also use the existing Inkscape serial dependency on this Mac. A local lock prevents simultaneous Studio senders. **Ctrl+C requests feed hold** and reports an incomplete job. Check the machine before restarting; restarting sends the whole file, with no resume support.
+
+## Current limits
+
+The public app has no handwriting recognition, individual stroke-point editor, arbitrary cursive joining, multipage layout, direct browser USB control, graphical plotting queue, automatic cloud sync or installed offline mode. It supports the characters offered by Capture and the listed joined pairs. A normal internet connection is used to load the site. Device-specific Pencil/palm behaviour still needs testing on the actual iPad; automated checks cannot establish it.
+
+For missing sources, backup conflicts, stale controls or missing Compose characters, see [Troubleshooting](https://gwb2025.github.io/handwriting-studio/help.html#troubleshooting).
+
+## Development and publishing
+
+`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds seven working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
+
+```sh
 npm ci --ignore-scripts
+npm run build
 npm test
-python3 scripts/build_pages.py
+STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs
+# With the Python app dependencies installed:
+python3 -m unittest discover -s tests
 ```
 
-In repository Settings → Pages, choose **GitHub Actions** as the source. The Publish Handwriting Studio workflow tests and deploys `docs/` on pushes to `main`. A normal internet connection loads the website; this version does not include an offline installation or automatic cloud sync.
+Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions and export. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
 
----
+In repository Settings → Pages, choose **GitHub Actions**. The **Publish Handwriting Studio** workflow tests and deploys `docs/` on pushes to `main`. The build copies only named UI files, never local handwriting or backups. When a feature changes, update this README, its Help guide section and nearby control instructions, rebuild, and check help links before publishing.
 
-## Original Mac app
+### Data model
 
+The public app stores records in IndexedDB; these paths are logical record keys, not files uploaded to a server:
 
-A local iPad/Safari handwriting app for the 2D Pen Plotter project. Guided lowercase a–z capture, repeat sets for natural variations, individual sample review, and a typed handwriting preview. No cloud service or account is required.
+- `<uuid>.json`: notebook schema 2, writer, original strokes and smoothing setting.
+- `letters/<uuid>.json`: original capture schema 1 (legacy a–e), 2 (lowercase) or 3 (extended characters); raw strokes, labels, guides, order and separately processed samples.
+- `letter_reviews/<capture-id>.json`: separate inclusion and baseline settings for original captures or saved blends.
+- `blends/<uuid>.json`: derived schema 4; source IDs/shifts, weights and blended strokes, without replacing the originals.
+- `alphabets/<encoded-writer>.json`: preferred character choices for that writer.
 
-The original app on port 8765 and its data remain separate. This app runs on port 8766. Existing free-writing pages remain in `data/`; new labelled letter sheets live in `data/letters/`.
+Capture coordinates are 1000 × 500 with Y down and timestamps measured from first contact. Raw time, pressure, tilt, coordinates and stroke order are preserved where available. Validation checks records, finite values, bounds, chronology, cell assignment and source references. Original captures and blends are immutable; review settings and preferences update separately. Browser writes/imports use transactions. Retrying a sheet or blend save uses the same identifier; different content under an existing ID is rejected.
 
-## Launch Handwriting Studio
+## Older local Mac app
 
-[![Open Handwriting Studio on this Mac](docs/open-handwriting-studio.svg)](http://127.0.0.1:8766/)
+The current features above describe the **public website**. The original Flask server remains available for lowercase capture, review, composition, free writing and calibration. It uses local `data/` files and fixed lowercase capture groups. It does not offer the browser app’s extended capture groups, single-character blend workspace, preferred alphabet or browser Backup / Import. Its composition limits and sample controls differ from the public app. Do not copy newer browser records directly into its data folder.
 
-The button opens **Capture** on the Mac running the app. **Start the app first** by double-clicking **Start Handwriting Studio.command** on your Desktop or in the project folder. Once the server is running, you can use this button whenever you want to return to it. GitHub's README cannot start a Python program on your Mac; if the button reports that it cannot connect, run the desktop launcher and try again. For a new installation, follow [Run on the Mac](#run-on-the-mac) below.
+For everyday local use, double-click **Start Handwriting Studio.command**. It runs `launch_handwriting_studio.py`, starts or reuses this app on port 8766, and opens Capture. A server started by the launcher continues after its Terminal window closes; logs go to `logs/server.log`. The earlier port-8765 app and its data are separate.
 
-On the iPad, use the [iPad Capture link](http://192.168.178.112:8766/) while the Mac is awake and both devices are on the same Wi-Fi. This is the current Mac address for this setup; use your Mac's current address if it changes. The button above uses `127.0.0.1`, which always means the device you are browsing on, so it is for the Mac, not the iPad.
+For first-time setup, use Python 3.10+ from the repository:
 
-## Acknowledgement
-
-This project was inspired by **[Dan Catt](https://revdancatt.com/projects)** and the handwriting-capture workflow demonstrated in [his handwriting video](https://www.youtube.com/watch?v=nD3XlqFhcEI). Thank you, Dan, for sharing the approach: guided practice, repeated character samples, changing capture positions, and composing handwriting with natural variations. His [Generative Handwriting project diary](https://revdancatt.com/projects/Generative%20Handwriting/dev-diary) provides further context for his work.
-
-Handwriting Studio is an independent implementation of these ideas for the 2D Pen Plotter project.
-
-## Run on the Mac
-
-For everyday use, double-click **Start Handwriting Studio.command** in Finder. It runs `launch_handwriting_studio.py`, starts the server if needed, waits for Capture to be ready, and opens `http://127.0.0.1:8766/` in your default browser. Opening it again reuses the running server. You can close the launcher's Terminal window; a server started by the launcher keeps running. Its output goes to `logs/server.log`.
-
-You can also run the Python launcher directly from this folder:
-
-```
-python3 launch_handwriting_studio.py
-```
-
-Use this launcher instead of opening files in `static/`: a local HTML file cannot load the running app correctly. The launcher always opens **Capture** first. It prefers this app's virtual environment and can also use the current Python if Flask is already installed. It does not install packages automatically. `--no-browser` checks/starts the server without opening a browser; `--port` changes the default port if needed. An unrelated service already using the chosen port is left untouched and reported.
-
-For first-time setup or to run the server in the foreground, follow the steps below.
-
-Use Python 3.10+ from this folder:
-
-```
+```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python app.py --host 0.0.0.0 --port 8766
 ```
 
-On this Mac, the repository, saved handwriting and app's `.venv` are stored on **EXTRA Apps**:
+Open `http://127.0.0.1:8766/` on the Mac, or the Mac’s current local IP address with port 8766 on an iPad on the same private Wi-Fi. `127.0.0.1` means the device opening the link; it does not launch an app from GitHub. Use the public website link at the top for normal browser use. The local server is unauthenticated and should not be exposed to the internet. Stop a foreground server with Control-C.
 
-```text
-/Volumes/EXTRA Apps/Documents/Writing Robot T-A4/handwriting-studio-v2
-```
+The local repository, handwriting and `.venv` for this setup are on `/Volumes/EXTRA Apps/Documents/Writing Robot T-A4/handwriting-studio-v2`; keep that drive connected. The Desktop launcher points there. `python3 launch_handwriting_studio.py` can also start the local app; `--no-browser` checks/starts it without opening a browser, and `--port` changes its port. It leaves unrelated services untouched and does not install dependencies. Use the launcher instead of opening `static/` HTML files directly.
 
-Keep that drive connected while using the app. The Desktop launcher points to this location. The previous project-folder location is a symbolic link to the same external-drive folder, so existing local references continue to work without keeping a second copy on the main disk.
+## Acknowledgement
 
-Open http://127.0.0.1:8766 on the Mac, or http://192.168.178.112:8766 on the iPad on the same private Wi-Fi. The Mac's address may change when the network changes. Use the explicit `http://` address. This is an unauthenticated local HTTP server; do not expose it to the internet. Stop with Control-C.
-
-Flask is the only installed dependency. The browser uses ordinary HTML, CSS, JavaScript, Canvas and Pointer Events; no build step is needed. HTML and API responses are uncached. If updating an already open page, save or download current writing before reloading.
-
-## Capture the lowercase alphabet
-
-The public GitHub Pages app shuffles all 26 letters across each new six-sheet set. Saved records retain the shuffled order for resuming and backup/import. If you resume an older fixed-order set, only its remaining letters are shuffled; completed sheets keep their original meaning. The original Mac server uses its existing fixed groups.
-
-1. Enter the writer's name. If you tap Start capture with no name entered, the app highlights and focuses the Writer box without clearing practice strokes. Use the same name for later sessions; existing names appear as suggestions. Tap **Done** to finish text entry.
-2. The initial sheet is optional **Practice** with a–e. These marks are not stored. **Start capture** clears them and opens the next unsaved alphabet sheet for this writer.
-3. A set has six sheets: two with five letters, four with four letters, covering all 26 lowercase letters. Keep each entire letter inside its own box, including dots and separate strokes. Use the small-letter and tall-letter guides for comfortable proportions.
-4. For **f, g, j, p, q and y**, place the body on the baseline and any tail below it. These letters use the drawn baseline instead of moving the bottom of the tail to the baseline. Other letters still settle onto the baseline automatically. Review can adjust an individual sample's placement if needed.
-5. Tap **Save sheet**. Only confirmation from the Mac clears it and advances. Each saved sheet can be used immediately in Compose. Reopening Capture with the same writer continues after the most recently saved alphabet sheet; an unsaved draft itself is not restored.
-6. After six sheets, **Review samples** lets you inspect your alphabet and **Compose handwriting** opens the composer. **Capture another set** collects further variants. Three sets give three examples of each letter, with positions rotated between sets; further sets repeat that positioning cycle.
-
-Undo/Redo work on the current sheet. Clear sheet clears only that draft. Missing boxes, tiny marks or a stroke that crosses between boxes produce an explanation and leave the writing in place. The app associates strokes with the labelled box; it does not recognise whether the correct letter was written. Check the letters before saving.
-
-The **Guides** checkboxes control **Baseline**, **Small letters**, **Tall letters**, **Tails** and **Shading** independently. For a baseline only, untick the others. Letter labels and box dividers stay visible so each letter can still be assigned to its box. Changing guides only changes the display; it does not change strokes or SVG exports. Choices stay in place between sheets in the current visit.
-
-The writer name is fixed during capture to prevent mixing writers. To start a new writer, reopen the capture page and edit the name on the Practice screen. Saved samples are retained, including incomplete sets. Existing a–e captures remain usable and can also be reviewed; the first full alphabet set starts at sheet 1 when there are no newer alphabet sheets. Unsaved capture drafts are not restored after a refresh; the browser is asked to warn before leaving.
-
-Pencil and mouse draw; fingers do not. The entire capture screen suppresses touch scrolling, pinching, text selection and copy menus. The editable Writer field is the exception when no Pencil stroke is active. Safari's toolbar and system edge gestures are outside the app's control. Actual iPad/Pencil behaviour still needs device testing.
-
-## Review individual samples
-
-Open **Review samples**, choose the writer and letter, then select an example from the list (newest first). The preview shows that sample against a baseline at the Medium writing scale. **Use this sample in composition** includes or excludes just that example. **Baseline shift (mm)** moves it down for positive values or up for negative values, between −10 and 10 mm. This is a physical shift in the exported SVG at all writing sizes. It does not resize a letter.
-
-Tap **Save changes** for an explicit confirmation and updated preview. Save is only enabled when something changed; **Reset changes** discards pending edits. Switching samples is disabled while edits are pending. Exclusions are reversible, and originals are never deleted. Review settings are stored separately in `data/letter_reviews/`. Unreadable review files are preserved and their samples are skipped rather than silently re-enabled.
-
-The page reports which letters still need included samples. Existing a–e examples and newly captured alphabet examples share this review workflow. Return to Compose and generate a fresh preview after reviewing.
-
-## Compose and export
-
-Choose a writer, type a short phrase using lowercase a–z, spaces and line breaks, and select **Generate preview**. After capturing the alphabet, try `the quick brown fox jumps over the lazy dog`. The phrase box starts with that full-alphabet sentence and an a–z line when the selected writer has all 26 letters included. For incomplete alphabets, the automatic example uses only available letters. Changing writers or refreshing samples updates an untouched example, while text you have edited is preserved. By default, successive occurrences cycle through that writer's **latest three included examples per letter**, newest first. Choose **Latest only** or **All saved** for different selection limits; excluded samples are always skipped. The choice is deterministic. Each generation reads captures and review choices afresh. Returning from another tab or Safari's back/forward cache checks for changes, including baseline adjustments: an unchanged preview stays downloadable; changed captures or reviews clear it and prompt regeneration without losing the phrase. If that check cannot reach the Mac, the existing preview remains available to download.
-
-Every letter is translated so its left edge is zero. Letters with tails use the capture baseline; others use their lowest point. A review shift is applied afterwards. All letters use the same scale: Small/Medium/Large refer to the capture guide's small-letter height (3/5/8 mm), not a forced height for each character. Line spacing and A4 bounds allow for both ascenders and descenders. Gentle smoothing uses the same quadratic midpoint curves as the notebook; it never rewrites raw points.
-
-**Download A4 SVG** exports exactly the generated preview, on a 210 × 297 mm portrait page with 20 mm margins. The app confirms when it requests the download; look for `composed-handwriting-a4.svg` in the browser's Downloads. The preview remains available for another download. Each pen stroke is its own unfilled centre-line path, in captured order and direction, with nominal width 0.3 mm. Text wraps at the right margin, potentially within a word. If it cannot fit on one page, the app asks for less text or a smaller size instead of clipping it. Changes to phrase/writer/size/smoothing/sample selection clear the old preview and disable download until regenerated.
-
-This stage spaces separate lowercase letters. It does not yet include capitals, numbers, punctuation, cursive joins, pair-specific spacing, blending new shapes between samples, stroke editing or handwriting recognition. It sends no commands to the plotter.
-
-## Free writing and saved pages
-
-**Free writing** opens `/notebook`, using the established notebook and Saved pages browser. Enter a name and write at a comfortable size. Done is active only for a non-empty name that differs from the last finished name. A Pencil stroke also ends name entry. The fitted paper waits until that stroke finishes before resizing after the keyboard closes.
-
-Save page stores a new immutable JSON file in `data/`. It changes to Saving… and then ✓ Saved only after confirmation from the Mac. Editing enables Save again. Undo removes the last completed stroke; Redo restores its original point data. New writing or Clear empties redo history. SVG exports the current free-writing page at 200 × 100 mm.
-
-Saved pages lists free-writing pages newest first and can filter by writer. Select a page to preview it, then Open this page. Opening restores original strokes and smoothing. Saving edits creates a new file. There is a warning before replacing an unsaved draft, including strokes held in redo history. Unreadable files are left untouched and counted; there is no delete action. Labelled capture sheets are used by the composer and are not mixed into this free-writing list.
-
-## Data and validation
-
-- `data/<uuid>.json`: existing notebook schema 2, ordered `raw_strokes`, writer and display setting.
-- `data/letters/<uuid>.json`: immutable schema 1 (legacy a–e) or schema 2 (lowercase alphabet), writer, ordered original `raw_strokes`, cell order and guides. Each sample holds raw stroke indices and a separate `processed_strokes` copy translated to its baseline. Time, pressure, tilt, stroke order and raw coordinates remain unchanged. Processing version and method are recorded explicitly; old captures are read without migration or rewriting.
-- `data/letter_reviews/<uuid>.json`: separate per-letter inclusion and baseline offsets for that capture, saved atomically. Writer revisions include review choices, so a baseline-only adjustment invalidates stale compositions too.
-- Capture coordinates are 1000 × 500 with y increasing down the page; timestamps are milliseconds from first contact. Pressure and tilt are retained where available. Captured data is never replaced by display smoothing.
-- A save request UUID is reused when retrying the same sheet after a timeout, preventing duplicate samples from a lost response. Files are written atomically. Existing IDs with different content are rejected.
-- The server checks finite coordinate values, ordered timestamps, pressure/tilt ranges, writer names, stroke/point counts, whole-cell assignment and file size. Stored letter records are validated again before composition. Writers are labels, not authenticated accounts.
-
-APIs: `GET/POST /api/pages`, `GET /api/pages/<uuid>`, `GET /api/letters/plan.js`, `GET /api/letters/writers`, `POST /api/letters/pages`, `GET /api/letters/samples?writer=…&letter=…`, `POST /api/letters/samples/<uuid>/<letter>/review`, `POST /api/compose`.
-
-## Verification
-
-```
-python -m unittest discover -s tests
-node --test tests/*.cjs
-```
-
-Python checks persistence, raw preservation, legacy compatibility, all 26 letters across three sets, multi-stroke letters, descenders, A4 bounds, reversible exclusions, baseline shifts, safe retries and unreadable files. JavaScript checks capture continuation, sample selection, stale preview/download invalidation after review, keyboard viewport recovery, first-stroke preservation, Writer focus, Undo/Redo, timestamps and selection protection. Browser checks use isolated disposable data for capture/save, review persistence and full-alphabet composition. Desktop checks cannot establish real iPad palm-rejection quality.
-
-A pre-guided-capture code snapshot is in `backups/before-guided-capture/`; user data is not part of that snapshot.
-
-The previous a–e version is in `backups/before-lowercase-alphabet/`, including fingerprints of the original saved data for preservation checks.
-
-## Verified plotter calibration
-
-Open **Calibration** from Capture, Review or Compose for the repeatable A4 check, preview and downloadable G-code/SVG. The procedure was physically verified by the owner on 8 October 2026: top-left home, +X right, −Y down, Z0.5 pen up, Z5 pen down, 115200 baud on the Mac USB connection. Run the pen-up movement check, the pen down/up check (no X/Y commands), then shapes, dimensions and centre on one fixed sheet. Rectangle 170 × 257 mm with 20 mm margins; circle diameter 160 mm; triangle 150 × 210 mm; centre X105 Y−148.5 with a 6 mm cross. Downloads use millimetres and absolute coordinates, lift between strokes and finish pen up; drawing stages return to X0 Y0. The page does not connect directly to USB or modify firmware calibration.
-
-## Plot your handwriting
-
-In Compose, generate a preview and choose **Download plotter G-code**. It exports that preview’s strokes in the same order; smoothing is flattened to straight segments within 0.02 mm. Dots receive a brief dwell. The file uses the verified pen settings, 20 mm A4 margins, negative Y down, pen lifts between strokes, and returns home pen up. Changes to writing or sample settings invalidate both downloads. Transfer the downloaded file to the Mac attached to the plotter.
-
-The reusable sender validates the entire file before opening USB. It accepts only the Studio command set, rejects coordinates outside A4, verifies the controller is idle at X0 Y0 with zero work offset, waits for each acknowledgement, and checks final completion and pen-up home position. It does not home automatically. Place paper, home the plotter at its top-left corner and raise the pen before running.
-
-```sh
-# Check a downloaded file without connecting or moving the plotter:
-python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode
-# Send it after preparing the paper and homing:
-python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode --run
-```
-
-The default USB port is `/dev/cu.usbmodem201912341` at 115200 baud; override with `--port` if it changes. Install `requirements-plotter.txt` if pyserial is unavailable; the sender can also use this Mac’s existing Inkscape serial dependency. Progress reports commands accepted, then waits for physical motion to finish. **Ctrl+C requests feed hold** and reports an incomplete job. Check the machine before restarting; restarting sends the whole file, and no resume is attempted. A local lock prevents simultaneous Studio senders. The GitHub Pages app downloads files; USB transmission runs on the Mac.
-
-## Single-character blending workspace
-
-**Blend a character** follows the letter-level workflow shown around 22–24 minutes in Dan Catt’s video. Choose a writer, character and two or four distinct included original captures. Drag the green-bordered blended character towards a source to increase that sample’s contribution. With two sources it moves left and right between A and B. With four it moves in two dimensions between A/B above and C/D below. The preview changes continuously while dragging with a finger, Pencil or mouse. **Centre blend** restores equal contributions. Focus the result and use arrow keys for 1% adjustments, or Shift + arrow keys for 10% steps. **Show guides** and **Preview size** control the display independently of the blend.
-
-The four weights are bilinear: `(1-h)(1-v), h(1-v), (1-h)v, hv`, where `h` and `v` are the horizontal and vertical positions from 0 to 1. At the centre each source contributes 25%; at a corner one contributes 100%. The preview uses 64 equally spaced points per stroke, a common display scale and fixed source bounds. Moving the result updates its paths without rebuilding the preview or changing the page height. Touches elsewhere can still scroll the page. Incompatible strokes cannot be saved.
-
-**Save blended sample** saves the blend at its displayed position as a separate derived record under `blends/`; it is immediately available to Review and Compose, while raw source captures remain unchanged. Derived samples are labelled separately in storage and are not offered as further blend sources. Backups include the blend, source identifiers, weights and captured baseline shifts; import verifies the result against its original source captures. Repeated save retries keep one record. Compose uses saved samples. Existing backups without derived samples remain compatible. Derived records are browser-only and unsupported by the original Mac capture server.
-
-Source selectors number the available originals and keep selections distinct. Choosing a sample used in another source swaps the two selections. If too few originals are available, empty source slots are disabled and the screen reports the number needed, with a link to capture another set. Saved derived blends are counted separately from original source captures.
-
-For capture sets saved under separate writer names, select **Source pool → All saved writers / sets**. Source choices display the originating writer. **Save under writer** chooses the destination of the new derived sample; source captures retain their original names and files. Cross-writer blending is explicit and its source references are included in backups.
+Inspired by **[Dan Catt](https://revdancatt.com/projects)** and the workflow in [his handwriting video](https://www.youtube.com/watch?v=nD3XlqFhcEI), including guided practice, repeated samples, changing capture positions and blending around 22–24 minutes. His [Generative Handwriting project diary](https://revdancatt.com/projects/Generative%20Handwriting/dev-diary) provides further context. Handwriting Studio is an independent implementation for the 2D Pen Plotter project.
