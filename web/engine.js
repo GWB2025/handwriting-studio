@@ -197,14 +197,40 @@
     const total=distances.at(-1);if(!total)return Array.from({length:count},()=>({x:points[0].x,y:points[0].y}));
     let j=1;return Array.from({length:count},(_,i)=>{const d=total*i/(count-1);while(j<points.length-1 && distances[j]<d)j++;const ratio=(d-distances[j-1])/(distances[j]-distances[j-1]||1);return {x:points[j-1].x+(points[j].x-points[j-1].x)*ratio,y:points[j-1].y+(points[j].y-points[j-1].y)*ratio};});
   }
-  function compatible(a,b){
-    if(a.processed_strokes.length!==b.processed_strokes.length)return false;
-    return a.processed_strokes.every((s,i)=>{
-      const x=resample(s.points),y=resample(b.processed_strokes[i].points),width=Math.max(a.bounds.right-a.bounds.left,b.bounds.right-b.bounds.left,20);
+  function blendConflict(a,b){
+    if(a.processed_strokes.length!==b.processed_strokes.length)return 'different stroke counts';
+    // Narrow letters still need room for natural height and dot-position variation.
+    // Derive height from the ink: older saved blends only store horizontal bounds.
+    const extent=sample=>{let top=Infinity,bottom=-Infinity;for(const stroke of sample.processed_strokes)for(const p of stroke.points){top=Math.min(top,p.y);bottom=Math.max(bottom,p.y);}return Math.max(sample.bounds.right-sample.bounds.left,bottom-top,20);};
+    const tolerance=Math.max(extent(a),extent(b))*.6;
+    for(let i=0;i<a.processed_strokes.length;i++){
+      const x=resample(a.processed_strokes[i].points),y=resample(b.processed_strokes[i].points);
       const direct=x.reduce((sum,p,j)=>sum+Math.hypot(p.x-y[j].x,p.y-y[j].y),0)/x.length;
       const reverse=x.reduce((sum,p,j)=>sum+Math.hypot(p.x-y.at(-1-j).x,p.y-y.at(-1-j).y),0)/x.length;
-      return direct<=width*.6 && direct<=reverse+1;
-    });
+      if(direct>reverse+1)return 'different stroke starts, order or direction';
+      if(direct>tolerance)return 'shapes or positions that differ too much';
+    }
+    return '';
+  }
+  function compatible(a,b){return !blendConflict(a,b);}
+  function findCompatibleSources(samples,count,preferredIDs=[]){
+    if(![2,4].includes(count))return [];
+    const unique=new Map();for(const s of samples)if(!s.derived&&s.included!==false&&!unique.has(s.capture_id))unique.set(s.capture_id,s);
+    const preferred=[...new Set(preferredIDs)].filter(id=>unique.has(id));
+    const candidates=[...preferred.map(id=>unique.get(id)),...[...unique.values()].filter(s=>!preferred.includes(s.capture_id))];
+    // Search all pairs in each proposed group, not just each source against A.
+    // Bound the search so a large, incompatible library cannot lock up the page.
+    const cache=new Map();let attempts=0;
+    function matches(a,b){const key=a+':'+b;if(!cache.has(key))cache.set(key,candidates[a].letter===candidates[b].letter&&compatible(candidates[a],candidates[b]));return cache.get(key);}
+    function search(chosen,start){
+      if(chosen.length===count)return chosen.map(i=>candidates[i]);
+      for(let i=start;i<=candidates.length-(count-chosen.length);i++){
+        if(++attempts>10000)return [];
+        if(chosen.every(j=>matches(j,i))){const found=search([...chosen,i],i+1);if(found.length)return found;}
+      }
+      return [];
+    }
+    return search([],0);
   }
   function blend(a,b,weight){
     if(!compatible(a,b))return null;
@@ -294,6 +320,6 @@
     for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
     return svg+'</svg>';
   }
-  const api={savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,compatible,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

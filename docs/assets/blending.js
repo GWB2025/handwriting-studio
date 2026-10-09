@@ -7,6 +7,7 @@
  function release(){stopDrag();previewKey='';views=[];$('single-cards').replaceChildren();$('single-position').textContent='';}
  function render(){lastSaved=null;$('single-saved').hidden=true;result=null;saveID='';$('single-save').disabled=true;$('single-centre').disabled=true;
   const count=Number($('single-count').value);$('single-cards').dataset.count=String(count);
+  $('single-find').disabled=busy||samples.length<count;
   sources=Array.from($('single-sources').querySelectorAll('select')).map(s=>samples.find(p=>p.capture_id===s.value));
   if(samples.length<count){release();status(samples.length+' included original sample'+(samples.length===1?'':'s')+' available for '+$('single-letter').value+'. '+count+' distinct originals are needed. Capture another set, or include an excluded original in Review samples. Saved blends are not used as originals.');return;}
   if(sources.length!==count||sources.some(s=>!s)||new Set(sources.map(s=>s.capture_id)).size!==count){release();status('Choose '+count+' distinct original samples.');return;}
@@ -33,7 +34,11 @@
   $('single-save').disabled=busy||!result;$('single-centre').disabled=busy||!result;
   if(result){const figure=views[count].figure;figure.style.left=(15+70*h)+'%';figure.style.top=(count===4?20+60*v:50)+'%';figure.setAttribute('aria-label','Blended character: '+Math.round(horizontal)+'% right'+(count===4?', '+Math.round(vertical)+'% bottom':'')+'. Drag or use arrow keys.');}
   $('single-position').textContent=result?Math.round(horizontal)+'% right'+(count===4?' · '+Math.round(vertical)+'% bottom':''):'';
-  status(result?'Live preview · originals remain unchanged. Save adds this result as another sample for Review and Compose.':'These samples have incompatible strokes. Choose matching stroke counts and directions.');
+  let conflict='';
+  if(!result)for(let i=0;i<count&&!conflict;i++)for(let j=i+1;j<count&&!conflict;j++){
+   const reason=E.blendConflict(sources[i],sources[j]);if(reason)conflict='Source '+String.fromCharCode(65+i)+' and Source '+String.fromCharCode(65+j)+' have '+reason+'. Choose another sample or tap Find compatible sources.';
+  }
+  status(result?'Live preview · originals remain unchanged. Save adds this result as another sample for Review and Compose.':conflict);
  }
  function stopDrag(){
   const previous=drag;drag=null;if(!previous)return;previous.figure.dataset.dragging='false';
@@ -66,6 +71,11 @@
   });
  }
  function pool(){const catalog=E.catalog(files);return ($('single-pool')?.value==='all'?[...catalog.byWriter].flatMap(([writer,list])=>list.map(s=>({...s,writer}))):(catalog.byWriter.get($('single-writer').value)||[]).map(s=>({...s,writer:$('single-writer').value})));}
+ function selectCompatible(){
+  const menus=Array.from($('single-sources').querySelectorAll('select')),found=E.findCompatibleSources(samples,menus.length,menus.map(s=>s.value));
+  if(!found.length)return false;
+  menus.forEach((menu,i)=>{menu.value=found[i].capture_id;menu.dataset.previous=menu.value;});return true;
+ }
  function sourceControls(selectedIDs){
   const selected=selectedIDs||Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
   samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived).map(s=>({...s,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm}));
@@ -83,6 +93,8 @@
     all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);render();savedChoices();
    });$('single-sources').append(label);
   }
+  // Explicit sources belong to a reopened recipe; preserve them exactly.
+  if(!selectedIDs)selectCompatible();
   render();savedChoices();
  }
  function letters(){const old=$('single-letter').value||requestedLetter,available=pool().filter(s=>s.included&&!s.derived);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
@@ -114,6 +126,11 @@
   }catch(error){status('Could not reopen: '+error.message);}
  }
  $('single-reopen').onclick=()=>reopen($('single-saved-choice').value);
+ $('single-find').onclick=()=>{
+  if(busy)return;stopDrag();recipeShifts=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
+  const found=selectCompatible();render();savedChoices();
+  status(found?'Compatible sources selected. Drag the result to adjust the mix, then save.':'Could not find '+$('single-count').value+' compatible originals in this source pool. Try two sources, All saved writers / sets, or capture more examples with consistent stroke order and direction.');
+ };
  $('single-next').onclick=()=>{if(busy)return;stopDrag();recipeShifts=null;const list=Array.from($('single-letter').options).map(o=>o.value),i=list.indexOf($('single-letter').value);if(list.length<2)return;$('single-letter').value=list[(i+1)%list.length];horizontal=50;vertical=50;sourceControls();};
  $('single-prefer').onclick=async()=>{
   if(busy||!lastSaved)return;const saved={...lastSaved},controls=Array.from(document.querySelectorAll('select,input,button')).map(c=>[c,c.disabled]);stopDrag();busy=true;controls.forEach(([c])=>c.disabled=true);let preferred=false;
@@ -129,7 +146,7 @@
  for(const id of ['single-pool','single-writer'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;letters();});for(const id of ['single-letter','single-count'])$(id).addEventListener('change',()=>{if(busy)return;recipeShifts=null;sourceControls();});
  $('single-centre').onclick=()=>{if(busy)return;stopDrag();horizontal=50;vertical=50;render();};
  $('single-refresh').onclick=()=>{if(busy)return;recipeShifts=null;return load().catch(e=>status(e.message));};
- $('single-save').onclick=async()=>{if(!result||busy)return;stopDrag();busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.preview-controls input'),$('single-refresh'),$('single-centre'),$('single-next'),$('single-reopen'),$('single-saved-choice')];controls.forEach(c=>c.disabled=true);
+ $('single-save').onclick=async()=>{if(!result||busy)return;stopDrag();busy=true;$('single-save').disabled=true;saveID||=crypto.randomUUID();const controls=[...document.querySelectorAll('#single-controls select,#single-controls input,.preview-controls input'),$('single-refresh'),$('single-centre'),$('single-find'),$('single-next'),$('single-reopen'),$('single-saved-choice')];controls.forEach(c=>c.disabled=true);
   try{const response=await window.studioFetch('/api/blends',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveID,writer:$('single-writer').value,letter:$('single-letter').value,source_ids:sources.map(s=>s.capture_id),horizontal,vertical,source_shifts:sources.map(s=>s.baseline_shift_mm)})});const data=await response.json();if(!response.ok)throw Error(data.error);status('Saved '+$('single-letter').value+' under '+$('single-writer').value+' as a new blended sample. It is now available in Review samples and Compose. Use Backup to keep a copy.');files=await window.StudioStorage.snapshot();showSaved(data.id);}
   catch(e){status('Could not save: '+e.message);$('single-save').disabled=false;}
   finally{busy=false;controls.forEach(c=>c.disabled=false);savedChoices(saveID);}

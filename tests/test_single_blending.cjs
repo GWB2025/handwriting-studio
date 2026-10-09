@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),E=require('../web/engine.js'),{files}=require('./browser_helpers'),{webcrypto}=require('node:crypto');
 async function workspace(initial,search=''){
  function element(tag='div'){return {tag,style:{},attrs:{},capture:null,setAttribute(name,value){this.attrs[name]=value;},focus(options){this.focusOptions=options;},setPointerCapture(id){this.capture=id;},hasPointerCapture(id){return this.capture===id;},releasePointerCapture(id){if(this.capture===id)this.capture=null;},set innerHTML(value){this.children=[...value.matchAll(/<path d="([^"]+)"/g)].map(m=>{const p=element('path');p.setAttribute('d',m[1]);return p;});},value:'',children:[],listeners:{},dataset:{},append(...nodes){this.children.push(...nodes);if(this.tag==='select'&&!this.value&&nodes[0]?.value)this.value=nodes[0].value;},replaceChildren(){this.children=[];this.value='';},get options(){return this.children;},querySelectorAll(tag){return this.children.flatMap(c=>typeof c==='string'?[]:[...(c.tag===tag?[c]:[]),...c.querySelectorAll(tag)]);},addEventListener(name,fn){this.listeners[name]=fn;}};}
- const ids={};for(const id of ['single-saved','single-saved-name','single-saved-preview','single-view','single-prefer','single-next','single-saved-choice','single-reopen','single-centre','single-position','single-guides','single-zoom','single-zoom-value','single-pool','single-writer','single-letter','single-count','single-sources','single-cards','single-save','single-refresh','blend-status'])ids[id]=element(['single-saved-choice','single-pool','single-writer','single-letter','single-count'].includes(id)?'select':'div');
+ const ids={};for(const id of ['single-find','single-saved','single-saved-name','single-saved-preview','single-view','single-prefer','single-next','single-saved-choice','single-reopen','single-centre','single-position','single-guides','single-zoom','single-zoom-value','single-pool','single-writer','single-letter','single-count','single-sources','single-cards','single-save','single-refresh','blend-status'])ids[id]=element(['single-saved-choice','single-pool','single-writer','single-letter','single-count'].includes(id)?'select':'div');
  ids['single-guides'].checked=false;ids['single-zoom'].value='100';ids['single-pool'].value='writer';ids['single-count'].value='2';let records=initial||files(),created=[],requests=[];
  const rect={left:20,top:30,width:1000,height:800};ids['single-cards'].getBoundingClientRect=()=>({...rect});
  const doc={getElementById:id=>ids[id],createElement:element,createElementNS:(_,tag)=>element(tag),querySelectorAll:()=>[]},context={document:doc,URLSearchParams,location:{search},crypto:webcrypto,Blob,URL:{createObjectURL:blob=>{created.push(blob);return 'blob:'+created.length;},revokeObjectURL(){}},StudioEngine:E,StudioStorage:{snapshot:async()=>records},studioFetch:async(url,options)=>{const data=JSON.parse(options.body);requests.push(data);try{if(url==='/api/blends'){const value=E.createSavedBlend(records,data);if(!records.some(f=>f.key==='blends/'+value.id+'.json'))records.push({key:'blends/'+value.id+'.json',value});return {ok:true,json:async()=>({id:value.id})};}const pref=E.choosePreferred(records,data),old=records.findIndex(f=>f.key===pref.key);if(old<0)records.push(pref);else records[old]=pref;return {ok:true,json:async()=>({saved:true})};}catch(e){return {ok:false,json:async()=>({error:e.message})};}}};context.window=context;
@@ -57,4 +57,27 @@ test('reopen restores sources and stored shifts after reviews change; saving cre
  assert.equal(ids['single-cards'].children.at(-1).style.left,'32.5%');assert.deepEqual(ids['single-sources'].querySelectorAll('select').map(s=>s.value),old.value.source_ids);
  await ids['single-save'].onclick();const next=w.records.find(f=>f.key==='blends/'+w.requests.at(-1).id+'.json');assert.notEqual(next.value.id,old.value.id);assert.deepEqual(next.value.samples,old.value.samples);assert.equal(JSON.stringify(old),snapshot);
  const reopened=await workspace(w.records,'?blend='+old.value.id);assert.equal(reopened.ids['single-cards'].children.at(-1).style.left,'32.5%');
+});
+
+test('automatic source choices skip an incompatible default, while manual choices stay put until Find is used',async()=>{
+ const original=files()[0],records=Array.from({length:5},(_,i)=>{
+  const record=E.clone(original);record.value.id=webcrypto.randomUUID();record.key='letters/'+record.value.id+'.json';record.value.saved_at=new Date(Date.UTC(2026,9,2,0,5-i)).toISOString();
+  if(i===3){const points=record.value.raw_strokes[0].points;record.value.raw_strokes[0].points=points.map((p,j)=>({...p,x:points.at(-1-j).x,y:points.at(-1-j).y}));record.value.samples=E.extract(record.value.raw_strokes,record.value.order,record.value.schema_version);}
+  E.validateRecord(record.key,record.value);return record;
+ }),before=JSON.stringify(records),w=await workspace(records),{ids}=w;
+ ids['single-count'].value='4';ids['single-count'].listeners.change();
+ const menus=ids['single-sources'].querySelectorAll('select');assert.deepEqual(menus.map(s=>s.value),[0,1,2,4].map(i=>records[i].value.id));assert.equal(ids['single-save'].disabled,false);
+ menus[3].value=records[3].value.id;menus[3].listeners.change();assert.equal(menus[3].value,records[3].value.id);assert.equal(ids['single-save'].disabled,true);
+ assert.match(ids['blend-status'].textContent,/Source A and Source D/);assert.match(ids['blend-status'].textContent,/direction/);
+ ids['single-find'].onclick();assert.deepEqual(menus.map(s=>s.value),[0,1,2,4].map(i=>records[i].value.id));assert.equal(ids['single-save'].disabled,false);assert.equal(JSON.stringify(records),before);
+ await ids['single-save'].onclick();E.validateBlendReferences(w.records);
+});
+
+test('no compatible set keeps manual selections visible and explains the next options',async()=>{
+ const w=await workspace(),{ids}=w;
+ w.records=w.records.filter(f=>f.value.order.includes('a')).slice(0,2);
+ const record=w.records[1].value,index=[...record.order].indexOf('a'),strokeIndex=record.samples[index].raw_stroke_indices[0],points=record.raw_strokes[strokeIndex].points;
+ record.raw_strokes[strokeIndex].points=points.map((p,j)=>({...p,x:points.at(-1-j).x,y:points.at(-1-j).y}));record.samples=E.extract(record.raw_strokes,record.order,record.schema_version);
+ await ids['single-refresh'].onclick();const menus=ids['single-sources'].querySelectorAll('select'),before=menus.map(s=>s.value);
+ assert.equal(ids['single-save'].disabled,true);ids['single-find'].onclick();assert.deepEqual(menus.map(s=>s.value),before);assert.equal(ids['single-save'].disabled,true);assert.match(ids['blend-status'].textContent,/Could not find 2 compatible originals/);
 });
