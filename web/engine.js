@@ -312,12 +312,13 @@
     const left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
     return svgs.map(svg=>svg.replace(/viewBox="[^"]+"/,`viewBox="${left} ${top} ${right-left} ${bottom-top}"`));
   }
-  function reviewSVG(sample){
+  function reviewSVG(sample,{colourStrokes=false}={}){
     const shift=sample.baseline_shift_mm*16;let top=-180,bottom=110,width=240;
     for(const stroke of sample.processed_strokes)for(const p of stroke.points){top=Math.min(top,p.y+shift-25);bottom=Math.max(bottom,p.y+shift+25);width=Math.max(width,p.x+60);}
     let svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 '+top+' '+width+' '+(bottom-top)+'">';
     for(const [y,label] of [[-80,'small-letter height'],[0,'baseline'],[80,'tail guide']])svg+='<line x1="-20" x2="'+(width-40)+'" y1="'+y+'" y2="'+y+'" stroke="'+(y===0?'#93ad9b':'#d1dcd1')+'" stroke-width="1" stroke-dasharray="'+(y===0?'none':'4 4')+'"/><text x="-18" y="'+(y-5)+'" fill="#52675f" font-size="9" font-family="sans-serif">'+label+'</text>';
-    for(const stroke of sample.processed_strokes)svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="#203832" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+    const colours=['#203832','#1463d6','#a74700','#813ca6','#06736e','#ba285f'];
+    sample.processed_strokes.forEach((stroke,i)=>{svg+='<path d="'+pathData(stroke.points,true,0,shift,1)+'" fill="none" stroke="'+colours[colourStrokes?i%colours.length:0]+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';});
     return svg+'</svg>';
   }
   const api={savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};

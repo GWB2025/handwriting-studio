@@ -73,6 +73,8 @@ Saved blends record their source IDs, source baseline shifts and weights. Backup
 
 Choose a writer and group to see included original counts, saved-blend counts, missing characters and preferred versions. Select a character to compare its samples, then choose **Use as preferred** on an included original or blend. Choices save immediately. **Clear preferred version** restores normal selection for that character. An excluded preferred sample is shown as unavailable and is never used.
 
+**Preview size** enlarges the alphabet tiles and sample cards from 100% to 300%; **Reset size** returns to 100%. The display controls stay at the top while you scroll. Previews crop unused guide space and share a frame within each comparison, keeping relative sample sizes visible. **Colour separate strokes** is enabled initially: the first pen stroke is dark, the second blue, and later strokes use other colours (repeating after six). A “t” crossbar is blue when drawn as the second stroke after lifting the pen. Untick the checkbox for one colour. Zoom and colours affect this page only; saved strokes, preferred choices, SVG exports and plotter dimensions stay unchanged.
+
 Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. A preferred sample is used for every occurrence only if it is included and matches the selected source type. Otherwise normal selection applies within the allowed samples. Turn the option off to cycle through variations.
 
 ## Alphabet proof sheet
