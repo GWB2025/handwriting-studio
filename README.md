@@ -81,6 +81,14 @@ Choose a writer and group to see included original counts, saved-blend counts, m
 
 Preferences belong to that writer and do not change the samples. In Compose, **Use preferred versions when available** is enabled by default. Repeated characters cycle through your included preferred choices in the order added, provided they match the selected source type. One eligible choice is reused for every occurrence. If none qualify, normal selection applies within the allowed sample pool. Turn the option off to use that pool instead. Preferred choices are not limited by the Latest three/four/only setting.
 
+### Individual character spacing
+
+In **My alphabet**, select a character and use **Spacing for…** to adjust **Before the character** and **After the character** from −2 to +3 mm. These measurements refer to Medium (5 mm) writing and scale proportionally at other writing sizes. Negative values tighten the gap; positive values add space. Tight settings can overlap ink, but character starts keep their left-to-right order. The page margins still apply.
+
+**Try a short word** previews pending spacing using your preferred versions or normal sample pool. **Save spacing** applies it to every version of that character for this writer, in Compose and proof sheets. **Normal spacing** returns both adjustments to zero; save to keep it. **Reset changes** discards pending edits. Save or reset before changing characters. Arrow keys adjust by 0.1 mm, or 0.5 mm with Shift.
+
+These settings do not move or resize the saved strokes or change blend geometry. Joined pairs have their own spacing settings; when a pair is used, the separate letters’ settings do not apply inside it. Generate a fresh Compose preview after saving spacing. Already saved finished drawings remain unchanged.
+
 ## Alphabet proof sheet
 
 Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm) or Large (8 mm). The proof cycles through included preferred choices when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
@@ -88,6 +96,14 @@ Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer a
 Missing group characters are listed and omitted from the character row. A test sentence requiring unavailable characters reports the missing samples and prevents export; edit it or leave it blank. The initial sentence uses the lowercase pangram when all lowercase letters are available, otherwise a short selection of available characters. Edited text is preserved across setting changes. Settings and sentence edits update the preview automatically; **Refresh preview** also reloads saved choices.
 
 Download `alphabet-proof-a4.svg` or `alphabet-proof-a4.gcode`. Both contain the displayed handwriting on A4 with 20 mm margins, using the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
+
+### Compare originals, blends and preferred choices
+
+Choose **Compare versions** in My alphabet, or **Sheet → Compare versions** on the proof screen. It compares your latest included originals, latest included saved blends, and included preferred choices in three labelled columns at **3, 5 and 8 mm** on one A4 page. Preferred choices cycle in their saved order; each size restarts the same choices. Current Review size/position and individual character spacing apply. Joined-pair substitution is off so individual characters can be compared.
+
+The starting text is `f i j l t z`, `fizz` and `jilt`. Edit it to test other characters or short words, up to six lines and 120 characters. **Crossed boxes mark missing versions**; available characters are still shown and the status lists the gaps. The preferred column requires explicit choices in My alphabet. It does not substitute the newest sample when a preference is missing. Originals and blends ignore preferences so the columns remain distinct.
+
+The columns share baseline placement within each test line. Text wraps within each column at its physical size; if the page or a word does not fit, shorten the text. Labels and missing markers are paths, so SVG and G-code contain the same complete sheet. Downloads are `comparison-proof-a4.svg` and `comparison-proof-a4.gcode`. The page generates files; it does not send them to the plotter.
 
 ## Compose and export
 
@@ -99,7 +115,7 @@ Choose a writer and type text using captured lowercase, capitals, digits and sup
 
 **Use saved joined pairs** replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
 
-Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm), retaining natural proportions. A review baseline shift is applied as a physical offset afterwards. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word or overflowing page prompts a smaller writing size or less text rather than clipping.
+Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm), retaining natural proportions. A review baseline shift is applied as a physical offset afterwards. Saved character spacing scales with writing size and is applied in addition to the general spacing controls. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word or overflowing page prompts a smaller writing size or less text rather than clipping.
 
 **Letter spacing**, **Word spacing** and **Line gap** range from 50% to 200%, with 100% preserving the normal layout. Letter spacing changes the distance between character starts; word spacing changes the space width; line gap changes the clearance between lines. Character shape and writing size stay unchanged. Tight letter spacing can overlap characters, so inspect the preview. **Reset spacing** restores all three to 100%.
 
@@ -107,17 +123,21 @@ After the first generated preview, spacing changes update it automatically. The 
 
 **Generate preview**, then **Download A4 SVG** or **Download plotter G-code**. SVG exports the displayed drawing on A4 portrait (210 × 297 mm) with 20 mm margins, one unfilled line path per pen stroke, in captured order and direction, with nominal width 0.3 mm. The G-code follows the same preview; curves are flattened within 0.02 mm and dots receive a brief dwell.
 
-Changes to text, settings, captures, reviews or preferences invalidate stale previews and disable downloads until regenerated. Returning to the tab checks for changed samples. If that check fails, an already displayed preview remains downloadable. Downloads are named `composed-handwriting-a4.svg` and `composed-handwriting-a4.gcode`.
+Changes to text, settings, captures, reviews, character spacing or preferences invalidate fresh previews and disable downloads until regenerated. Reopened finished drawings retain their saved output when the handwriting library changes; editing the composition or choosing Generate preview switches back to current handwriting. Returning to the tab checks for changed samples. If that check fails, an already displayed preview remains downloadable. Downloads are named `composed-handwriting-a4.svg` and `composed-handwriting-a4.gcode`.
 
 ### Save and reopen compositions
 
 In Compose, give the page a name under **Saved compositions**, then tap **Save composition**. This keeps its text, writer, writing size, smoothing, sample pool, source type, preferred-version and joined-pair options and all three spacing settings. Save updates the current composition; **Save a copy** keeps a separate version. You can save a draft before generating a preview.
 
-Choose a saved page and tap **Open composition**. Confirm replacement if there are unsaved edits. Then **Generate preview** uses the current saved handwriting, review settings and preferred choices. A saved composition is a reusable set of text and settings, not a frozen drawing; retain its downloaded SVG/G-code if you need exactly the old output. Saved compositions stay in this browser and are included in Backup / Import.
+**Generate preview before saving** to keep the exact finished drawing alongside the text and settings. The list labels entries **Finished drawing** or **Draft**. Choose one and tap **Open composition**; confirm replacement if there are unsaved edits. A finished drawing opens immediately with SVG and G-code downloads ready, even if its source handwriting is no longer present. Later review, spacing, preference or capture changes do not remake that drawing.
+
+**Generate preview** deliberately replaces the displayed drawing using your current saved handwriting and settings. Editing composition controls also clears the old preview. Generate again before updating a finished page, or **Save a copy** to keep edited settings as a separate draft. This prevents a draft from silently removing the existing finished drawing. Older settings-only compositions remain supported and require Generate preview after opening.
+
+Saved compositions and their finished drawings stay in this browser and are included in Backup / Import. Snapshots retain the exact SVG geometry; G-code is generated from that geometry using the app’s plotter settings.
 
 ## Backup and import
 
-Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences, compositions and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
+Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences, character spacing, compositions with finished drawings and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
 
 Import validates all records and references before adding anything. Identical records are skipped. Conflicting versions of an existing record reject the entire import without overwriting work. Keep both backups and use a separate browser/profile with no Studio data to inspect the other version. Do not clear current writing to resolve a conflict. Refresh samples or reopen Capture after import. The file limit is 100 MB.
 
@@ -182,7 +202,7 @@ For missing sources, backup conflicts, stale controls or missing Compose charact
 npm ci --ignore-scripts
 npm run build
 npm test
-STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs
+STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs
 # With the Python app dependencies installed:
 python3 -m unittest discover -s tests
 ```
@@ -200,9 +220,10 @@ The public app stores records in IndexedDB; these paths are logical record keys,
 - `letter_reviews/<capture-id>.json`: separate inclusion, baseline and optional scale settings for original captures or saved blends.
 - `blends/<uuid>.json`: derived schema 4 or 5; source IDs/shifts, weights and blended strokes, without replacing originals. Schema 5 also freezes source size factors; schema 4 implies 100%.
 - `alphabets/<encoded-writer>.json`: preferred character choices for that writer; schema 1 stores one ID per character, schema 2 stores ordered lists.
-- `compositions/<uuid>.json`: schema 1; title, update time, text, writer and layout/source settings. Save updates this record; Save a copy creates another.
+- `character_spacing/<encoded-writer>.json`: schema 1; per-character before/after spacing at 5 mm writing size.
+- `compositions/<uuid>.json`: schema 1 stores title, update time, text, writer and layout/source settings; schema 2 also stores a validated path-only A4 SVG drawing. Save updates this record; Save a copy creates another.
 
-Capture coordinates are 1000 × 500 with Y down and timestamps measured from first contact. Raw time, pressure, tilt, coordinates and stroke order are preserved where available. Validation checks records, finite values, bounds, chronology, cell assignment and source references. Original captures and blends are immutable; review settings and preferences update separately. Saved compositions keep settings, not rendered snapshots. Browser writes/imports use transactions. Retrying a sheet or blend save uses the same identifier; different content under an existing ID is rejected.
+Capture coordinates are 1000 × 500 with Y down and timestamps measured from first contact. Raw time, pressure, tilt, coordinates and stroke order are preserved where available. Validation checks records, finite values, bounds, chronology, cell assignment and source references. Original captures and blends are immutable; review settings and preferences update separately. Finished compositions retain an SVG snapshot independently of source changes. Imported drawings accept only the app’s path-only A4 format, finite in-bounds coordinates, and no executable content. Browser writes/imports use transactions. Retrying a sheet or blend save uses the same identifier; different content under an existing ID is rejected.
 
 ## Older local Mac app
 

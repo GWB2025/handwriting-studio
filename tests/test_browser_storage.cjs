@@ -5,6 +5,19 @@ function browser(indexedDB=new IDBFactory()){
   const context={indexedDB,StudioEngine:E,location:{href:'https://example.github.io/handwriting-studio/'},navigator:{},crypto:webcrypto,Response,URL,DOMException,TextEncoder,structuredClone};context.window=context;vm.createContext(context);vm.runInContext(fs.readFileSync('web/browser-api.js','utf8'),context);return context;
 }
 async function call(b,url,data){const response=await b.studioFetch(url,data?{method:'POST',body:JSON.stringify(data)}:{});return {status:response.status,data:await response.json()};}
+
+test('spacing and exact drawings survive backup import; invalid geometry or draft saves preserve finished work',async()=>{
+ const b=browser(),original=files();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:original});
+ assert.equal((await call(b,'/api/character-spacing',{writer:'Writer',letter:'a',before_mm:.3,after_mm:.8})).status,200);
+ const settings=E.compositionSettings({writer:'Writer',phrase:'abc'}),svg=(await call(b,'/api/compose',settings)).data.svg,id=webcrypto.randomUUID();
+ const saved=await call(b,'/api/compositions',{id,title:'Finished',settings,drawing:svg});assert.equal(saved.status,200);assert.equal(saved.data.record.schema_version,2);
+ assert.equal((await call(b,'/api/compositions',{id,title:'Draft',settings})).status,400);
+ const snapshot=await b.StudioStorage.backup(),next=browser();await next.StudioStorage.importBackup(snapshot);assert.deepEqual(await next.StudioStorage.snapshot(),snapshot.files);
+ const drawings=(await call(next,'/api/compositions')).data.compositions;assert.equal(drawings[0].drawing,svg);
+ await call(next,'/api/character-spacing',{writer:'Writer',letter:'a',before_mm:0,after_mm:0});assert.notEqual((await call(next,'/api/compose',settings)).data.svg,svg);assert.equal((await call(next,'/api/compositions')).data.compositions[0].drawing,svg);
+ const bad=E.clone(snapshot);bad.files.find(f=>f.key.startsWith('compositions/')).value.drawing=svg.replace('</svg>','<script/> </svg>');const before=await next.StudioStorage.snapshot();await assert.rejects(next.StudioStorage.importBackup(bad));assert.deepEqual(await next.StudioStorage.snapshot(),before);
+ assert.deepEqual(snapshot.files.filter(f=>f.key.startsWith('letters/')).sort((a,b)=>a.key.localeCompare(b.key)),original.sort((a,b)=>a.key.localeCompare(b.key)));
+});
 test('committed saves survive new page context, retries do not duplicate, conflicts keep original',async()=>{
   const b=browser(),payload=sheet(),original=JSON.stringify(payload.strokes);
   assert.equal((await call(b,'/api/letters/pages',payload)).status,201);

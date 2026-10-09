@@ -44,7 +44,8 @@
     try{
       if(options.signal?.aborted)throw new DOMException('Aborted','AbortError');
       const u=new URL(url,window.location.href),path=u.pathname,method=options.method||'GET',data=options.body?JSON.parse(options.body):null;
-      if(method==='POST'&&path==='/api/compositions')return await transaction((files,store)=>{const record=E.createComposition(data);store.put({key:'compositions/'+record.id+'.json',value:record});return json({saved:true,record});});
+      if(method==='POST'&&path==='/api/character-spacing')return await transaction((files,store)=>{const record=E.characterSpacing(files,data);store.put(record);return json({saved:true,record});});
+      if(method==='POST'&&path==='/api/compositions')return await transaction((files,store)=>{const old=files.find(f=>f.key==='compositions/'+data?.id+'.json')?.value;if(old?.drawing&&!data.drawing)throw Error('Generate a preview before updating this finished page, or save a separate draft copy.');const record=E.createComposition(data);store.put({key:'compositions/'+record.id+'.json',value:record});return json({saved:true,record});});
       if(method==='POST'&&path==='/api/alphabet/preferred')return await transaction((files,store)=>{const record=E.choosePreferred(files,data);store.put(record);return json({saved:true,preferred:record.value.choices});});
       if(method==='POST'&&path==='/api/blends')return await transaction((files,store)=>{
         const record=E.createSavedBlend(files,data),key='blends/'+record.id+'.json',old=files.find(f=>f.key===key)?.value;
@@ -79,6 +80,7 @@
       const files=await transaction();
       if(options.signal?.aborted)throw new DOMException('Aborted','AbortError');
       if(method==='GET'&&path==='/api/compositions')return json({compositions:files.filter(f=>f.key.startsWith('compositions/')).map(f=>f.value).sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at))});
+      if(method==='POST'&&path==='/api/spacing-preview')return json(E.spacingPreview(files,data));
       if(method==='POST'&&path==='/api/review-preview')return json(E.reviewWord(files,data));
       if(method==='GET'&&path==='/api/pages')return json({pages:files.filter(f=>!f.key.includes('/')).map(f=>({id:f.value.id,writer:f.value.writer,saved_at:f.value.saved_at,stroke_count:f.value.raw_strokes.length})).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at)||b.id.localeCompare(a.id)),unavailable_count:0});
       if(method==='GET'&&path.startsWith('/api/pages/')){const record=files.find(f=>f.key===path.slice('/api/pages/'.length)+'.json')?.value;return record?json(record):json({error:'This saved page is no longer available.'},404);}

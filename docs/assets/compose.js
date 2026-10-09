@@ -3,7 +3,7 @@
   const byID=id=>document.getElementById(id);
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
-  let liveTimer=null,blendSeed='',hasPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
+  let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   function sourceCounts(profile){return window.StudioEngine?.countsFor?window.StudioEngine.countsFor(profile,byID('compose-source')?.value||'both'):(profile?.counts||{});}
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
@@ -15,7 +15,7 @@
     byID('phrase').value=automaticPhrase;
   }
   function clearPreview(keepImage=false){
-    previewSVG='';window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
+    frozenPreview=false;previewSVG='';window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(!keepImage){if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');byID('compose-empty').hidden=false;}
     byID('compose-download').disabled=true;
   }
@@ -130,7 +130,8 @@
       const current=data.writers.find(profile=>profile.writer===writer);
       const changed=JSON.stringify(previous?.counts)!==JSON.stringify(current?.counts) || previous?.latest_saved_at!==current?.latest_saved_at || previous?.revision!==current?.revision;
       profiles=data.writers;showCounts();
-      if(changed){
+      if(changed&&frozenPreview){byID('compose-status').textContent='Saved handwriting has changed. The exact saved drawing is still ready to download; Generate preview uses the latest handwriting.';}
+      else if(changed){
         updateExample();
         invalidate();
         byID('compose-status').textContent=current?'Saved samples have changed. Tap Generate preview to use the latest captures before downloading.':
@@ -144,11 +145,12 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    window.StudioCompositions.init({read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData()}),restore:async settings=>{
-      const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}
+    window.StudioCompositions.init({readDrawing:()=>previewSVG,read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData()}),restore:async (settings,drawing='')=>{
+      const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!drawing){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
       byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
       hasPreview=false;invalidate();
+      if(drawing){window.StudioEngine.validateDrawingSVG(drawing);previewSVG=drawing;frozenPreview=true;hasPreview=true;imageURL=URL.createObjectURL(new Blob([drawing],{type:'image/svg+xml'}));byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;byID('compose-download').disabled=false;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;byID('compose-status').textContent='Exact saved drawing · downloads reproduce this page. Generate preview uses your current handwriting.';}
     }});
   });
 })();

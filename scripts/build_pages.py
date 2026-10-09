@@ -26,7 +26,7 @@ for name in ['app.js','capture.js','compose.js','review.js','library.js','calibr
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
 (assets/'style.css').write_text(style)
-for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','compositions.js']:
+for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-comparison.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
     html=adapt((ROOT/('web' if source in ['help.html','proof.html'] else 'static')/source).read_text())
@@ -40,6 +40,9 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
     html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>\n</head>')
+    if(source=='alphabet.html'):
+        html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
+        html=html.replace('<script src="assets/alphabet.js">','<script src="assets/character-spacing.js"></script><script src="assets/alphabet.js">')
     if(source=='review.html'):
         html=html.replace('<div class="sample-preview-row">',(ROOT/'web/review-tools.html').read_text()+'<div class="sample-preview-row">')
         html=html.replace('<div class="sample-shift-readout">',(ROOT/'web/review-sizing.html').read_text()+'<div class="sample-shift-readout">')

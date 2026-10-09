@@ -82,6 +82,15 @@ test('opening a saved composition restores the complete form and invalidates ear
  await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
 });
 
+test('restored finished drawings remain downloadable after library changes, until the user edits or regenerates',async()=>{
+ const c=await composer(true,true),e=c.elements,E=require('../web/engine'),svg=E.compose(require('./browser_helpers').files(),{writer:'Writer',phrase:'abc'}).svg,settings=c.window.compositions.read();
+ await c.window.compositions.restore(settings,svg);assert.equal(c.window.compositions.readDrawing(),svg);assert.equal(e['compose-download'].disabled,false);assert.equal(e['compose-gcode'].disabled,false);
+ c.server.revision='new-spacing';c.window.emit('pageshow',{persisted:true});await settle();assert.equal(c.window.compositions.readDrawing(),svg);assert.equal(e['compose-download'].disabled,false);assert.match(e['compose-status'].textContent,/exact saved drawing/);
+ e['compose-gcode'].onclick();assert.equal(c.exported.at(-1),svg);
+ await c.window.compositions.restore({...settings,writer:'Unavailable'},svg);assert.equal(e['compose-download'].disabled,false);assert.equal(e['compose-writer'].value,'Unavailable');
+ e.phrase.value='edited';e.phrase.emit('input');assert.equal(c.window.compositions.readDrawing(),'');assert.equal(e['compose-download'].disabled,true);
+});
+
 test('returning to an unchanged composer keeps its preview and download ready', async () => {
   const c = await composer(), e = c.elements;
   e.phrase.value = 'dad cab';

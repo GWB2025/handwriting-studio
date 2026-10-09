@@ -95,6 +95,37 @@
   }
   function sampleAtSize(files,s,factor){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(raw,factor),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
   const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
+  const characterSpacingKey=writer=>'character_spacing/'+encodeURIComponent(writer)+'.json';
+  function validateCharacterSpacing(setting){if(!setting||!finite(setting.before_mm,-2,3)||!finite(setting.after_mm,-2,3))fail('Character spacing must be between −2 and +3 mm at Medium size.');}
+  function characterSpacing(files,data){
+    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||![...characters,...pairs].includes(data.letter))fail('Choose a writer and character.');
+    validateCharacterSpacing(data);if(!catalog(files).byWriter.has(data.writer))fail('This writer is unavailable.');
+    const key=characterSpacingKey(data.writer),old=files.find(f=>f.key===key)?.value,adjustments=clone(old?.adjustments||{});
+    if(data.before_mm===0&&data.after_mm===0)delete adjustments[data.letter];else adjustments[data.letter]={before_mm:data.before_mm,after_mm:data.after_mm};
+    return {key,value:old&&same(old.adjustments,adjustments)?old:{schema_version:1,writer:data.writer,adjustments,updated_at:new Date().toISOString()}};
+  }
+  function spacingPreview(files,data){
+    if(typeof data.text!=='string'||data.text.length>40)fail('Use up to 40 characters in the spacing preview.');
+    const record=characterSpacing(files,data),copy=files.filter(f=>f.key!==record.key).concat(record);
+    return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:pairs.includes(data.letter)});
+  }
+  function drawingSVG(paths,title){return '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>'+escape(title)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.map(d=>'<path d="'+d+'"/>').join('')+'</g></svg>';}
+  function validateDrawingSVG(svg){
+    if(typeof svg!=='string'||svg.length>7*1024*1024)fail('Invalid finished drawing.');
+    // Accept only the inert path-only format emitted by this app; imported SVG is never executed.
+    const match=svg.match(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>(?:[^<>&]|&(?:amp|lt|gt|quot|apos);)*<\/title><g fill="none" stroke="black" stroke-width="0\.3" stroke-linecap="round" stroke-linejoin="round">((?:<path d="[^"<>]+"\/>)+)<\/g><\/svg>$/);
+    if(!match)fail('This finished drawing is not a supported A4 preview.');
+    const paths=[...match[1].matchAll(/<path d="([^"]+)"\/>/g)].map(m=>m[1]);let count=0;
+    for(const d of paths){
+      if(!/^M/.test(d)||d.replace(/[MLQ]|-?(?:\d+(?:\.\d*)?|\.\d+)|[\s,]/g,''))fail('Unsupported finished drawing stroke.');
+      const commands=[...d.matchAll(/([MLQ])([^MLQ]*)/g)];
+      for(let i=0;i<commands.length;i++){const [,op,coords]=commands[i],nums=coords.trim().split(/[\s,]+/).map(Number);if((i===0?op!=='M':op==='M')||nums.length!==(op==='Q'?4:2))fail('Invalid finished drawing stroke.');
+        for(let j=0;j<nums.length;j++)if(!finite(nums[j],j%2?19.9999:19.9999,j%2?277.0001:190.0001))fail('Finished drawing extends outside the A4 margins.');
+        if((count+=nums.length/2)>500000)fail('Finished drawing is too complex.');
+      }
+    }
+    return svg;
+  }
   function compositionSettings(data){
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>2000)fail('Choose a writer and enter text before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??true,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
@@ -103,7 +134,8 @@
   }
   function createComposition(data){
     if(!data||!uuid(data.id)||typeof data.title!=='string'||!data.title.trim()||data.title.length>100)fail('Give the composition a name (up to 100 characters).');
-    return {schema_version:1,id:data.id,title:data.title.trim(),updated_at:new Date().toISOString(),settings:compositionSettings(data.settings)};
+    const record={schema_version:data.drawing?2:1,id:data.id,title:data.title.trim(),updated_at:new Date().toISOString(),settings:compositionSettings(data.settings)};
+    if(data.drawing)record.drawing=validateDrawingSVG(data.drawing);size(record);return record;
   }
   function reviewWord(files,data){
     validateReview(data);if(typeof data.text!=='string'||data.text.length>40)fail('Use up to 40 characters in the word preview.');
@@ -170,8 +202,13 @@
     return profile?(source==='originals'?profile.original_counts||profile.counts:source==='blends'?profile.blend_counts||{}:profile.counts):{};
   }
   function validateRecord(key,r){
+    if(key.startsWith('character_spacing/')){
+      if(!r||r.schema_version!==1||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==characterSpacingKey(r.writer)||!r.adjustments||typeof r.adjustments!=='object'||Array.isArray(r.adjustments)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid character spacing record.');
+      for(const [letter,setting] of Object.entries(r.adjustments)){if(![...characters,...pairs].includes(letter))fail('Invalid spacing character.');validateCharacterSpacing(setting);}size(r);return;
+    }
     if(key.startsWith('compositions/')){
-      if(!r||r.schema_version!==1||!uuid(r.id)||key!=='compositions/'+r.id+'.json'||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid saved composition.');
+      if(!r||![1,2].includes(r.schema_version)||!uuid(r.id)||key!=='compositions/'+r.id+'.json'||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid saved composition.');
+      if(r.schema_version===1?r.drawing!==undefined:typeof r.drawing!=='string'||!r.drawing)fail('Invalid finished composition.');
       const normalized=createComposition(r);if(r.title!==normalized.title||!same(r.settings,normalized.settings))fail('Invalid saved composition settings.');size(r);return;
     }
     if(key.startsWith('alphabets/')){
@@ -215,7 +252,7 @@
         byWriter.get(r.writer).push({...scaleSample(s,setting.scale_factor??1),...setting,scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
-    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));states.get(writer).push(['preferred',choices]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
+    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
     return {writers:[...profiles.values()].sort((a,b)=>a.writer.toLowerCase().localeCompare(b.writer.toLowerCase())),byWriter};
   }
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -289,6 +326,24 @@
     for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*.18);
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
+  function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
+  function layoutWriting(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},frame={x:20,y:20,width:170,bottom:277},adjustments={},extents=writingExtents(used,height)){
+    const scale=height/80,{above,below}=extents,right=frame.x+frame.width;let x=frame.x,baseline=frame.y+above;
+    const line=above+below+height*.8*line_spacing,paths=[],chosen=[];
+    for(let i=0;i<letters.length;){
+      if(letters[i]==='\n'){x=frame.x;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
+      let end=i;while(end<letters.length&&used[end])end++;
+      let cursor=0;const positions=[];
+      for(let j=i;j<end;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<end?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale)+a.after_mm*height/5;}
+      const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+(used[i+j].bounds.right-used[i+j].bounds.left)*scale))-left;
+      if(wordWidth>frame.width)fail('A word is too wide for the page. Choose a smaller writing size or add a space.');
+      if(x+wordWidth>right){x=frame.x;baseline+=line;}
+      if(baseline+below>frame.bottom)fail('This phrase does not fit on one A4 page. Use fewer words or a smaller writing size.');
+      for(let j=i;j<end;j++){const s=used[j];for(const stroke of s.processed_strokes)paths.push(pathData(stroke.points,smooth&&!s.missing,x+positions[j-i]-left,baseline+s.baseline_shift_mm,scale));chosen.push({letter:letters[j],capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      x+=Math.max(0,cursor-left)+height*.22;i=end;
+    }
+    return {paths,chosen,height:baseline+below-frame.y};
+  }
   function compose(files,data){
     const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
@@ -323,22 +378,9 @@
         }fallback++;
       }return original;
     });
-    const scale=height/80;let above=0,below=0;
-    for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*scale+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}
-    let x=20,baseline=20+above;const line=above+below+height*.8*line_spacing,paths=[],chosen=[];
-    for(let i=0;i<letters.length;){
-      if(letters[i]==='\n'){x=20;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
-      let end=i;while(end<letters.length && used[end])end++;
-      const advances=[];for(let j=i;j<end;j++)advances.push(j+1<end?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale);
-      const wordWidth=Math.max(...advances.map((_,j)=>advances.slice(0,j).reduce((a,b)=>a+b,0)+(used[i+j].bounds.right-used[i+j].bounds.left)*scale));
-      if(wordWidth>170)fail('A word is too wide for the page. Choose a smaller writing size or add a space.');
-      if(x+wordWidth>190){x=20;baseline+=line;}
-      if(baseline+below>277)fail('This phrase does not fit on one A4 page. Use fewer words or a smaller writing size.');
-      for(let j=i;j<end;j++){const s=used[j];for(const stroke of s.processed_strokes)paths.push('<path d="'+pathData(stroke.points,smooth,x,baseline+s.baseline_shift_mm,scale)+'"/>');chosen.push({letter:letters[j],capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});x+=advances[j-i];}
-      x+=height*.22;i=end;
-    }
-    const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b)),profile=cat.writers.find(p=>p.writer===writer.trim());
-    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>Handwriting: '+escape(phrase)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.join('')+'</g></svg>',used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),layout=layoutWriting(letters,used,{height,smooth,letter_spacing,word_spacing,line_spacing},undefined,profile.character_spacing),paths=layout.paths,chosen=layout.chosen;
+    const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
+    return {svg:drawingSVG(paths,'Handwriting: '+phrase),used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
       sample_selection:{mode,source,use_preferred,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
   function comparisonMany(sources,result){
@@ -356,6 +398,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

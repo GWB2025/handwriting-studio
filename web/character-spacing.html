@@ -1,0 +1,9 @@
+<fieldset id="character-spacing" class="sample-sizing" disabled>
+<legend id="spacing-title">Character spacing</legend>
+<p>Adjust all versions of this character for this writer. Negative values tighten spacing; positive values add space. Measurements are at Medium (5 mm) and scale with writing size. Letter shapes stay unchanged.</p>
+<label for="spacing-before">Before the character · <output id="spacing-before-value">0 mm</output></label><input id="spacing-before" type="range" min="-2" max="3" step="any" value="0">
+<label for="spacing-after">After the character · <output id="spacing-after-value">0 mm</output></label><input id="spacing-after" type="range" min="-2" max="3" step="any" value="0">
+<div class="compose-actions"><button id="spacing-zero" type="button">Normal spacing</button><button id="spacing-save" type="button" disabled>Save spacing</button><button id="spacing-reset" type="button" disabled>Reset changes</button></div>
+<label for="spacing-word">Try a short word</label><input id="spacing-word" type="text" maxlength="40" spellcheck="false">
+<p id="spacing-status" class="subtle" role="status"></p><div id="spacing-preview" role="img" aria-label="Live word preview of character spacing"></div>
+</fieldset>
