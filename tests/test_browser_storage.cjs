@@ -127,3 +127,13 @@ test('stroke repairs, frozen blend recipes and shuffled settings round-trip with
  const wrong=E.clone(backup);wrong.files.find(f=>f.key===importedBlend.key).value.source_edits[0].reversed[0]=true;await assert.rejects(blank.StudioStorage.importBackup(wrong));assert.equal((await blank.StudioStorage.snapshot()).length,0);
  assert.deepEqual(backup.files.filter(f=>f.key.startsWith('letters/')).sort((a,b)=>a.key.localeCompare(b.key)),original.sort((a,b)=>a.key.localeCompare(b.key)));
 });
+
+test('multi-page compositions round-trip atomically and reject old-client or invalid-page overwrites',async()=>{
+ const b=browser(),original=files();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:original});
+ const settings=E.compositionSettings({writer:'Writer',phrase:Array(90).fill('a bad cab').join('\n'),page_layout:{margin_left:35,paragraph_gap:6}}),generated=await call(b,'/api/compose',settings);assert.equal(generated.status,200);const drawings=generated.data.pages.map(p=>p.svg);assert(drawings.length>1);
+ const payload={id:webcrypto.randomUUID(),title:'Full letter',settings,drawings};assert.equal((await call(b,'/api/compositions',payload)).status,200);
+ const before=await b.StudioStorage.snapshot();for(const invalid of [{...payload,drawings:[]},{...payload,drawings:undefined,drawing:drawings[0]},{...payload,drawings:[drawings[0],drawings[0].replace('</svg>','<script/></svg>')]}])assert.equal((await call(b,'/api/compositions',invalid)).status,400);assert.deepEqual(await b.StudioStorage.snapshot(),before);
+ const backup=await b.StudioStorage.backup(),next=browser();await next.StudioStorage.importBackup(backup);assert.deepEqual(await next.StudioStorage.snapshot(),backup.files);
+ const invalid=E.clone(backup);invalid.files.find(f=>f.key.startsWith('compositions/')).value.drawings[1]=drawings[1].replace(/M[\d.]+ [\d.]+/,'M0 0');await assert.rejects(next.StudioStorage.importBackup(invalid));assert.deepEqual(await next.StudioStorage.snapshot(),backup.files);
+ const shorter={...payload,settings:{...settings,phrase:'abc'},drawings:[drawings[0]]};assert.equal((await call(next,'/api/compositions',shorter)).status,200);assert.equal((await call(next,'/api/compositions')).data.compositions[0].drawings.length,1);
+});

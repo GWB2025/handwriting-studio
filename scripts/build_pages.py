@@ -25,6 +25,7 @@ for name in ['app.js','capture.js','compose.js','review.js','library.js','calibr
     (assets/name).write_text(adapt((ROOT/'static'/name).read_text()))
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
+style+='\n'+(ROOT/'web/compose-layout.css').read_text()
 (assets/'style.css').write_text(style)
 for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-comparison.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
@@ -62,11 +63,14 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
             spacing_controls+=f'<label>{label} · <output id="compose-{name}-value">100%</output><input id="compose-{name}-spacing" type="range" min="50" max="200" step="5" value="100"></label>'
         spacing_controls+='<button type="button" id="compose-spacing-reset">Reset spacing</button><p>100% uses the normal layout. Letter spacing changes the distance between character starts; line gap changes the space between lines. Size and character shapes stay the same.</p></fieldset>'
         html=html.replace('<div class="compose-actions">',spacing_controls+'<div class="compose-actions">',1)
-        html=html.replace('maxlength="200"','maxlength="2000"')
+        html=html.replace('maxlength="200"','maxlength="10000"')
         html=html.replace('Type with your saved lowercase a–z captures.', 'Type with your saved letters, numbers and punctuation.')
         html=html.replace('Repeated letters cycle through the newest three included examples of each letter.', 'Choose a fixed sequence or shuffled selection below. Included preferred versions are used when enabled and allowed by the source type; otherwise the chosen sample pool is used.')
-        html=html.replace('Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.', 'Use captured capitals, lowercase, numbers and supported punctuation, plus spaces and line breaks. Up to 2,000 characters must fit on one A4 page. Size refers to the small-letter guide, keeping your natural proportions.')
+        html=html.replace('Lowercase a–z, spaces and line breaks; size refers to the small-letter guide, keeping your natural letter proportions.', 'Use captured capitals, lowercase, numbers and supported punctuation, plus spaces and line breaks. Up to 10,000 characters can flow across up to 20 A4 pages. Size refers to the small-letter guide, keeping your natural proportions.')
         html=html.replace('Capitals, punctuation and cursive joins come later.', 'Capture capitals, numbers, punctuation and common joined pairs as needed. Words wrap together; full cursive is not included.')
+        html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-layout.html').read_text()+'<div class="compose-actions">',1)
+        html=html.replace('<div class="composed-paper">',(ROOT/'web/compose-pages.html').read_text()+'<div class="composed-paper">')
+        html=html.replace('A4 portrait · 20 mm margins', 'A4 portrait · adjustable margins, at least 20 mm')
         html=html.replace('<form id="compose-form">',(ROOT/'web/compositions.html').read_text()+'<form id="compose-form">')
     if(source=='capture.html'):
         html=html.replace('<div class="capture-heading">','<label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs</option></select></label><div class="capture-heading">')

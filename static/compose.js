@@ -5,6 +5,31 @@
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   let sampleSeed=crypto.randomUUID();
+  let previewPages=[],pageIndex=0;
+  const layoutIDs=['compose-margin-top','compose-margin-right','compose-margin-bottom','compose-margin-left','compose-alignment','compose-paragraph-gap','compose-layout-reset'];
+  function pageLayoutData(){return byID('compose-alignment')?{page_layout:{...Object.fromEntries(['top','right','bottom','left'].map(side=>['margin_'+side,Number(byID('compose-margin-'+side).value||NaN)])),alignment:byID('compose-alignment').value,paragraph_gap:Number(byID('compose-paragraph-gap').value||NaN)}}:{};}
+  function pageControls(){
+    if(!byID('compose-page-select'))return;
+    const select=byID('compose-page-select');select.replaceChildren();
+    for(let i=0;i<Math.max(1,previewPages.length);i++){const option=document.createElement('option');option.value=String(i);option.textContent=previewPages.length?'Page '+(i+1)+' of '+previewPages.length:'Generate a preview';select.append(option);}
+    select.value=String(pageIndex);select.disabled=!previewPages.length;
+    byID('compose-page-previous').disabled=!previewPages.length||pageIndex===0;
+    byID('compose-page-next').disabled=!previewPages.length||pageIndex>=previewPages.length-1;
+    byID('compose-page-status').textContent=previewPages.length?'Page '+(pageIndex+1)+' of '+previewPages.length:'';
+  }
+  function showPage(index){
+    if(!previewPages.length)return;
+    pageIndex=Math.max(0,Math.min(previewPages.length-1,index));previewSVG=previewPages[pageIndex];
+    const previous=imageURL;imageURL=URL.createObjectURL(new Blob([previewSVG],{type:'image/svg+xml'}));
+    byID('composed-image').src=imageURL;byID('composed-image').alt='Handwriting preview · page '+(pageIndex+1)+' of '+previewPages.length;if(previous)URL.revokeObjectURL(previous);
+    byID('composed-image').hidden=false;byID('compose-empty').hidden=true;byID('compose-download').disabled=false;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;pageControls();
+  }
+  function downloadName(extension){return 'composed-handwriting-a4'+(previewPages.length>1?'-page-'+String(pageIndex+1).padStart(2,'0')+'-of-'+String(previewPages.length).padStart(2,'0'):'')+'.'+extension;}
+  if(byID('compose-page-select')){
+    byID('compose-page-select').addEventListener('change',()=>showPage(Number(byID('compose-page-select').value)));
+    byID('compose-page-previous').onclick=()=>showPage(pageIndex-1);
+    byID('compose-page-next').onclick=()=>showPage(pageIndex+1);
+  }
   const sampleOrderData=()=>byID('compose-order')?{sample_order:byID('compose-order').value,sample_seed:sampleSeed}:{};
   function orderControls(){if(byID('compose-shuffle'))byID('compose-shuffle').disabled=loading||byID('compose-writer').disabled||!byID('compose-writer').value||byID('compose-order').value!=='shuffle';}
   function sourceCounts(profile){return window.StudioEngine?.countsFor?window.StudioEngine.countsFor(profile,byID('compose-source')?.value||'both'):(profile?.counts||{});}
@@ -18,7 +43,7 @@
     byID('phrase').value=automaticPhrase;
   }
   function clearPreview(keepImage=false){
-    frozenPreview=false;previewSVG='';window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
+    frozenPreview=false;previewSVG='';previewPages=[];pageControls();window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(!keepImage){if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');byID('compose-empty').hidden=false;}
     byID('compose-download').disabled=true;
   }
@@ -43,7 +68,7 @@
     const selected=byID('compose-writer').value || new URLSearchParams(window.location.search).get('writer');
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
-    for(const id of ['compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
+    for(const id of [...layoutIDs,'compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
     byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;orderControls();
     for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=true;
     byID('compose-status').textContent='Loading your saved letters…';
@@ -59,7 +84,7 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of ['compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
@@ -71,17 +96,14 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
-      hasPreview=true;previewSVG=data.svg;window.StudioBlendPreview?.show(data.variation);if(byID('compose-gcode'))byID('compose-gcode').disabled=false;
-      const oldImageURL=imageURL;imageURL=URL.createObjectURL(new Blob([data.svg],{type:'image/svg+xml'}));
-      byID('composed-image').src=imageURL;if(oldImageURL)URL.revokeObjectURL(oldImageURL);byID('composed-image').hidden=false;byID('compose-empty').hidden=true;
-      byID('compose-download').disabled=false;
+      hasPreview=true;previewPages=data.pages?.length?data.pages.map(page=>page.svg):[data.svg];showPage(pageIndex);window.StudioBlendPreview?.show(data.variation);
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
       if(profile){profile.counts=data.sample_selection.all_counts||data.sample_selection.available_counts;for(const key of ['original_counts','blend_counts','preferred'])if(data.sample_selection[key])profile[key]=data.sample_selection[key];profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
       showCounts(data.sample_selection.counts);
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
-        new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. Download exports exactly this preview.';
+        new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. '+previewPages.length+' page'+(previewPages.length===1?'':'s')+'. Downloads export the selected page exactly.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=(error.name==='AbortError'?'The Mac took too long to respond. Try Generate preview again.':error.message)+(event.live&&imageURL?' Previous preview shown; adjust settings to update it.':'');}
@@ -89,16 +111,16 @@
   };
   byID('compose-download').onclick=()=>{
     if(!imageURL||!previewSVG||byID('compose-download').disabled)return;
-    const a=document.createElement('a');a.href=imageURL;a.download='composed-handwriting-a4.svg';a.hidden=true;
+    const name=downloadName('svg'),a=document.createElement('a');a.href=imageURL;a.download=name;a.hidden=true;
     // Keep the download link in the document for Safari's native download path.
     document.body.append(a);a.click();setTimeout(()=>a.remove(),1000);
-    byID('compose-status').textContent='SVG download requested. Look for composed-handwriting-a4.svg in your browser’s Downloads. You can download this preview again.';
+    byID('compose-status').textContent='SVG download requested. Look for '+name+' in your browser’s Downloads. You can download this preview again.';
   };
   if(byID('compose-gcode'))byID('compose-gcode').onclick=()=>{
     if(!previewSVG)return;
     try{const gcode=window.StudioPlotter.fromSVG(previewSVG),url=URL.createObjectURL(new Blob([gcode],{type:'text/plain'}));
-      const a=document.createElement('a');a.href=url;a.download='composed-handwriting-a4.gcode';a.hidden=true;document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);
-      byID('compose-status').textContent='G-code downloaded for this preview. Send it from the Mac with the plotter homed at the paper’s top-left corner and the pen raised.';
+      const a=document.createElement('a');a.href=url;a.download=downloadName('gcode');a.hidden=true;document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);
+      byID('compose-status').textContent='G-code downloaded for page '+(pageIndex+1)+' of '+previewPages.length+'. Send it from the Mac with the plotter homed at the paper’s top-left corner and the pen raised.'+(previewPages.length>1?' Finish this file and fit fresh paper before sending the next page.':'');
     }catch(error){byID('compose-status').textContent=error.message;}
   };
   byID('compose-writer').addEventListener('change',()=>{updateExample();invalidate();});
@@ -124,6 +146,13 @@
   }
   for(const name of ['letter','word','line'])byID('compose-'+name+'-spacing')?.addEventListener('input',liveSpacing);
   if(byID('compose-spacing-reset'))byID('compose-spacing-reset').onclick=()=>{for(const name of ['letter','word','line'])byID('compose-'+name+'-spacing').value='100';liveSpacing();};
+  function liveLayout(){
+    const active=hasPreview;invalidate({keepImage:active});
+    if(active){byID('compose-status').textContent='Updating page layout… Downloads will be ready when all pages are updated.';liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),180);}
+  }
+  function setLayout(settings={}){for(const side of ['top','right','bottom','left'])if(byID('compose-margin-'+side))byID('compose-margin-'+side).value=String(settings['margin_'+side]??20);if(byID('compose-alignment')){byID('compose-alignment').value=settings.alignment??'left';byID('compose-paragraph-gap').value=String(settings.paragraph_gap??0);}}
+  for(const id of layoutIDs.filter(id=>id!=='compose-layout-reset'))byID(id)?.addEventListener(id==='compose-alignment'?'change':'input',liveLayout);
+  if(byID('compose-layout-reset'))byID('compose-layout-reset').onclick=()=>{setLayout();liveLayout();};
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){
     if(checkingSamples || loading || byID('compose-writer').disabled)return;
@@ -152,13 +181,14 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    window.StudioCompositions.init({readDrawing:()=>previewSVG,read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData()}),restore:async (settings,drawing='')=>{
-      const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!drawing){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
+    window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData()}),restore:async (settings,drawing='',drawings)=>{
+      const savedPages=drawings?.length?drawings:drawing?[drawing]:[];for(const svg of savedPages)window.StudioEngine.validateDrawingSVG(svg);
+      const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!savedPages.length){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
       byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
       if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
-      hasPreview=false;invalidate();
-      if(drawing){window.StudioEngine.validateDrawingSVG(drawing);previewSVG=drawing;frozenPreview=true;hasPreview=true;imageURL=URL.createObjectURL(new Blob([drawing],{type:'image/svg+xml'}));byID('composed-image').src=imageURL;byID('composed-image').hidden=false;byID('compose-empty').hidden=true;byID('compose-download').disabled=false;if(byID('compose-gcode'))byID('compose-gcode').disabled=false;byID('compose-status').textContent='Exact saved drawing · downloads reproduce this page. Generate preview uses your current handwriting.';}
+      setLayout(settings.page_layout);pageIndex=0;hasPreview=false;invalidate();
+      if(savedPages.length){previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
     }});
   });
 })();

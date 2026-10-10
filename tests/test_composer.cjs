@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer(extended=false,savedCompositions=false,shuffle=false) {
+async function composer(extended=false,savedCompositions=false,shuffle=false,layout=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -20,6 +20,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false) {
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; }});
   }
+  if(layout)for(const name of ['margin-top','margin-right','margin-bottom','margin-left','alignment','paragraph-gap','layout-reset','page-previous','page-next','page-select','page-status'])elements['compose-'+name]=events({value:name.startsWith('margin-')?'20':name==='alignment'?'left':'0',disabled:false,replaceChildren(){this.value='';},append(option){if(!this.value)this.value=option.value;}});
   if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
   for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
@@ -46,7 +47,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false) {
       const limit = url === '/api/compose' && JSON.parse(options.body).samples === 'latest_only' ? 1 : 3;
       return {ok: !server.error, json: async () => server.error?{error:server.error}:url === '/api/letters/writers'
         ? {writers: [{writer: 'Writer', counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])), original_counts:{a:7,b:8,c:8,d:8,e:8},blend_counts:{a:1},preferred:{},latest_saved_at: server.savedAt, revision:server.revision}]}
-        : {svg: '<svg/>', used_samples: [{letter: 'a'}], sample_selection: {
+        : {svg: '<svg/>',...(server.pages?{pages:server.pages.map(svg=>({svg}))}:{}), used_samples: [{letter: 'a'}], sample_selection: {
           available_counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])),
           counts: {a: limit, b: limit, c: limit, d: limit, e: limit}, newest_saved_at: server.savedAt,writer_revision:server.revision}}};
     }});
@@ -224,4 +225,27 @@ test('shuffled Compose persists its variation, keeps it through spacing and rege
  const settings=c.window.compositions.read();await c.window.compositions.restore(settings);await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,settings.sample_seed);
  const legacy={...settings};delete legacy.sample_order;delete legacy.sample_seed;await c.window.compositions.restore(legacy);assert.equal(e['compose-order'].value,'cycle');assert.equal(e['compose-shuffle'].disabled,true);
  c.server.error='Does not fit';e['compose-order'].value='shuffle';e['compose-order'].emit('change');await e['compose-shuffle'].onclick();assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-shuffle'].disabled,false);
+});
+
+test('page navigation exports the selected page and preserves all pages for saving without regenerating',async()=>{
+ const c=await composer(true,true,true,true),e=c.elements;c.server.pages=['<svg id="one"/>','<svg id="two"/>','<svg id="three"/>'];
+ await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).page_layout.margin_left,20);assert.equal(e['compose-page-status'].textContent,'Page 1 of 3');assert.equal(e['compose-page-previous'].disabled,true);
+ const saved=JSON.stringify(c.window.compositions.readDrawings()),settings=JSON.stringify(c.window.compositions.read()),requests=c.requests.length,firstURL=e['composed-image'].src;
+ e['compose-page-next'].onclick();e['compose-gcode'].onclick();e['compose-download'].onclick();assert.equal(c.exported.at(-1),c.server.pages[1]);assert.equal(c.downloads.at(-2).name,'composed-handwriting-a4-page-02-of-03.gcode');assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4-page-02-of-03.svg');assert(c.revoked.includes(firstURL));
+ e['compose-page-select'].value='2';e['compose-page-select'].emit('change');assert.equal(e['compose-page-next'].disabled,true);assert.equal(e['compose-page-status'].textContent,'Page 3 of 3');assert.equal(c.requests.length,requests);assert.equal(JSON.stringify(c.window.compositions.readDrawings()),saved);assert.equal(JSON.stringify(c.window.compositions.read()),settings);
+ e.phrase.emit('input');assert.equal(c.window.compositions.readDrawings().length,0);assert.equal(e['compose-page-select'].disabled,true);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);
+});
+test('live page layout blocks exports while updating, preserves selection, and clamps removed pages',async()=>{
+ const c=await composer(true,true,true,true),e=c.elements;c.server.pages=['<svg/>','<svg/>'];await e['compose-form'].onsubmit({preventDefault(){}});e['compose-page-next'].onclick();const seed=JSON.parse(c.requests.at(-1).options.body).sample_seed,oldURL=e['composed-image'].src;
+ e['compose-margin-left'].value='35';e['compose-margin-left'].emit('input');assert.equal(e['composed-image'].src,oldURL);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-page-select'].disabled,true);
+ await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-page-status'].textContent,'Page 2 of 2');assert.equal(JSON.parse(c.requests.at(-1).options.body).page_layout.margin_left,35);assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,seed);
+ c.server.pages=['<svg/>'];e['compose-alignment'].value='centre';e['compose-alignment'].emit('change');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-page-status'].textContent,'Page 1 of 1');e['compose-download'].onclick();assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.svg');
+ c.server.error='Margins must be 20–60 mm';e['compose-margin-top'].value='10';e['compose-margin-top'].emit('input');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-download'].disabled,true);assert.equal(c.window.compositions.readDrawings().length,0);assert.match(e['compose-status'].textContent,/Margins/);
+ delete c.server.error;e['compose-layout-reset'].onclick();await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-margin-top'].value,'20');assert.equal(e['compose-alignment'].value,'left');assert.equal(e['compose-download'].disabled,false);
+});
+test('reopening a finished document restores every page and layout even without source handwriting',async()=>{
+ const c=await composer(true,true,true,true),e=c.elements,E=require('../web/engine'),files=require('./browser_helpers').files();const settings={...c.window.compositions.read(),writer:'Unavailable',page_layout:E.pageLayout({margin_left:35,alignment:'right',paragraph_gap:8})},pages=['abc','def'].map(phrase=>E.compose(files,{writer:'Writer',phrase}).svg);
+ await c.window.compositions.restore(settings,'',pages);assert.equal(e['compose-margin-left'].value,'35');assert.equal(e['compose-alignment'].value,'right');assert.equal(e['compose-paragraph-gap'].value,'8');assert.equal(e['compose-page-status'].textContent,'Page 1 of 2');
+ c.server.revision='changed';c.window.emit('pageshow',{persisted:true});await settle();assert.deepEqual([...c.window.compositions.readDrawings()],pages);e['compose-page-next'].onclick();e['compose-gcode'].onclick();assert.equal(c.exported.at(-1),pages[1]);
+ const legacy={...settings,writer:'Writer'};delete legacy.page_layout;await c.window.compositions.restore(legacy,pages[0]);assert.equal(e['compose-margin-left'].value,'20');assert.equal(e['compose-alignment'].value,'left');assert.equal(e['compose-page-status'].textContent,'Page 1 of 1');
 });

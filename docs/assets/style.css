@@ -181,3 +181,11 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 #backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }
 #backup-dialog p { line-height: 1.5; }
 #backup-file { max-width: 100%; }
+
+.compose-layout {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;min-width:0;}
+.layout-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px;margin-bottom:12px;}
+.layout-fields label {display:flex;flex-direction:column;gap:6px;min-width:0;}
+.layout-fields input,.layout-fields select,.compose-pages select {box-sizing:border-box;max-width:100%;font:inherit;font-size:16px;min-height:44px;padding:8px;color:#203832;background:white;border:1px solid #b9c9bf;border-radius:7px;}
+.compose-layout p {line-height:1.5;margin-bottom:0;}
+.compose-pages {display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0;}
+.compose-pages label {display:flex;gap:8px;align-items:center;}

@@ -136,15 +136,18 @@
     return svg;
   }
   function compositionSettings(data){
-    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>2000)fail('Choose a writer and enter text before saving a composition.');
+    if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>(data.page_layout!==undefined?10000:2000))fail('Choose a writer and enter text within the document limit before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??true,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
     if(![3,5,8].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
+    if(data.page_layout!==undefined)result.page_layout=pageLayout(data.page_layout);
     return result;
   }
   function createComposition(data){
     if(!data||!uuid(data.id)||typeof data.title!=='string'||!data.title.trim()||data.title.length>100)fail('Give the composition a name (up to 100 characters).');
-    const record={schema_version:data.drawing?2:1,id:data.id,title:data.title.trim(),updated_at:new Date().toISOString(),settings:compositionSettings(data.settings)};
+    if(data.drawings!==undefined&&(!Array.isArray(data.drawings)||data.drawings.length>20||data.drawing))fail('Invalid finished document.');
+    const record={schema_version:data.drawings?.length?3:data.drawing?2:1,id:data.id,title:data.title.trim(),updated_at:new Date().toISOString(),settings:compositionSettings(data.settings)};
+    if(data.drawings?.length)record.drawings=data.drawings.map(validateDrawingSVG);
     if(data.drawing)record.drawing=validateDrawingSVG(data.drawing);size(record);return record;
   }
   function reviewWord(files,data){
@@ -221,8 +224,8 @@
       for(const [letter,setting] of Object.entries(r.adjustments)){if(![...characters,...pairs].includes(letter))fail('Invalid spacing character.');validateCharacterSpacing(setting);}size(r);return;
     }
     if(key.startsWith('compositions/')){
-      if(!r||![1,2].includes(r.schema_version)||!uuid(r.id)||key!=='compositions/'+r.id+'.json'||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid saved composition.');
-      if(r.schema_version===1?r.drawing!==undefined:typeof r.drawing!=='string'||!r.drawing)fail('Invalid finished composition.');
+      if(!r||![1,2,3].includes(r.schema_version)||!uuid(r.id)||key!=='compositions/'+r.id+'.json'||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid saved composition.');
+      if(r.schema_version===1?(r.drawing!==undefined||r.drawings!==undefined):r.schema_version===2?(typeof r.drawing!=='string'||!r.drawing||r.drawings!==undefined):(r.drawing!==undefined||!Array.isArray(r.drawings)||!r.drawings.length||r.drawings.length>20))fail('Invalid finished composition.');
       const normalized=createComposition(r);if(r.title!==normalized.title||!same(r.settings,normalized.settings))fail('Invalid saved composition settings.');size(r);return;
     }
     if(key.startsWith('alphabets/')){
@@ -342,15 +345,20 @@
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
   function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
+  function wordLayout(letters,used,height,letter_spacing,adjustments){
+    const scale=height/80;
+    let cursor=0;const positions=[];
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale)+a.after_mm*height/5;}
+    const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+(used[j].bounds.right-used[j].bounds.left)*scale))-left;
+    return {positions,left,wordWidth,cursor};
+  }
   function layoutWriting(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},frame={x:20,y:20,width:170,bottom:277},adjustments={},extents=writingExtents(used,height)){
     const scale=height/80,{above,below}=extents,right=frame.x+frame.width;let x=frame.x,baseline=frame.y+above;
     const line=above+below+height*.8*line_spacing,paths=[],chosen=[];
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){x=frame.x;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
-      let cursor=0;const positions=[];
-      for(let j=i;j<end;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<end?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale)+a.after_mm*height/5;}
-      const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+(used[i+j].bounds.right-used[i+j].bounds.left)*scale))-left;
+      const {positions,left,wordWidth,cursor}=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
       if(wordWidth>frame.width)fail('A word is too wide for the page. Choose a smaller writing size or add a space.');
       if(x+wordWidth>right){x=frame.x;baseline+=line;}
       if(baseline+below>frame.bottom)fail('This phrase does not fit on one A4 page. Use fewer words or a smaller writing size.');
@@ -358,6 +366,42 @@
       x+=Math.max(0,cursor-left)+height*.22;i=end;
     }
     return {paths,chosen,height:baseline+below-frame.y};
+  }
+  function pageLayout(value={}){
+    if(!value||typeof value!=='object'||Array.isArray(value))fail('Choose valid page layout settings.');
+    const defaults={margin_top:20,margin_right:20,margin_bottom:20,margin_left:20,alignment:'left',paragraph_gap:0};
+    const result=Object.fromEntries(Object.entries(defaults).map(([key,fallback])=>[key,value[key]===undefined?fallback:value[key]]));
+    if(!['margin_top','margin_right','margin_bottom','margin_left'].every(k=>finite(result[k],20,60))||!['left','centre','right'].includes(result.alignment)||!finite(result.paragraph_gap,0,30))fail('Margins must be 20–60 mm and extra paragraph spacing 0–30 mm. Choose left, centre or right alignment.');
+    return result;
+  }
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},adjustments={},settings={}){
+    const layout=pageLayout(settings),width=210-layout.margin_left-layout.margin_right,bottom=297-layout.margin_bottom,scale=height/80;
+    const {above,below}=writingExtents(used,height),advance=above+below+height*.8*line_spacing;
+    if(above+below>bottom-layout.margin_top)fail('The writing is taller than the available page area. Reduce its size or margins.');
+    const lines=[];let row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};
+    const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
+    for(let i=0;i<letters.length;){
+      if(letters[i]==='\n'){flush();i++;continue;}
+      if(letters[i]===' '){row.cursor+=height*.7*word_spacing;i++;continue;}
+      let end=i;while(end<letters.length&&used[end])end++;
+      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
+      if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
+      if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j]});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+(s.bounds.right-s.bounds.left)*scale);}
+      row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
+    }
+    // Preserve paragraph breaks, but never create blank leading/trailing pages.
+    flush();while(lines.length&&!lines[0].glyphs.length)lines.shift();while(lines.length&&!lines.at(-1).glyphs.length)lines.pop();
+    const pages=[];let page={paths:[],chosen:[],lines:[]},baseline=layout.margin_top+above,blank=false;
+    for(const line of lines){
+      if(!line.glyphs.length){baseline+=advance;blank=true;continue;}
+      if(blank){baseline+=layout.paragraph_gap;blank=false;}
+      if(baseline+below>bottom+.00001){if(page.paths.length){pages.push(page);if(pages.length>=20)fail('This document needs more than 20 pages. Split the text into smaller documents.');page={paths:[],chosen:[],lines:[]};}baseline=layout.margin_top+above;}
+      const offset=layout.margin_left+(layout.alignment==='centre'?(width-line.right-line.left)/2:layout.alignment==='right'?width-line.right:0);
+      for(const {s,x,letter} of line.glyphs){for(const stroke of s.processed_strokes)page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));page.chosen.push({letter,capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join('')});baseline+=advance;
+    }
+    if(page.paths.length)pages.push(page);return pages;
   }
   function validateSampleOrder(order,seed){if(!['cycle','shuffle'].includes(order)||typeof seed!=='string'||!seed.length||seed.length>80)fail('Choose a sample order and a valid variation.');}
   function samplePicker(order,seed){
@@ -380,7 +424,7 @@
     if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
-    if(typeof phrase!=='string'||phrase.length>2000||![...phrase].some(c=>characters.includes(c)))fail('Type a phrase (up to 2000 characters).');
+    if(typeof phrase!=='string'||phrase.length>(data.page_layout!==undefined?10000:2000)||![...phrase].some(c=>characters.includes(c)))fail(data.page_layout!==undefined?'Type a document (up to 10,000 characters).':'Type a phrase (up to 2000 characters).');
     if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
     if(!finite(height,2,12)||typeof smooth!=='boolean'||typeof joined!=='boolean')fail('Choose a writing size from 2 to 12 mm.');
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
@@ -407,9 +451,11 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),layout=layoutWriting(letters,used,{height,smooth,letter_spacing,word_spacing,line_spacing},undefined,profile.character_spacing),paths=layout.paths,chosen=layout.chosen;
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing};
+    const layouts=data.page_layout!==undefined?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
-    return {svg:drawingSVG(paths,'Handwriting: '+phrase),used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
+    return {svg:pages[0].svg,pages,used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
       sample_selection:{mode,source,use_preferred,sample_order,sample_seed,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
   function comparisonMany(sources,result){
@@ -427,6 +473,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
