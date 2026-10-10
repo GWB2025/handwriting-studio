@@ -21,7 +21,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: python3 scripts/build_pages.py
       - run: npm test
-      - run: STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs tests/test_recovery.cjs
+      - run: STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs tests/test_recovery.cjs tests/test_proof_ui.cjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

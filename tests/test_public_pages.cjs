@@ -11,4 +11,7 @@ test('built pages have unique control IDs and working local asset and help links
  }
  for(const name of ['index.html','notebook.html','compose.html']){assert(contents[name].includes('id="recovery-dialog"'));assert(contents[name].includes('id="draft-status"'));assert(contents[name].includes('assets/recovery.js'));assert(contents[name].indexOf('id="recovery-dialog"')<contents[name].indexOf(name==='compose.html'?'assets/compose.js':'assets/app.js'));}
  assert(contents['compose.html'].indexOf('assets/compositions.js')<contents['compose.html'].indexOf('assets/compose.js'));
+ assert(contents['proof.html'].indexOf('assets/proof-texts.js')<contents['proof.html'].indexOf('assets/proof.js'));
+ for(const id of ['proof-example','proof-page-number','proof-previous','proof-next','proof-sentence'])assert(contents['proof.html'].includes('id="'+id+'"'));
+ assert(contents['proof.html'].includes('<option value="passage">Text passage</option>'));
 });

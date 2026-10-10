@@ -182,13 +182,15 @@
     createSavedBlend(files,{...recipe,id:record.id});return recipe;
   }
   function proofSheet(files,data){
-    const {writer,kind='lowercase',source='both',height=5,sentence=''}=data,p=plans[kind];
+    const {writer,kind='lowercase',source='both',height=5,sentence='',text_only=false}=data,p=plans[kind];
     if(!p)fail('Choose a proof sheet group.');
-    if(typeof sentence!=='string')fail('Enter a test sentence.');
+    if(typeof sentence!=='string'||sentence.length>10000)fail('Enter test text of up to 10,000 characters.');
     const profile=catalog(files).writers.find(p=>p.writer===writer),counts=countsFor(profile,source);
     const ready=tokens(p.alphabet).filter(c=>counts[c]>0),missing=tokens(p.alphabet).filter(c=>!counts[c]);
-    if(!ready.length)fail('No included samples for this group and source type.');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase:ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'')});
+    if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
+    if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
+    const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase,page_layout:{}});
     return {...result,missing,characters:ready};
   }
   function validateBlendReferences(files){

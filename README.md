@@ -14,7 +14,7 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 2. **Review samples** to include/exclude individual originals or saved blends, adjust their size and baseline, and compare a short word live.
 3. **Blend a character** from two or four different original captures by dragging the live result towards its sources. Save the result as a new sample.
 4. **My alphabet** shows coverage, original/blend counts and preferred versions for each writer and group.
-5. **Alphabet proof sheet**, opened from My alphabet, tests your chosen characters and an optional sentence at physical writing sizes. **Compose** adds live spacing, margins, alignment and paragraph-gap controls, with automatic page breaks. Both export A4 SVG or plotter G-code.
+5. **Alphabet proof sheet**, opened from My alphabet, tests your chosen characters with pangrams or longer passages at physical writing sizes. **Compose** adds live spacing, margins, alignment and paragraph-gap controls. Both support automatic page breaks and export A4 SVG or plotter G-code.
 6. **Calibration** provides the verified A4 checking procedure and downloadable stages. Send G-code from the Mac connected to the plotter.
 
 **Free writing** and **Saved pages** are also available through Capture’s Show help and the Help guide. They store notebook pages separately from labelled character samples.
@@ -98,7 +98,13 @@ Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer a
 
 Missing group characters are listed and omitted from the character row. A test sentence requiring unavailable characters reports the missing samples and prevents export; edit it or leave it blank. The initial sentence uses the lowercase pangram when all lowercase letters are available, otherwise a short selection of available characters. Edited text is preserved across setting changes. Settings and sentence edits update the preview automatically; **Refresh preview** also reloads saved choices.
 
-Download `alphabet-proof-a4.svg` or `alphabet-proof-a4.gcode`. Both contain the displayed handwriting on A4 with 20 mm margins, using the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
+**Test sentences** offers eight pangrams, each using all 26 lowercase letters: The quick brown fox, Pack my box, Sphinx of black quartz, How vexingly quick, The five boxing wizards, Bright vixens, Waltz bad nymph and Jackdaws love. Choose **All eight pangrams** to load them together. Choosing an example replaces the text; **Your own text** keeps it available for editing, and **Automatic example** restores the original behaviour based on available samples.
+
+Choose **Sheet → Text passage** to view a block of writing without the alphabet row. The examples include William Shakespeare’s [Sonnet 18](https://shakespeare.mit.edu/Poetry/sonnet.XVIII.html), with all fourteen verse lines. **Lowercase letters only** omits punctuation so a lowercase collection is sufficient; **Original text** needs the corresponding capital and punctuation samples too. Choosing a passage example opens Text passage automatically. You can edit it or paste your own text. Explicit line breaks are kept and long lines wrap at word boundaries. The group control does not apply to Text passage; the writer, source type, writing size, preferred versions and Review adjustments still apply.
+
+Alphabet sheets and passages continue onto further A4 pages when needed, up to 10,000 characters (including the alphabet row) and 20 pages. Use **Previous page** and **Next page** to inspect them. Each download contains exactly the displayed page. Single-page downloads are `alphabet-proof-a4.svg` / `.gcode`, or `text-proof-a4.svg` / `.gcode` for a passage; longer documents add `-page-1`, `-page-2`, and so on. Download each page separately. Downloads are disabled while updating or when text cannot be laid out, including missing samples or a word wider than the page.
+
+Exports use A4 with 20 mm margins and the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
 
 ### Compare originals, blends and preferred choices
 
@@ -227,7 +233,7 @@ For missing sources, backup conflicts, stale controls or missing Compose charact
 npm ci --ignore-scripts
 npm run build
 npm test
-STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs tests/test_recovery.cjs
+STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs tests/test_recovery.cjs tests/test_proof_ui.cjs
 # With the Python app dependencies installed:
 python3 -m unittest discover -s tests
 ```
