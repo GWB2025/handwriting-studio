@@ -4,12 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
-<link rel="stylesheet" href="assets/style.css?v=b17cd84fafc3">
-<script src="assets/engine.js?v=1a2ed41732b7"></script><script src="assets/browser-api.js?v=e58aecec8053"></script>
-</head>
-<body class="compose-page">
+<link rel="stylesheet" href="assets/style.css?v=0c5cca319b9c">
+<script src="assets/engine.js?v=1a2ed41732b7"></script><script src="assets/browser-api.js?v=6a8712161fba"></script><script src="assets/recovery-store.js?v=353fa98b532e"></script>
+<script src="assets/recovery.js?v=daf3be38dd97"></script></head>
+<body class="compose-page"><dialog id="recovery-dialog" aria-labelledby="recovery-title">
+<h2 id="recovery-title">Recover unfinished work</h2>
+<p>Choose a recovery copy from this browser. Restoring opens a working copy; saved handwriting and finished compositions stay intact. A listed draft may also be open in another tab.</p>
+<label>Draft <select id="recovery-list"></select></label>
+<p id="recovery-detail"></p>
+<div class="compose-actions"><button id="recovery-restore" type="button" class="primary">Restore draft</button><button id="recovery-discard" type="button">Discard draft</button><button id="recovery-later" type="button">Keep for later</button></div>
+<p id="recovery-status" role="status" aria-live="polite"></p>
+<p>Recovery copies stay on this device and are not included in backups. Save restored work normally before downloading a backup.</p>
+</dialog>
+
 <div class="compose-shell">
-  <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
+  <aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small><small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons"><button id="recovery-open" type="button">Drafts</button><button id="backup-open" type="button">Backup / Import</button></div></aside>
 <header><div><p class="eyebrow">Handwriting Studio</p><h1>Compose your handwriting</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="index.html">Capture letters</a><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend a character</a><a class="button" href="help.html#compose" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a></nav></header>
   <p>Type with your saved letters, numbers and punctuation. Choose a fixed sequence or shuffled selection below. Included preferred versions are used when enabled and allowed by the source type; otherwise the chosen sample pool is used. Excluded samples are skipped.</p>
   <fieldset class="saved-compositions"><legend>Saved compositions</legend><label>Name <input id="composition-title" type="text" maxlength="100" placeholder="For example: Letter to a friend"></label><div class="compose-actions"><button id="composition-save" type="button">Save composition</button><button id="composition-copy" type="button">Save a copy</button></div><label>Saved documents <select id="composition-list"></select></label><button id="composition-open" type="button" disabled>Open composition</button><p id="composition-status" role="status" class="subtle">Save text, writing size, source choices, spacing and page layout in this browser. Generate a preview before saving to keep every finished page too. Opening it restores all pages for repeat downloads. Generate preview uses your current handwriting; settings can also be saved as a draft. Use Backup / Import to transfer compositions.</p></fieldset>
@@ -54,8 +63,8 @@ abcdefghijklmnopqrstuvwxyz</textarea>
 </div>
 <p class="subtle">G-code uses the verified A4 calibration: top-left home, +X right, −Y down, Z0.5 up and Z5 down. Send the downloaded file from the Mac connected to the plotter. <a href="calibration.html">Check calibration</a> before using a new paper setup.</p>
 <script src="assets/plotter.js?v=c6e39143f57e"></script>
-<script src="assets/compositions.js?v=b19e65514179"></script><script src="assets/compose.js?v=d4d7dd31886d"></script>
-<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js?v=41211bb8d54a"></script>
+<script src="assets/compositions.js?v=95745c62f9b3"></script><script src="assets/compose.js?v=ceea8d2dad03"></script>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js?v=ff1f62d2c1e9"></script>
 </body>
 </html>

@@ -7,8 +7,8 @@ DEST = ROOT / 'docs'
 DEST.mkdir(exist_ok=True)
 assets = DEST / 'assets'
 assets.mkdir(exist_ok=True)
-notice = '''<aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
-<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
+notice = '''<aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small></div><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
 route = {'/proof':'proof.html','/help':'help.html','/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
 def adapt(text):
     text = text.replace('fetch(', 'window.studioFetch(')
@@ -25,9 +25,9 @@ for name in ['app.js','capture.js','compose.js','review.js','library.js','calibr
     (assets/name).write_text(adapt((ROOT/'static'/name).read_text()))
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
-style+='\n'+(ROOT/'web/compose-layout.css').read_text()
+style+='\n'+(ROOT/'web/compose-layout.css').read_text()+'\n'+(ROOT/'web/recovery.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-comparison.js','compositions.js','character-spacing.js']:
+for name in ['recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-comparison.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
     html=adapt((ROOT/('web' if source in ['help.html','proof.html'] else 'static')/source).read_text())
@@ -40,7 +40,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         else:html=html.replace('<div class="header-actions">','<div class="header-actions">'+help_link,1)
     html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
-    html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script>\n</head>')
+    html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script><script src="assets/recovery-store.js"></script>\n</head>')
     if(source=='blending.html'):
         html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
@@ -76,11 +76,18 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<div class="capture-heading">','<label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs</option></select></label><div class="capture-heading">')
         html=html.replace('Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets.', 'Choose lowercase, uppercase, numbers, punctuation and symbols, or joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress.')
         html=html.replace('These letters keep the drawn baseline; other letters settle onto it automatically.', 'These lowercase letters keep the drawn baseline; other lowercase letters settle onto it automatically. Capitals reach the tall-letter line. Capitals, numbers, punctuation and joined pairs keep their drawn baseline; write joined pairs as a connected shape.')
-        html=html.replace('<a href="notebook.html">Open free writing</a>.', '<a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Save sheets before leaving or refreshing: unsaved drafts are not restored. Use Backup / Import to keep a copy of saved work.')
+        html=html.replace('<a href="notebook.html">Open free writing</a>.', '<a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Drafts offers recovery of unfinished writing. Use Save sheet to keep it in your alphabet before backing up. Use Backup / Import to keep a copy of saved work.')
         html=html.replace('</div>\n    <div class="toolbar">', '<p>After capture, use Review samples to check originals, Blend a character to mix two or four examples, and My alphabet to choose preferred versions for Compose.</p></div>\n    <div class="toolbar">',1)
     if(source=='index.html'):
-        html=html.replace('Smoothing changes the display and SVG only.', 'Smoothing changes the display and SVG only. Saved pages reopens earlier writing; saving edits creates a new copy. These pages are separate from character samples used by Compose. Use Backup / Import to keep a copy; unsaved drafts are not backed up.')
+        html=html.replace('Smoothing changes the display and SVG only.', 'Smoothing changes the display and SVG only. Saved pages reopens earlier writing; saving edits creates a new copy. These pages are separate from character samples used by Compose. Drafts offers recovery of unfinished writing. Use Save page before Backup / Import; recovery copies are not backed up.')
     banner,modal=notice.split('<dialog',1)
+    if source in ['capture.html','index.html','compose.html']:
+        banner=banner.replace('</div><div class="storage-buttons">','<small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons">')
+        banner=banner.replace('<button id="backup-open"','<button id="recovery-open" type="button">Drafts</button><button id="backup-open"')
+        # Definitions load before screen scripts; dialog and writing adapter follow the screen.
+        html=html.replace('</head>','<script src="assets/recovery.js"></script></head>')
+        html=re.sub(r'(<body[^>]*>)',lambda m:m.group(1)+(ROOT/'web/recovery.html').read_text(),html,count=1)
+        if source!='compose.html':html=html.replace('</body>','<script src="assets/writing-recovery.js"></script></body>')
     html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')
     # Changed assets get fresh URLs when a tablet reloads the page.

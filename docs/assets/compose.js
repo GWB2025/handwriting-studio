@@ -52,7 +52,7 @@
     byID('generate').disabled=!byID('compose-writer').value;
     byID('generate').textContent='Generate preview';
     byID('compose-status').textContent='Settings changed. Generate a new preview before downloading.';
-    showCounts();
+    showCounts();window.StudioRecovery?.changed();
   }
   function showCounts(counts){
     orderControls();
@@ -105,7 +105,7 @@
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. '+previewPages.length+' page'+(previewPages.length===1?'':'s')+'. Downloads export the selected page exactly.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
-      if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';
+      if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';window.StudioRecovery?.changed();
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=(error.name==='AbortError'?'Browser storage took too long to respond. Try Generate preview again.':error.message)+(event.live&&imageURL?' Previous preview shown; adjust settings to update it.':'');}
     finally{clearTimeout(timeout);if(ticket===requestNumber){loading=false;controller=null;byID('generate').disabled=false;byID('generate').textContent='Generate preview';orderControls();}}
   };
@@ -181,7 +181,7 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData()}),restore:async (settings,drawing='',drawings)=>{
+    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData()}),restore:async (settings,drawing='',drawings)=>{
       const savedPages=drawings?.length?drawings:drawing?[drawing]:[];for(const svg of savedPages)window.StudioEngine.validateDrawingSVG(svg);
       const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!savedPages.length){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
       byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
@@ -190,5 +190,16 @@
       setLayout(settings.page_layout);pageIndex=0;hasPreview=false;invalidate();
       if(savedPages.length){previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
     }});
+    if(window.StudioRecovery){
+      const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-order',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
+      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{seed:sampleSeed,fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
+        if(!profiles.some(p=>p.writer===data.fields['compose-writer'])){const option=document.createElement('option');option.value=data.fields['compose-writer'];option.textContent=(option.value||'Choose a writer')+' · recovered draft';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
+        for(const id of draftIDs)if(byID(id)&&data.fields[id]!==undefined){if(['compose-smooth','compose-preferred','compose-joined'].includes(id))byID(id).checked=data.fields[id];else byID(id).value=data.fields[id];}
+        sampleSeed=data.seed;phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
+        for(const name of ['letter','word','line'])byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
+        byID('compose-status').textContent='Composition draft restored. Generate a preview and Save composition to keep it. Your earlier saved document is unchanged.';
+      }});
+      for(const id of draftIDs)for(const event of ['input','change'])byID(id)?.addEventListener(event,()=>window.StudioRecovery.changed());
+    }
   });
 })();

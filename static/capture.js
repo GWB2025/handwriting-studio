@@ -104,17 +104,19 @@
     const h=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
     return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
   }
+  function sheetBody(){return JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked,order_index:sheet,plan_id:plan.id,...(window.StudioEngine?{capture_orders:orders}:{})});}
   async function saveSheet(){
     if(saving || active)return;
     if(phase==='practice'){start();return;}
     if(phase==='complete'){window.location.href=composeURL();return;}
     if(!strokes.length)return;
     finishWriter();
-    const body=JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked,order_index:sheet,plan_id:plan.id,...(window.StudioEngine?{capture_orders:orders}:{})});
+    const body=sheetBody();
     if(body!==lastBody){lastBody=body;lastID=requestID();}
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
     saving=true;message('Saving sheet '+(sheet%setSize+1)+' on this Mac…');
     try{
+      await window.StudioRecovery?.flush();
       const r=await fetch('/api/letters/pages',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,
         body:JSON.stringify({...JSON.parse(body),request_id:lastID})});
       const data=await r.json();if(!r.ok)throw Error(data.error || 'Save failed.');
@@ -129,7 +131,18 @@
         'Not saved: '+error.message+' Your writing is still here.');
     }finally{clearTimeout(timeout);saving=false;updateSave();redraw();}
   }
-  window.notebookMode={updateControls,drawGuides};
+  window.notebookMode={updateControls,drawGuides,recovery:{kind:'capture',canRestore:()=>!saving&&!active,read:()=>phase!=='complete'&&dirty&&(strokes.length||undone.length)?{
+    writer:$('writer').value,strokes,undone,smooth:$('smooth').checked,phase,sheet,orders,plan_id:plan.id,
+    request_id:sheetBody()===lastBody?lastID:'',guides:Object.fromEntries(['guides','guide-small','guide-tall','guide-tail','guide-shading'].map(id=>[id,$(id).checked]))
+  }:null,restore:async data=>{
+    const E=window.StudioEngine;release();plan=E.getPlan(data.plan_id);setSize=plan.sheets_per_set;orders=E.clone(data.orders);sheet=data.sheet;phase=data.phase;
+    strokes=E.clone(data.strokes);undone=E.clone(data.undone);origin=null;dirty=true;saved=false;lastID=data.request_id||'';
+    $('writer').value=data.writer;finishedWriter=data.writer.trim();$('smooth').checked=data.smooth;lastBody=lastID?sheetBody():'';
+    for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])if(typeof data.guides?.[id]==='boolean')$(id).checked=data.guides[id];
+    if($('capture-kind'))$('capture-kind').value=Object.keys(E.plans).find(k=>E.plans[k].id===plan.id);
+    canvas.setAttribute('aria-label','Write one '+Array.from(order()).join(', ')+' in the corresponding labelled boxes');instructions();updateCounts();updateSave();redraw();settlePage();
+    message(phase==='capture'?'Capture draft restored with its original labels. Save sheet when it is complete.':'Practice draft restored. Start capture when ready.');
+  }}};
   $('save').onclick=saveSheet;
   $('more-sheets').onclick=start;
   $('clear').onclick=()=>{if(saving || phase==='complete')return;blankSheet();message(phase==='practice'?'Practice cleared. Nothing was saved.':'Current sheet cleared. Previously saved letter samples are kept.');};
@@ -140,7 +153,7 @@
   $('writer').addEventListener('input',writerChanged);
   $('writer').addEventListener('change',writerChanged);
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};
-  for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])$(id).onchange=redraw;
+  for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])$(id).onchange=()=>{redraw();window.StudioRecovery?.changed();};
   try{if(!$('writer').value)$('writer').value=localStorage.getItem('handwriting-writer')||'';}catch{}
   if($('capture-kind') && window.StudioEngine){
     $('capture-kind').onchange=()=>{

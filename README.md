@@ -6,7 +6,7 @@ Current public website documentation · updated 10 October 2026.
 
 Handwriting Studio captures your handwriting, reviews and blends individual characters, and composes A4 pages for SVG export or a pen plotter. The website runs in Safari or Chrome, including on an iPad. No Mac server, Python setup or login is needed to use it. **Help guide** on each screen opens the relevant instructions in a separate tab; **Show help** on Capture and Free writing provides short instructions in place.
 
-**Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** regularly. Save your current sheet or page before refreshing: unsaved drafts are not restored or included in backups.
+**Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** regularly. Automatic recovery keeps local copies of unfinished capture, free writing and Compose edits. Reopening offers Restore draft or Discard draft. Save restored work normally before backing up; recovery copies are not included in backups.
 
 ## Current workflow
 
@@ -21,13 +21,13 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 
 ## Capture
 
-Enter a writer name, tap **Done**, and choose a capture type. Use the same name for repeated sets belonging to the same person; names identify separate collections, not signed-in accounts. Practice is optional and is not saved. **Start capture** opens the next unsaved sheet for that writer and type.
+Enter a writer name, tap **Done**, and choose a capture type. Use the same name for repeated sets belonging to the same person; names identify separate collections, not signed-in accounts. Practice is optional and does not become a saved character sample; its unfinished strokes can have a local recovery copy. **Start capture** opens the next unsaved sheet for that writer and type.
 
 Write one labelled character per box with a Pencil or mouse. Fingers can use controls but do not draw on Capture or Free writing. Keep all strokes, including dots and crossbars, in their own box. The app assigns strokes by box; it does not recognise whether you wrote the correct character.
 
 Each set covers every character in its group once, with shuffled positions. Lowercase uses six sheets for all 26 letters; other groups show their own sheet count. Saved orders preserve the labels when resuming or importing. Finish the current set before changing capture type. **Capture another set** adds more examples: two complete sets provide two originals per character, and four provide four.
 
-**Save sheet** advances only after storage confirms the save. Undo/Redo and Clear sheet affect the current draft. Missing boxes, tiny marks or strokes crossing between boxes produce an explanation and leave the draft in place. The writer name is fixed during a set; save the current sheet and reopen Capture to change it. Reopening resumes saved progress, not unsaved strokes.
+**Save sheet** advances only after storage confirms the save. Undo/Redo and Clear sheet affect the current draft. Missing boxes, tiny marks or strokes crossing between boxes produce an explanation and leave the draft in place. The writer name is fixed during a set; save the current sheet and reopen Capture to change it. Reopening resumes saved progress and offers any unfinished recovery copies. Restore a capture draft to keep its exact shuffled labels, sheet position and strokes.
 
 For f, g, j, p, q and y, keep the body on the baseline and tails below. These lowercase letters retain the drawn baseline; other lowercase letters settle onto the baseline using their lowest point. Capitals, numbers, punctuation and joined pairs retain the drawn baseline. Write capitals near the tall-letter guide and joined pairs as connected shapes.
 
@@ -144,9 +144,25 @@ In Compose, give the document a name under **Saved compositions**, then tap **Sa
 
 Saved compositions and their finished drawings stay in this browser and are included in Backup / Import. Snapshots retain the exact SVG geometry of every page; G-code is generated from that geometry using the app’s plotter settings. The saved-record limit is 8 MB; if a very detailed document exceeds it, export its pages and save shorter compositions.
 
+## Recover unfinished work
+
+**Capture**, **Free writing** and **Compose** keep recovery copies in this browser. Completed strokes are copied after the pen lifts; text and setting edits are copied shortly after changes. The banner reports when a recovery copy is saved or if recovery storage fails. A stroke still being drawn is not copied.
+
+When reopening a screen with unfinished work, choose a dated copy and **Restore draft**, **Discard draft**, or **Keep for later**. **Drafts** reopens the list. Discard removes only the selected recovery copy, with confirmation. Clearing the current writing or successfully saving it clears that working recovery copy. If you restore while another draft is on screen, the current draft is retained as a separate recovery copy.
+
+Capture recovery preserves the writer, capture type, shuffled labels, sheet number, guide settings, completed strokes and Undo/Redo history. Practice recovery remains practice; starting capture clears it as usual. Free-writing recovery preserves strokes, Undo/Redo and smoothing. Neither becomes library handwriting until you use the normal Save button.
+
+Compose recovery preserves text, title, writing and page settings, including partially entered fields and the shuffled variation. **Generate preview** again before exporting. **Save composition** creates a separate record for recovered work, preserving any earlier saved finished document. Preview images are not stored in recovery copies; use Save composition to retain exact finished pages.
+
+Each browser tab keeps its own copy. A draft may also be open in another tab; restoring creates a working copy without overwriting newer changes. Recovery relies on browser storage and cannot guarantee the last edits after an abrupt device shutdown. It does not replace Save or Backup / Import, and clearing website data removes recovery copies too. Recovery is currently provided for these three screens; save review and blending edits explicitly.
+
 ## Backup and import
 
 Use **Backup / Import → Download backup** to keep a JSON copy of saved captures, blends, review choices, alphabet preferences, character spacing, compositions with finished drawings and free-writing pages. Save drafts first. Transfer this file to another device and import it there; there is no automatic cloud sync.
+
+The **Backup needed / Import** reminder appears when saved work differs from the last confirmed backup, including changes to existing reviews, preferences, spacing or compositions. It counts changed saved items, not individual letters. Open Backup / Import to see the last confirmation time.
+
+After **Download backup**, check that the JSON file is in Downloads or your chosen folder, then tap **I have saved the backup file**. Requesting a download alone does not clear the reminder. Confirmation applies to that downloaded snapshot; changes made afterwards still need a new backup. Earlier downloads made before this feature are not automatically marked as confirmed. Importing adds saved work but does not confirm a backup of the combined library.
 
 Import validates all records and references before adding anything. Identical records are skipped. Conflicting versions of an existing record reject the entire import without overwriting work. Keep both backups and use a separate browser/profile with no Studio data to inspect the other version. Do not clear current writing to resolve a conflict. Refresh samples or reopen Capture after import. The file limit is 100 MB.
 
@@ -205,18 +221,18 @@ For missing sources, backup conflicts, stale controls or missing Compose charact
 
 ## Development and publishing
 
-`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds eight working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
+`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. `web/recovery-store.js` uses a separate local database for recovery copies and confirmed backup manifests; these housekeeping records never enter handwriting backups. `web/recovery.js` provides the shared recovery controls. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds eight working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
 
 ```sh
 npm ci --ignore-scripts
 npm run build
 npm test
-STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs
+STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs tests/test_review.cjs tests/test_compositions_ui.cjs tests/test_character_spacing_ui.cjs tests/test_recovery.cjs
 # With the Python app dependencies installed:
 python3 -m unittest discover -s tests
 ```
 
-Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions, saved-mix reopening, proof sheets, live spacing and export. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
+Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions, saved-mix reopening, proof sheets, live spacing, export, draft recovery and backup reminders. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
 
 In repository Settings → Pages, choose **GitHub Actions**. The **Publish Handwriting Studio** workflow tests and deploys `docs/` on pushes to `main`. The build copies only named UI files, never local handwriting or backups. When a feature changes, update this README, its Help guide section and nearby control instructions, rebuild, and check help links before publishing.
 

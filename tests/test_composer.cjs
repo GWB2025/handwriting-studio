@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer(extended=false,savedCompositions=false,shuffle=false,layout=false) {
+async function composer(extended=false,savedCompositions=false,shuffle=false,layout=false,recovery=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -26,6 +26,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
+  if(recovery)elements['composition-title']=events({value:''});
   const downloads = [];
   const document = events({hidden: false, getElementById: id => elements[id],
     body: {append(node) {node.attached = true;}},
@@ -35,7 +36,8 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     } : {}});
   const exported=[];
   const window = events({StudioPlotter:{fromSVG:svg=>{exported.push(svg);return 'G21\n';}},...(extended?{StudioEngine:require('../web/engine.js')} : {}),location: {search: '?writer=Writer'}});
-  if(savedCompositions)window.StudioCompositions={init(handlers){window.compositions=handlers;}};
+  if(savedCompositions)window.StudioCompositions={init(handlers){window.compositions=handlers;const baseline=JSON.stringify(handlers.read());return {isBusy:()=>false,hasUnsavedChanges:()=>window.draftRecovered||JSON.stringify(handlers.read())!==baseline,resetForRecovery(){window.draftRecovered=true;}};}};
+  if(recovery)window.StudioRecovery={init(handlers){window.recovery=handlers;},changed(){}};
   const requests = [], revoked = [];
   const server = {count: 8, savedAt: '2026-10-05T10:15:00Z', offline: false, revision:'original'};
   let serial = 0;
@@ -248,4 +250,9 @@ test('reopening a finished document restores every page and layout even without 
  await c.window.compositions.restore(settings,'',pages);assert.equal(e['compose-margin-left'].value,'35');assert.equal(e['compose-alignment'].value,'right');assert.equal(e['compose-paragraph-gap'].value,'8');assert.equal(e['compose-page-status'].textContent,'Page 1 of 2');
  c.server.revision='changed';c.window.emit('pageshow',{persisted:true});await settle();assert.deepEqual([...c.window.compositions.readDrawings()],pages);e['compose-page-next'].onclick();e['compose-gcode'].onclick();assert.equal(c.exported.at(-1),pages[1]);
  const legacy={...settings,writer:'Writer'};delete legacy.page_layout;await c.window.compositions.restore(legacy,pages[0]);assert.equal(e['compose-margin-left'].value,'20');assert.equal(e['compose-alignment'].value,'left');assert.equal(e['compose-page-status'].textContent,'Page 1 of 1');
+});
+
+test('composition recovery keeps partial form input, text and variation while requiring a fresh preview',async()=>{
+ const c=await composer(true,true,true,true,true),e=c.elements;assert.equal(c.window.recovery.read(),null);e.phrase.value='my unfinished\nletter';e['compose-margin-left'].value='';e['compose-order'].value='shuffle';e['composition-title'].value='Draft letter';const draft=JSON.parse(JSON.stringify(c.window.recovery.read()));assert.equal(draft.fields['compose-margin-left'],'');
+ const next=await composer(true,true,true,true,true);await next.window.recovery.restore(draft);assert.equal(next.elements.phrase.value,'my unfinished\nletter');assert.equal(next.elements['composition-title'].value,'Draft letter');assert.equal(next.elements['compose-margin-left'].value,'');assert.equal(next.window.recovery.read().seed,draft.seed);assert.equal(next.window.draftRecovered,true);assert.equal(next.elements['compose-download'].disabled,true);assert.equal(next.window.compositions.readDrawings().length,0);
 });

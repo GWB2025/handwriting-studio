@@ -49,3 +49,8 @@ test('finished documents save and reopen all pages, protect against draft overwr
 test('new document workspace reopens a legacy finished page and upgrades it without losing its drawing',async()=>{
  const w=await workspace(true),svg=E.compose(require('./browser_helpers').files(),w.draft).svg,record=E.createComposition({id:webcrypto.randomUUID(),title:'Old page',settings:w.draft,drawing:svg});w.records.push({key:'compositions/'+record.id+'.json',value:record});await w.api.refresh();await w.ids['composition-open'].onclick();assert.deepEqual(w.drawings,[svg]);assert.equal(w.api.hasUnsavedChanges(),false);await w.ids['composition-save'].onclick();assert.equal(w.records[0].value.schema_version,3);assert.deepEqual(w.records[0].value.drawings,[svg]);
 });
+
+test('saving a recovered composition creates a separate record instead of overwriting the previous finished document',async()=>{
+ const w=await workspace(true);w.ids['composition-title'].value='Original';w.drawings=[E.compose(require('./browser_helpers').files(),w.draft).svg];await w.ids['composition-save'].onclick();const original=E.clone(w.records[0].value);
+ w.draft={...w.draft,phrase:'recovered text'};w.drawings=[];w.api.resetForRecovery();assert.equal(w.api.hasUnsavedChanges(),true);await w.ids['composition-save'].onclick();assert.equal(w.records.length,2);assert.deepEqual(w.records[0].value,original);assert.equal(w.records[1].value.settings.phrase,'recovered text');
+});

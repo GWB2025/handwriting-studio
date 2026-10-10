@@ -4,13 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Letter capture</title>
-<link rel="stylesheet" href="assets/style.css?v=b17cd84fafc3">
-<script src="assets/engine.js?v=1a2ed41732b7"></script><script src="assets/browser-api.js?v=e58aecec8053"></script>
-</head>
-<body>
+<link rel="stylesheet" href="assets/style.css?v=0c5cca319b9c">
+<script src="assets/engine.js?v=1a2ed41732b7"></script><script src="assets/browser-api.js?v=6a8712161fba"></script><script src="assets/recovery-store.js?v=353fa98b532e"></script>
+<script src="assets/recovery.js?v=daf3be38dd97"></script></head>
+<body><dialog id="recovery-dialog" aria-labelledby="recovery-title">
+<h2 id="recovery-title">Recover unfinished work</h2>
+<p>Choose a recovery copy from this browser. Restoring opens a working copy; saved handwriting and finished compositions stay intact. A listed draft may also be open in another tab.</p>
+<label>Draft <select id="recovery-list"></select></label>
+<p id="recovery-detail"></p>
+<div class="compose-actions"><button id="recovery-restore" type="button" class="primary">Restore draft</button><button id="recovery-discard" type="button">Discard draft</button><button id="recovery-later" type="button">Keep for later</button></div>
+<p id="recovery-status" role="status" aria-live="polite"></p>
+<p>Recovery copies stay on this device and are not included in backups. Save restored work normally before downloading a backup.</p>
+</dialog>
+
 <main id="notebook" class="letter-capture">
   <section class="controls" aria-label="Capture settings">
-    <aside class="browser-storage"><span>Saved on this browser · use Backup to keep a copy or move writing between devices.</span> <button id="backup-open" type="button">Backup / Import</button></aside>
+    <aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small><small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons"><button id="recovery-open" type="button">Drafts</button><button id="backup-open" type="button">Backup / Import</button></div></aside>
 <header>
       <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
       <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button><a class="button" href="calibration.html">Calibration</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend a character</a><a class="button" href="help.html#capture" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a></nav>
@@ -21,7 +30,7 @@
     <div id="guidance" hidden>
       <p>Use your usual handwriting, one example per box. Choose lowercase, uppercase, numbers, punctuation and symbols, or joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress. Start capture continues after your latest saved sheet.</p>
       <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These lowercase letters keep the drawn baseline; other lowercase letters settle onto it automatically. Capitals reach the tall-letter line. Capitals, numbers, punctuation and joined pairs keep their drawn baseline; write joined pairs as a connected shape. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
-      <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Save sheets before leaving or refreshing: unsaved drafts are not restored. Use Backup / Import to keep a copy of saved work.</p>
+      <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Drafts offers recovery of unfinished writing. Use Save sheet to keep it in your alphabet before backing up. Use Backup / Import to keep a copy of saved work.</p>
     <p>After capture, use Review samples to check originals, Blend a character to mix two or four examples, and My alphabet to choose preferred versions for Compose.</p></div>
     <div class="toolbar">
       <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
@@ -44,9 +53,9 @@
   <p id="status" role="status" aria-live="polite">Enter a writer name. Practice is optional; Start capture opens your next alphabet sheet.</p>
 </main>
 
-<script src="assets/app.js?v=c68dfd834c03"></script>
-<script src="assets/capture.js?v=8e7c62e812aa"></script>
-<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js?v=41211bb8d54a"></script>
+<script src="assets/app.js?v=1d66964d6aca"></script>
+<script src="assets/capture.js?v=beca4fd45cd9"></script>
+<script src="assets/writing-recovery.js?v=4d364a2d27a3"></script><dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js?v=ff1f62d2c1e9"></script>
 </body>
 </html>

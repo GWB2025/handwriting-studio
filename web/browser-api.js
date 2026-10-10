@@ -17,7 +17,7 @@
     return new Promise((resolve,reject)=>{
       const tx=db.transaction('files',edit?'readwrite':'readonly'),store=tx.objectStore('files'),request=store.getAll();let result,error;
       request.onsuccess=()=>{try{result=edit?edit(request.result,store):request.result;}catch(e){error=e;tx.abort();}};
-      tx.oncomplete=()=>resolve(result);
+      tx.oncomplete=()=>{resolve(result);if(edit&&typeof window.dispatchEvent==='function'&&typeof CustomEvent==='function')window.dispatchEvent(new CustomEvent('studio-saved-change'));};
       tx.onabort=tx.onerror=()=>reject(error||tx.error||Error('Could not save browser data.'));
     });
   }

@@ -1,0 +1,11 @@
+.storage-info {min-width:0;line-height:1.4;}
+.storage-info small {display:block;}
+.storage-buttons {display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0;}
+#backup-open.backup-due {border-color:#99763b;background:#fff4d9;}
+#backup-confirm {margin-top:12px;}
+#recovery-dialog {width:calc(100% - 24px);max-width:38rem;padding:20px;border:1px solid #93ad9b;border-radius:12px;}
+#recovery-dialog[open] {display:block;height:auto;max-height:90svh;overflow:auto;inset:0;margin:auto;touch-action:auto;}
+#recovery-dialog::backdrop {background:#10231c66;}
+#recovery-dialog p {line-height:1.5;}
+#recovery-list {display:block;width:100%;font:inherit;font-size:16px;min-height:44px;margin:8px 0;}
+@media(max-width:600px){.browser-storage{flex-wrap:wrap;gap:8px}.storage-buttons{flex-shrink:1;}}

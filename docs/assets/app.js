@@ -15,6 +15,7 @@ function updateSave(){
   $('undo').disabled=saving || (!active && !strokes.length);
   $('redo').disabled=saving || !!active || !undone.length;
   window.notebookMode?.updateControls();
+  window.StudioRecovery?.changed();
 }
 const message=text=>{$('status').textContent=text;updateSave();};
 let layoutFrame=null,layoutRetries=[];
@@ -109,7 +110,7 @@ window.addEventListener('pointermove',e=>{
 window.addEventListener('pointerup',e=>{
   if(!active || active.id!==e.pointerId)return;
   e.preventDefault();
-  point(e);const {id,...stroke}=active;release();strokes.push(stroke);undone=[];updateSave();redraw();
+  point(e);const {id,...stroke}=active;release();strokes.push(stroke);undone=[];updateSave();redraw();window.StudioRecovery?.flush();
 });
 // Safari can treat short Pencil contacts or palm touches as browser gestures,
 // even with touch-action on the absolutely positioned drawing canvas. Keep
@@ -169,7 +170,7 @@ $('save').onclick=async()=>{
   if(!$('writer').value.trim()){message('Enter the writer’s name above, then press Save page.');$('writer').focus();return;}
   if(!strokes.length){message('Write something before saving.');return;}
   saving=true;$('writer').disabled=true;$('smooth').disabled=true;message('Saving…');
-  try{const r=await window.studioFetch('/api/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked})});const data=await r.json();if(!r.ok)throw Error(data.error);dirty=false;saved=true;message('✓ Saved in this browser at '+new Date(data.saved_at).toLocaleTimeString()+'. You can clear the page or keep writing.');}
+  try{await window.StudioRecovery?.flush();const r=await window.studioFetch('/api/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writer:$('writer').value.trim(),strokes,smooth:$('smooth').checked})});const data=await r.json();if(!r.ok)throw Error(data.error);dirty=false;saved=true;message('✓ Saved in this browser at '+new Date(data.saved_at).toLocaleTimeString()+'. You can clear the page or keep writing.');}
   catch(e){message('Could not save: '+e.message+' Your writing is still here.');}
   finally{saving=false;$('writer').disabled=false;$('smooth').disabled=false;updateSave();}
 };

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'app.js'), 'utf8');
 
-function notebook(guided = false, profiles = [], shuffled = false) {
+function notebook(guided = false, profiles = [], shuffled = false, recovery = false) {
   const listeners = target => {
     const events = {};
     target.listenerOptions = {};
@@ -36,9 +36,11 @@ function notebook(guided = false, profiles = [], shuffled = false) {
   const window = listeners({visualViewport: viewport, innerHeight: 680, innerWidth: 1180,
     devicePixelRatio: 1, scrollY: 0, scrollX: 0, capturePlan: {id:'lowercase-v2', orders:['acebd','fhjgi','kmln','oqpr','sutv','wyxz'],
       sheets_per_set:6, tall_letters:'bdfhklt',descenders:'fgjpqy',guides:{ascender:170,x_height:250,baseline:330,descender:410}}});
+  const requests=[];
+  if(recovery)window.StudioRecovery={init(options){window.recovery=options;},changed(){},async flush(){window.recoveryCopy=JSON.parse(JSON.stringify(window.recovery?.read()||null));}};
   const context = vm.createContext({document, window, crypto:require('node:crypto').webcrypto, AbortController,
     localStorage: {getItem() {return null;}, setItem() {}},
-    fetch: async () => ({ok: true, json: async () => ({writers: profiles, unavailable_count: 0, saved_at:'2026-10-05T12:00:00Z'})}),
+    fetch: async (url,options) => {requests.push({url,options});return {ok: true, json: async () => ({writers: profiles, unavailable_count: 0, saved_at:'2026-10-05T12:00:00Z'})};},
     requestAnimationFrame: fn => {frames.set(++serial, fn); return serial;},
     setTimeout: (fn, delay) => {timers.set(++serial, {fn, due: now + delay}); return serial;},
     clearTimeout: id => timers.delete(id), ResizeObserver: class {observe() {}}});
@@ -56,8 +58,9 @@ function notebook(guided = false, profiles = [], shuffled = false) {
   context.window.studioFetch=context.fetch;
   vm.runInContext(source, context);
   if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'capture.js'), 'utf8'), context);
+  if(recovery)vm.runInContext(fs.readFileSync(process.env.STUDIO_PAGES_TEST?'docs/assets/writing-recovery.js':'web/writing-recovery.js','utf8'),context);
   flush();
-  return {elements, styles, viewport, window, document, context, flush, advance};
+  return {elements, styles, viewport, window, document, context, flush, advance,requests};
 }
 
 test('viewport event can arrive before dimensions change', () => {
@@ -322,4 +325,17 @@ test('capture category changes open uppercase and joined sheets without corrupti
  assert.match(n.elements.paper.attributes['aria-label'],/Write one [A-Z]/);
  n.elements.writer.value='Writer';n.elements.save.onclick();n.flush();
  assert.equal(select.disabled,true);assert.match(n.elements['capture-step'].textContent,/sheet 1 of 7/);
+});
+
+test('capture recovery restores shuffled labels, raw sensor data, redo, phase and retry identity',async()=>{
+ const n=notebook(true,[],true,true);await new Promise(resolve=>setImmediate(resolve));n.elements.writer.value='Writer';await n.elements.save.onclick();draw(n,50,100);draw(n,100,200);n.elements.undo.onclick();n.elements['guide-shading'].checked=false;n.elements['guide-shading'].onchange();
+ const draft=JSON.parse(JSON.stringify(n.window.recovery.read()));assert.equal(draft.phase,'capture');assert.equal(draft.undone.length,1);assert.equal(draft.strokes.length,1);
+ const restored=notebook(true,[],true,true);await restored.window.recovery.restore(draft);assert.equal(restored.elements.paper.attributes['aria-label'],n.elements.paper.attributes['aria-label']);assert.equal(restored.elements['capture-kind'].disabled,true);assert.equal(restored.elements['guide-shading'].checked,false);assert.equal(restored.elements.redo.disabled,false);assert.equal(vm.runInContext('JSON.stringify(strokes)',restored.context),JSON.stringify(draft.strokes));assert.equal(vm.runInContext('JSON.stringify(undone)',restored.context),JSON.stringify(draft.undone));
+ await restored.elements.save.onclick();const submitted=JSON.parse(restored.requests.find(r=>r.url==='/api/letters/pages').options.body),retryDraft=restored.window.recoveryCopy;assert.equal(retryDraft.request_id,submitted.request_id);assert.equal(restored.window.recovery.read(),null);
+ const retry=notebook(true,[],true,true);await retry.window.recovery.restore(retryDraft);await retry.elements.save.onclick();assert.deepEqual(JSON.parse(retry.requests.find(r=>r.url==='/api/letters/pages').options.body),submitted);
+});
+test('free-writing recovery preserves undone strokes and resumes the original point timeline',async()=>{
+ const n=notebook(false,[],true,true);n.elements.writer.value='Writer';draw(n,100,400);draw(n,200,500);n.elements.undo.onclick();const draft=JSON.parse(JSON.stringify(n.window.recovery.read()));
+ const restored=notebook(false,[],true,true);await restored.window.recovery.restore(draft);restored.elements.redo.onclick();assert.equal(vm.runInContext('strokes.length',restored.context),2);assert.equal(restored.elements.save.disabled,false);const end=vm.runInContext('strokes.at(-1).points.at(-1).t',restored.context);draw(restored,300,1);assert(vm.runInContext('strokes.at(-1).points[0].t',restored.context)>=end);
+ restored.elements.clear.onclick();assert.equal(restored.window.recovery.read(),null);
 });
