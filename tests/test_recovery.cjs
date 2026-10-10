@@ -28,6 +28,14 @@ test('separate tabs, stale writes and conditional removals cannot overwrite newe
  assert.notEqual(stale.id,original.id);assert.equal(await b.remove(original),false);assert.equal((await a.list('notebook')).length,3);
  assert.equal(await a.remove(newer),true);const resumed=await a.put('notebook',{...writing(),writer:'Resumed tab'},newer);assert.notEqual(resumed.id,newer.id);assert((await a.list('notebook')).some(r=>r.id===second.id));
 });
+test('legacy and current symbol drafts round-trip with their own shuffled sheets and placement preference',async()=>{
+ const S=context().StudioRecoveryStore;
+ for(const id of ['symbols-v3',E.plans.symbols.id]){
+  const plan=E.getPlan(id),payload={...writing(),phase:'capture',plan_id:id,sheet:1,orders:E.shuffleSet(plan.orders,0,()=>.4,plan),guides:{'guide-symbols':false}};
+  const record=await S.put('capture',payload);assert.deepEqual(clone(record.payload),payload);
+ }
+ const drafts=await S.list('capture');assert.equal(drafts.length,2);assert(drafts.some(d=>d.payload.plan_id==='symbols-v3'&&d.payload.orders.flat().length===32));assert(drafts.some(d=>d.payload.orders.flat().includes('^')));
+});
 test('startup offers restore/discard without changing the editor, and restore keeps a separate working copy',async()=>{
  const c=context(),old=await c.StudioRecoveryStore.put('notebook',writing()),w=await recovery(c);
  assert.equal(w.els['recovery-dialog'].open,true);assert.equal(w.value,null);await w.els['recovery-restore'].onclick();

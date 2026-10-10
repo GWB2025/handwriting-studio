@@ -6,6 +6,9 @@
   let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan):plan.orders;
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
+  const symbols=()=>plan.id.startsWith('symbols-');
+  const planKind=()=>symbols()?'symbols':Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);
+  const symbolPlacement=letter=>symbols()?window.StudioSymbolGuides?.placement(letter,plan.guides):null;
   const composeURL=()=>'compose.html?writer='+encodeURIComponent($('writer').value.trim());
   function updateCounts(){
     const writer=$('writer').value.trim(),profile=profiles.find(p=>p.writer===writer);
@@ -27,6 +30,7 @@
   }
   function updateControls(){
     const complete=phase==='complete';
+    $('guide-symbols-option').hidden=!symbols();
     if($('capture-kind'))$('capture-kind').disabled=saving || !!active || phase==='capture';
     $('writer').disabled=saving || !!active || phase!=='practice';
     $('writer-done').disabled=$('writer').disabled || !$('writer').value.trim() || $('writer').value.trim()===finishedWriter;
@@ -50,18 +54,20 @@
     const labelScale=1000/Math.max(1,canvas.getBoundingClientRect().width);
     const width=1000/order().length;
     for(let i=0;i<order().length;i++){
-      const x=i*width,letter=order()[i],tall=plan.tall_letters.includes(letter),tail=plan.descenders.includes(letter);
+      const x=i*width,letter=order()[i],tall=plan.tall_letters.includes(letter),tail=plan.descenders.includes(letter),placement=symbolPlacement(letter);
       context.fillStyle='#203832';context.font='bold '+(26*labelScale)+'px -apple-system, sans-serif';context.fillText(letter,x+18,45);
+      if(placement){context.font=(12*Math.min(labelScale,2))+'px -apple-system, sans-serif';context.fillText(placement.name,x+18,85,width-36);}
       if($('guide-shading').checked){
-        const top=tall?plan.guides.ascender:plan.guides.x_height,bottom=tail?plan.guides.descender:plan.guides.baseline;
+        const top=placement?placement.top:tall?plan.guides.ascender:plan.guides.x_height,bottom=placement?placement.bottom:tail?plan.guides.descender:plan.guides.baseline;
         context.fillStyle='#e9f0e94d';context.fillRect(x+8,top,width-16,bottom-top);
       }
+      if(placement && $('guide-symbols').checked)window.StudioSymbolGuides.draw(context,letter,x,width,plan.guides,labelScale);
       context.font=(12*labelScale)+'px -apple-system, sans-serif';context.fillStyle='#62776c';
       for(const [id,y,label] of [['guide-tall',plan.guides.ascender,'tall letters'],['guide-small',plan.guides.x_height,'small letters'],['guides',plan.guides.baseline,'baseline'],['guide-tail',plan.guides.descender,'tails below']]){
         if(!$(id).checked)continue;
         context.strokeStyle=y===330?'#93ad9b':'#d1dcd1';context.lineWidth=y===330?1.4:.8;
         context.setLineDash(y===330?[]:[5,5]);context.beginPath();context.moveTo(x+8,y);context.lineTo(x+width-8,y);context.stroke();
-        context.fillText(label,x+10,y-7);
+        context.fillText(symbols()?label.replace(' letters',' line').replace(' below',''):label,x+10,y-7);
       }
       context.setLineDash([]);context.strokeStyle='#b9cbbd';context.lineWidth=1;
       if(i){context.beginPath();context.moveTo(x,0);context.lineTo(x,500);context.stroke();}
@@ -70,7 +76,7 @@
   }
   function blankSheet(){
     release();strokes=[];undone=[];origin=null;dirty=false;saved=false;
-    canvas.setAttribute('aria-label','Write one '+Array.from(order()).join(', ')+' in the corresponding labelled boxes');
+    labelSheet();
     redraw();updateSave();
   }
   function start(){
@@ -82,8 +88,14 @@
     }
     $('writer').removeAttribute('aria-invalid');
     const profile=profiles.find(p=>p.writer===$('writer').value.trim());
+    const E=window.StudioEngine,upgrade=E&&phase==='complete'&&plan.id==='symbols-v3';
+    if(upgrade){plan=E.plans.symbols;setSize=plan.sheets_per_set;orders=plan.orders;}
+    // Finish an earlier shuffled set under its original plan before adding the caret.
+    if(E&&phase!=='complete'&&symbols()&&!profile?.capture_progress?.[E.plans.symbols.id]&&profile?.capture_progress?.['symbols-v3']?.next_order_index>0){
+      plan=E.getPlan('symbols-v3');setSize=plan.sheets_per_set;
+    }
     const progress=profile?.capture_progress?.[plan.id] || (plan.id==='lowercase-v2'?profile:null);
-    sheet=phase==='complete'?(sheet+1)%orders.length:(progress?.next_order_index || 0);
+    sheet=upgrade?0:phase==='complete'?(sheet+1)%orders.length:(progress?.next_order_index || 0);
     if(window.StudioEngine){
       if(phase!=='complete')orders=progress?.capture_orders || plan.orders;
       // Resume saved shuffled sets exactly; new sets receive a fresh shuffle.
@@ -91,12 +103,15 @@
     }
     finishWriter();phase='capture';blankSheet();
     try{localStorage.setItem('handwriting-writer',$('writer').value.trim());}catch{}
-    instructions();
+    instructions();updateCounts();
     message('Sheet '+(sheet%setSize+1)+' of '+setSize+' · Write '+Array.from(order()).join(', ')+'. Saved sheets stay in this browser if you stop here.');
   }
   function instructions(){
     const tails=[...order()].filter(letter=>plan.descenders.includes(letter));
-    $('capture-instruction').textContent='Write one '+Array.from(order()).join(', ')+' in the labelled boxes. '+(tails.length?'For '+tails.join(', ')+', place the body on the baseline and any tail below it.':'Use your usual letter proportions; tall letters reach above the small-letter line.');
+    $('capture-instruction').textContent=symbols()?'Write only the labelled symbol in each box. The pale a letters show its position in text; do not copy them. Use your own shape at the suggested height. Symbol placement hides or shows the examples.':'Write one '+Array.from(order()).join(', ')+' in the labelled boxes. '+(tails.length?'For '+tails.join(', ')+', place the body on the baseline and any tail below it.':'Use your usual letter proportions; tall letters reach above the small-letter line.');
+  }
+  function labelSheet(){
+    canvas.setAttribute('aria-label',symbols()?Array.from(order(),letter=>{const p=symbolPlacement(letter);return p?letter+' · '+p.name+': '+p.lines.join('; '):letter;}).join('. ')+'. Write only the labelled symbols, not the pale reference letters.':'Write one '+Array.from(order()).join(', ')+' in the corresponding labelled boxes');
   }
   function requestID(){
     // getRandomValues works on local HTTP in iPad Safari; randomUUID may not.
@@ -133,14 +148,14 @@
   }
   window.notebookMode={updateControls,drawGuides,recovery:{kind:'capture',canRestore:()=>!saving&&!active,read:()=>phase!=='complete'&&dirty&&(strokes.length||undone.length)?{
     writer:$('writer').value,strokes,undone,smooth:$('smooth').checked,phase,sheet,orders,plan_id:plan.id,
-    request_id:sheetBody()===lastBody?lastID:'',guides:Object.fromEntries(['guides','guide-small','guide-tall','guide-tail','guide-shading'].map(id=>[id,$(id).checked]))
+    request_id:sheetBody()===lastBody?lastID:'',guides:Object.fromEntries(['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'].map(id=>[id,$(id).checked]))
   }:null,restore:async data=>{
     const E=window.StudioEngine;release();plan=E.getPlan(data.plan_id);setSize=plan.sheets_per_set;orders=E.clone(data.orders);sheet=data.sheet;phase=data.phase;
     strokes=E.clone(data.strokes);undone=E.clone(data.undone);origin=null;dirty=true;saved=false;lastID=data.request_id||'';
     $('writer').value=data.writer;finishedWriter=data.writer.trim();$('smooth').checked=data.smooth;lastBody=lastID?sheetBody():'';
-    for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])if(typeof data.guides?.[id]==='boolean')$(id).checked=data.guides[id];
-    if($('capture-kind'))$('capture-kind').value=Object.keys(E.plans).find(k=>E.plans[k].id===plan.id);
-    canvas.setAttribute('aria-label','Write one '+Array.from(order()).join(', ')+' in the corresponding labelled boxes');instructions();updateCounts();updateSave();redraw();settlePage();
+    for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'])if(typeof data.guides?.[id]==='boolean')$(id).checked=data.guides[id];
+    if($('capture-kind'))$('capture-kind').value=planKind();
+    labelSheet();instructions();updateCounts();updateSave();redraw();settlePage();
     message(phase==='capture'?'Capture draft restored with its original labels. Save sheet when it is complete.':'Practice draft restored. Start capture when ready.');
   }}};
   $('save').onclick=saveSheet;
@@ -153,12 +168,12 @@
   $('writer').addEventListener('input',writerChanged);
   $('writer').addEventListener('change',writerChanged);
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};
-  for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading'])$(id).onchange=()=>{redraw();window.StudioRecovery?.changed();};
+  for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'])$(id).onchange=()=>{redraw();window.StudioRecovery?.changed();};
   try{if(!$('writer').value)$('writer').value=localStorage.getItem('handwriting-writer')||'';}catch{}
   if($('capture-kind') && window.StudioEngine){
     $('capture-kind').onchange=()=>{
       if(saving || active || phase==='capture')return;
-      if(hasUnsavedWriting() && !window.confirm('Changing the capture type clears unsaved practice. Continue?')){$('capture-kind').value=Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);return;}
+      if(hasUnsavedWriting() && !window.confirm('Changing the capture type clears unsaved practice. Continue?')){$('capture-kind').value=planKind();return;}
       plan=window.StudioEngine.plans[$('capture-kind').value];setSize=plan.sheets_per_set;
       orders=window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan);sheet=0;phase='practice';blankSheet();instructions();updateCounts();
       message('Practice · '+$('capture-kind').selectedOptions[0].textContent+'. Start capture when ready.');

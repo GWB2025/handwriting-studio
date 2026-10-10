@@ -4,14 +4,17 @@
   const alphabet='abcdefghijklmnopqrstuvwxyz', groups=['acebd','fhjgi','kmln','oqpr','sutv','wyxz'];
   const plan={id:'lowercase-v2',alphabet,orders:[],sheets_per_set:6,guides:{ascender:170,x_height:250,baseline:330,descender:410},descenders:'fgjpqy',tall_letters:'bdfhklt'};
   for(let repeat=0;repeat<3;repeat++)for(const group of groups){const shift=(group.length===5?repeat*2:repeat)%group.length;plan.orders.push(group.slice(shift)+group.slice(0,shift));}
-  const characters=alphabet+'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'+".,!?;:'\"-()[]{}@£$€%&+=/#_“”‘’–—";
+  const oldSymbols=".,!?;:'\"-()[]{}@£$€%&+=/#_“”‘’–—";
+  const characters=alphabet+'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'+oldSymbols+'^';
   const pairs=['th','he','in','er','an','re','on','at','en','nd','oo','fi','of','tt'];
   const plans={lowercase:plan};
   for(const [name,tokens] of Object.entries({uppercase:[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],numbers:[...'0123456789'],symbols:[...characters.slice(62)],pairs})){
     const orders=[];for(let i=0;i<tokens.length;i+=4)orders.push(tokens.slice(i,i+4));
-    plans[name]={...plan,id:name+'-v3',alphabet:tokens,orders,sheets_per_set:orders.length,tall_letters:name==='uppercase'?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':plan.tall_letters};
+    plans[name]={...plan,id:name+(name==='symbols'?'-v4':'-v3'),alphabet:tokens,orders,sheets_per_set:orders.length,tall_letters:name==='uppercase'?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':plan.tall_letters};
   }
-  const getPlan=id=>Object.values(plans).find(p=>p.id===id);
+  // Keep the original symbol plan available for saved captures and unfinished drafts.
+  const legacySymbols={...plans.symbols,id:'symbols-v3',alphabet:[...oldSymbols],orders:Array.from({length:8},(_,i)=>[...oldSymbols].slice(i*4,i*4+4)),sheets_per_set:8};
+  const getPlan=id=>id===legacySymbols.id?legacySymbols:Object.values(plans).find(p=>p.id===id);
   const tokens=order=>Array.from(order);
   const legacy=['acebd','ebdac','daceb'],clone=value=>JSON.parse(JSON.stringify(value));
   const fail=message=>{throw Error(message);};

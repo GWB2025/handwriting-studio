@@ -19,6 +19,7 @@
     <div id="guidance" hidden>
       <p>Use your usual handwriting, one example per box. Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets. Start capture continues after your latest saved sheet.</p>
       <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These letters keep the drawn baseline; other letters settle onto it automatically. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
+      <p>On symbol sheets, pale a letters show the context of the blue positioning example. Draw only the labelled symbol in your own handwriting. Symbol placement hides or shows these references and their hints; they are never part of your saved writing. Quotes sit high, commas dip below the baseline, and an underscore belongs just below it.</p>
       <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="/notebook">Open free writing</a>.</p>
     </div>
     <div class="toolbar">
@@ -29,6 +30,7 @@
         <label><input id="guide-small" type="checkbox" checked> Small letters</label>
         <label><input id="guide-tall" type="checkbox" checked> Tall letters</label>
         <label><input id="guide-tail" type="checkbox" checked> Tails</label>
+        <label id="guide-symbols-option" hidden><input id="guide-symbols" type="checkbox" checked> Symbol placement</label>
         <label><input id="guide-shading" type="checkbox" checked> Shading</label>
       </div>
       <span id="input">Ready for Pencil</span>
@@ -43,6 +45,7 @@
 </main>
 <script src="/api/letters/plan.js"></script>
 <script src="/static/app.js?v=11"></script>
-<script src="/static/capture.js?v=16"></script>
+<script src="/static/symbol-guides.js?v=1"></script>
+<script src="/static/capture.js?v=17"></script>
 </body>
 </html>

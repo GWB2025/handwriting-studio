@@ -19,7 +19,7 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
     documentElement: {style: {setProperty: (key, value) => styles[key] = value}},
     getElementById: id => elements[id], createElement: () => ({})});
   for (const id of ['notebook','paper','writer','writer-done','saved-pages','save','status','input','smooth','guides','focus','guidance','undo','redo','clear','export',
-    'compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading']) {
+    'compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols','guide-symbols-option']) {
     elements[id] = listeners({value: '', checked: true, hidden: true, style: {},
       attributes: {}, classList: {toggle() {}},
       setAttribute(name, value) { this.attributes[name] = value; },
@@ -31,7 +31,9 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
       setPointerCapture() {}, hasPointerCapture: () => false});
   }
   elements.paper.parentElement = elements.paper;
-  elements.paper.getContext = () => new Proxy({}, {get: () => () => {}});
+  const drawing=[];
+  const drawingContext=new Proxy({measureText:()=>({actualBoundingBoxLeft:0,actualBoundingBoxRight:60,actualBoundingBoxAscent:80,actualBoundingBoxDescent:20})}, {get:(target,key)=>key in target?target[key]:(...args)=>drawing.push({op:key,args})});
+  elements.paper.getContext = () => drawingContext;
   const viewport = listeners({height: 680, width: 1180, pageTop: 0, pageLeft: 0});
   const window = listeners({visualViewport: viewport, innerHeight: 680, innerWidth: 1180,
     devicePixelRatio: 1, scrollY: 0, scrollX: 0, capturePlan: {id:'lowercase-v2', orders:['acebd','fhjgi','kmln','oqpr','sutv','wyxz'],
@@ -57,10 +59,10 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
   if(shuffled){window.StudioEngine=require('../web/engine.js');window.capturePlan=window.StudioEngine.plan;elements['capture-kind']=listeners({value:'lowercase',selectedOptions:[{textContent:'Lowercase'}]});}
   context.window.studioFetch=context.fetch;
   vm.runInContext(source, context);
-  if (guided) vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'capture.js'), 'utf8'), context);
+  if (guided) for(const name of ['symbol-guides.js','capture.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + name), 'utf8'), context);
   if(recovery)vm.runInContext(fs.readFileSync(process.env.STUDIO_PAGES_TEST?'docs/assets/writing-recovery.js':'web/writing-recovery.js','utf8'),context);
   flush();
-  return {elements, styles, viewport, window, document, context, flush, advance,requests};
+  return {elements, styles, viewport, window, document, context, flush, advance,requests,drawing};
 }
 
 test('viewport event can arrive before dimensions change', () => {
@@ -325,6 +327,29 @@ test('capture category changes open uppercase and joined sheets without corrupti
  assert.match(n.elements.paper.attributes['aria-label'],/Write one [A-Z]/);
  n.elements.writer.value='Writer';n.elements.save.onclick();n.flush();
  assert.equal(select.disabled,true);assert.match(n.elements['capture-step'].textContent,/sheet 1 of 7/);
+});
+
+test('symbol placement follows shuffled labels and toggles without becoming saved strokes',async()=>{
+ const E=require('../web/engine'),n=notebook(true,[],true,true);await new Promise(resolve=>setImmediate(resolve));
+ const draft={writer:'Writer',strokes:[],undone:[],smooth:true,phase:'capture',sheet:1,orders:E.shuffleSet(E.plans.symbols.orders,0,()=>.3,E.plans.symbols),plan_id:E.plans.symbols.id};
+ await n.window.recovery.restore(draft);n.flush();
+ assert.equal(n.elements['guide-symbols-option'].hidden,false);assert.match(n.elements['capture-instruction'].textContent,/do not copy/);
+ for(const c of draft.orders[1])assert(n.elements.paper.attributes['aria-label'].includes(n.window.StudioSymbolGuides.placement(c,E.plan.guides).name));
+ assert(n.drawing.some(d=>d.op==='fillText'&&d.args[0]==='Position example'));assert.equal(vm.runInContext('strokes.length',n.context),0);assert.equal(n.elements.save.disabled,true);
+ draw(n,100,100);const raw=vm.runInContext('JSON.stringify(strokes)',n.context);n.drawing.length=0;n.elements['guide-symbols'].checked=false;n.elements['guide-symbols'].onchange();n.flush();
+ assert(!n.drawing.some(d=>d.op==='fillText'&&d.args[0]==='Position example'));assert.equal(vm.runInContext('JSON.stringify(strokes)',n.context),raw);
+ const copy=JSON.parse(JSON.stringify(n.window.recovery.read())),restored=notebook(true,[],true,true);await restored.window.recovery.restore(copy);assert.equal(restored.elements['guide-symbols'].checked,false);
+ await n.elements.save.onclick();const submitted=JSON.parse(n.requests.find(r=>r.url==='/api/letters/pages').options.body);assert.equal(JSON.stringify(submitted.strokes),raw);assert.equal(submitted.plan_id,E.plans.symbols.id);
+});
+
+test('an unfinished legacy symbol set resumes its old labels and the next set includes the caret',async()=>{
+ const E=require('../web/engine'),p=E.getPlan('symbols-v3'),orders=E.shuffleSet(p.orders,0,()=>.2,p),n=notebook(true,[{writer:'Writer',counts:{},capture_progress:{'symbols-v3':{next_order_index:7,capture_orders:orders}}}],true,true);
+ await new Promise(resolve=>setImmediate(resolve));n.elements['capture-kind'].value='symbols';n.elements['capture-kind'].onchange();n.elements.writer.value='Writer';await n.elements.save.onclick();n.flush();
+ assert.match(n.elements['capture-step'].textContent,/sheet 8 of 8/);for(const c of orders[7])assert(n.elements.paper.attributes['aria-label'].includes(c));
+ draw(n,100,0);const draft=JSON.parse(JSON.stringify(n.window.recovery.read()));assert.equal(draft.plan_id,'symbols-v3');assert.deepEqual(draft.orders,orders);
+ const restored=notebook(true,[],true,true);await restored.window.recovery.restore(draft);assert.equal(restored.elements['capture-kind'].value,'symbols');await restored.elements.save.onclick();
+ assert.equal(JSON.parse(restored.requests.find(r=>r.url==='/api/letters/pages').options.body).plan_id,'symbols-v3');assert.equal(restored.elements['capture-step'].textContent,'Capture set complete');
+ restored.elements['more-sheets'].onclick();draw(restored,100,100);const next=JSON.parse(JSON.stringify(restored.window.recovery.read()));assert.equal(next.plan_id,E.plans.symbols.id);assert(next.orders.flat().includes('^'));assert.match(restored.elements['capture-step'].textContent,/sheet 1 of 9/);
 });
 
 test('capture recovery restores shuffled labels, raw sensor data, redo, phase and retry identity',async()=>{

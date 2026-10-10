@@ -21,7 +21,7 @@ def adapt(text):
     text = text.replace('Check that the Mac is running the app, then tap Refresh list.','Try reopening this page in a regular browser window, then tap Refresh list.')
     text = text.replace('The Mac took too long', 'Browser storage took too long').replace('The Mac could not read this page.', 'Browser storage could not read this page.')
     return text
-for name in ['app.js','capture.js','compose.js','review.js','library.js','calibration.js','plotter.js']:
+for name in ['app.js','symbol-guides.js','capture.js','compose.js','review.js','library.js','calibration.js','plotter.js']:
     (assets/name).write_text(adapt((ROOT/'static'/name).read_text()))
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
@@ -38,7 +38,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         help_link=f'<a class="button" href="help.html#{topic}" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a>'
         if '</nav>' in html:html=html.replace('</nav>',help_link+'</nav>',1)
         else:html=html.replace('<div class="header-actions">','<div class="header-actions">'+help_link,1)
-    html=re.sub(r'/static/([a-z.]+)\?v=\d+', r'assets/\1', html)
+    html=re.sub(r'/static/([a-z.-]+)\?v=\d+', r'assets/\1', html)
     html=html.replace('<script src="/api/letters/plan.js"></script>','')
     html=html.replace('</head>','<script src="assets/engine.js"></script><script src="assets/browser-api.js"></script><script src="assets/recovery-store.js"></script>\n</head>')
     if(source=='blending.html'):

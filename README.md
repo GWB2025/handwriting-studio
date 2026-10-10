@@ -31,6 +31,20 @@ Each set covers every character in its group once, with shuffled positions. Lowe
 
 For f, g, j, p, q and y, keep the body on the baseline and tails below. These lowercase letters retain the drawn baseline; other lowercase letters settle onto the baseline using their lowest point. Capitals, numbers, punctuation and joined pairs retain the drawn baseline. Write capitals near the tall-letter guide and joined pairs as connected shapes.
 
+**Punctuation and symbols** now includes the caret (`^`), with 33 characters across nine sheets. An unfinished earlier eight-sheet set keeps its original shuffled labels; the following set includes the caret. Existing captures and backups remain usable.
+
+Each symbol box shows its name, a pale blue positioning example between two pale reference **a** letters, and a short placement hint. **Draw only the labelled symbol**, using your own handwriting; the reference letters show how high it sits in text. These are suggested positions, not a shape to copy. **Symbol placement** is on by default for this capture type; untick it to hide the examples and hints. Shading follows the symbol’s suggested vertical area and can be hidden separately. Guide references never enter saved samples or SVG exports, and the setting is kept with a recovered draft.
+
+| Symbol | Suggested position |
+| --- | --- |
+| Apostrophes, quotation marks and `^` | Near the tall-letter line, above the small-letter line |
+| Full stop | On the baseline |
+| Comma and semicolon | Comma tail below the baseline; semicolon’s upper dot near the small-letter line |
+| Colon | Upper dot near the small-letter line; lower dot on the baseline |
+| Hyphen, dashes, plus and equals | Centred between the small-letter line and baseline |
+| Underscore | Just below the baseline |
+| Braces, brackets and parentheses | From the tall-letter line to just below the baseline |
+
 **Baseline**, **Small letters**, **Tall letters**, **Tails** and **Shading** can be shown independently. Labels and dividers remain visible. **Gentle smoothing** changes the display/export without rewriting original points. The writing surface suppresses scrolling, pinching and selection during capture; the other screens can be scrolled normally.
 
 ## Review samples
