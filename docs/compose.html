@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
 <link rel="stylesheet" href="assets/style.css?v=0c5cca319b9c">
-<script src="assets/engine.js?v=91ec46d38e89"></script><script src="assets/browser-api.js?v=6a8712161fba"></script><script src="assets/recovery-store.js?v=353fa98b532e"></script>
+<script src="assets/engine.js?v=52a78ca3bef4"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
 <script src="assets/recovery.js?v=daf3be38dd97"></script></head>
 <body class="compose-page"><dialog id="recovery-dialog" aria-labelledby="recovery-title">
 <h2 id="recovery-title">Recover unfinished work</h2>
@@ -30,7 +30,13 @@
     <textarea id="phrase" maxlength="10000" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
 abcdefghijklmnopqrstuvwxyz</textarea>
     <p class="subtle">The example uses this writer’s available letters. Edit it to try your own words. Use captured capitals, lowercase, numbers and supported punctuation, plus spaces and line breaks. Up to 10,000 characters can flow across up to 20 A4 pages. Size refers to the small-letter guide, keeping your natural proportions.</p>
-    <fieldset class="sample-sizing"><legend>Sample order</legend>
+    <fieldset class="sample-sizing"><legend>Natural variation · live after Generate preview</legend>
+<label for="compose-natural">Amount</label><select id="compose-natural"><option value="off">Off</option><option value="subtle">Subtle</option><option value="pronounced">More pronounced</option></select>
+<button id="compose-natural-new" type="button" disabled>Try another natural variation</button>
+<p>Add small changes to word gaps, letter sizes and the slope and curve of lines. Nearby letters vary gradually. Subtle uses up to ±5% word spacing and ±1.5% size; More pronounced uses up to ±10% and ±3%. Page margins remain clear.</p>
+<p>Changing the amount or layout keeps the same pattern. Try another natural variation changes that pattern without choosing different letter samples. Save composition keeps it with your text and settings; generate before saving to keep the exact finished pages.</p>
+</fieldset>
+<fieldset class="sample-sizing"><legend>Sample order</legend>
 <label for="compose-order">Choose letter versions</label><select id="compose-order"><option value="cycle">In sequence</option><option value="shuffle">Shuffled · avoid repetition</option></select>
 <button id="compose-shuffle" type="button" disabled>Try another variation</button>
 <p>Shuffled uses each eligible version before reusing one and avoids repeating it immediately when alternatives exist. It follows your source and preferred-version choices. With only one eligible version, that character stays the same.</p>
@@ -63,7 +69,7 @@ abcdefghijklmnopqrstuvwxyz</textarea>
 </div>
 <p class="subtle">G-code uses the verified A4 calibration: top-left home, +X right, −Y down, Z0.5 up and Z5 down. Send the downloaded file from the Mac connected to the plotter. <a href="calibration.html">Check calibration</a> before using a new paper setup.</p>
 <script src="assets/plotter.js?v=c6e39143f57e"></script>
-<script src="assets/compositions.js?v=95745c62f9b3"></script><script src="assets/compose.js?v=ceea8d2dad03"></script>
+<script src="assets/compositions.js?v=95745c62f9b3"></script><script src="assets/compose.js?v=982cfd649f3f"></script>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
 <script src="assets/backup.js?v=ff1f62d2c1e9"></script>
 </body>

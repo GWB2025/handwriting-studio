@@ -6,6 +6,16 @@ function browser(indexedDB=new IDBFactory()){
 }
 async function call(b,url,data){const response=await b.studioFetch(url,data?{method:'POST',body:JSON.stringify(data)}:{});return {status:response.status,data:await response.json()};}
 
+test('natural variation and every finished page round-trip in backups and reject saves from an older form',async()=>{
+ const b=browser();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:files()});
+ const settings=E.compositionSettings({writer:'Writer',phrase:Array(70).fill('a bad cab').join('\n'),page_layout:{},natural_variation:{level:'pronounced',seed:'backup-pattern'}}),result=await call(b,'/api/compose',settings),drawings=result.data.pages.map(p=>p.svg);assert(drawings.length>1);
+ const id=webcrypto.randomUUID();assert.equal((await call(b,'/api/compositions',{id,title:'Natural pages',settings,drawings})).status,200);
+ const backup=await b.StudioStorage.backup(),fresh=browser();await fresh.StudioStorage.importBackup(backup);const restored=(await call(fresh,'/api/compositions')).data.compositions[0];assert.deepEqual(restored.settings,settings);assert.deepEqual(restored.drawings,drawings);
+ assert.deepEqual((await call(fresh,'/api/compose',restored.settings)).data.pages.map(p=>p.svg),drawings);
+ const older={...settings};delete older.natural_variation;assert.equal((await call(fresh,'/api/compositions',{id,title:'Older form',settings:older,drawings})).status,400);assert.deepEqual((await call(fresh,'/api/compositions')).data.compositions[0],restored);
+ const invalid=structuredClone(backup);invalid.files.find(f=>f.key.startsWith('compositions/')).value.settings.natural_variation.level='extreme';await assert.rejects(fresh.StudioStorage.importBackup(invalid));assert.deepEqual(await fresh.StudioStorage.snapshot(),backup.files);
+});
+
 test('spacing and exact drawings survive backup import; invalid geometry or draft saves preserve finished work',async()=>{
  const b=browser(),original=files();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:original});
  assert.equal((await call(b,'/api/character-spacing',{writer:'Writer',letter:'a',before_mm:.3,after_mm:.8})).status,200);

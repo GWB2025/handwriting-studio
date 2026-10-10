@@ -104,6 +104,8 @@ Choose **Sheet → Text passage** to view a block of writing without the alphabe
 
 Alphabet sheets and passages continue onto further A4 pages when needed, up to 10,000 characters (including the alphabet row) and 20 pages. Use **Previous page** and **Next page** to inspect them. Each download contains exactly the displayed page. Single-page downloads are `alphabet-proof-a4.svg` / `.gcode`, or `text-proof-a4.svg` / `.gcode` for a passage; longer documents add `-page-1`, `-page-2`, and so on. Download each page separately. Downloads are disabled while updating or when text cannot be laid out, including missing samples or a word wider than the page.
 
+**Natural variation → Off / Subtle / More pronounced** adds gentle changes to word spacing, letter size and line slope/curve, with a live preview. Off is the default and keeps the original geometry. **Try another natural variation** chooses another pattern; refresh, page navigation and amount changes keep the current one while this page is open. Download SVG or G-code to keep the exact proof; proof settings are not saved on closing the page. Natural variation is unavailable in Compare versions, which keeps its fixed comparison layout.
+
 Exports use A4 with 20 mm margins and the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
 
 ### Compare originals, blends and preferred choices
@@ -117,6 +119,21 @@ The columns share baseline placement within each test line. Text wraps within ea
 ## Compose and export
 
 Choose a writer and type text using captured lowercase, capitals, digits and supported punctuation, plus spaces and line breaks. The initial example uses available characters; text you have edited is preserved when settings change. The limit is 10,000 characters across up to 20 A4 pages. Whole words continue onto a new page when needed.
+
+### Natural variation
+
+Choose **Off** (the default), **Subtle** or **More pronounced**. After Generate preview, the amount control and **Try another natural variation** update the preview live. Variation works even with one sample per character and is separate from Sample order, which chooses between saved versions.
+
+| Setting | Word-gap variation | Letter-size variation | Line slope | Gentle line curve |
+| --- | --- | --- | --- | --- |
+| Subtle | Up to ±5% | Up to ±1.5% | Up to ±0.15° | Up to ±0.15 mm |
+| More pronounced | Up to ±10% | Up to ±3% | Up to ±0.35° | Up to ±0.35 mm |
+
+Word gaps vary around your Word spacing setting. Whole letters, including dots, crossbars and joined-pair samples, scale together around their reviewed baselines. Nearby sizes and gaps change gradually. Lines share a slight overall slope with slowly varying slope and curve between lines. Extra vertical clearance keeps the varied writing inside the selected margins and keeps lines apart; this can add pages. These effects apply to generated pages and never rewrite saved samples or Review settings.
+
+Changing amount, spacing or layout, or pressing Generate preview, keeps the same pattern for unchanged text and samples. **Try another natural variation** changes the pattern without changing which samples were selected. **Save composition** stores the amount and pattern with the other settings; generating before saving preserves every finished page exactly. Draft recovery and Backup / Import retain the pattern too. Older compositions open with natural variation Off. SVG and G-code use the same finished geometry shown in the preview. Proof sheets offer the same controls for alphabet sheets and text passages.
+
+### Choose samples and layout
 
 **Use** selects **Original samples only**, **Saved blends only**, or **Originals and saved blends** (default). Saved-blends-only reports missing blends instead of silently substituting originals. Compose uses saved samples; create and save blends in the separate blending workspace.
 

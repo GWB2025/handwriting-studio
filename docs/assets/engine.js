@@ -141,6 +141,7 @@
     if(![3,5,8].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
     if(data.page_layout!==undefined)result.page_layout=pageLayout(data.page_layout);
+    if(data.natural_variation!==undefined)result.natural_variation=naturalSettings(data.natural_variation);
     return result;
   }
   function createComposition(data){
@@ -190,7 +191,7 @@
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
     const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase,page_layout:{}});
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase,page_layout:{},natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
   }
   function validateBlendReferences(files){
@@ -376,15 +377,32 @@
     if(!['margin_top','margin_right','margin_bottom','margin_left'].every(k=>finite(result[k],20,60))||!['left','centre','right'].includes(result.alignment)||!finite(result.paragraph_gap,0,30))fail('Margins must be 20–60 mm and extra paragraph spacing 0–30 mm. Choose left, centre or right alignment.');
     return result;
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},adjustments={},settings={}){
+  function naturalSettings(value={level:'off',seed:'0'}){
+    if(!value||typeof value!=='object'||Array.isArray(value)||!['off','subtle','pronounced'].includes(value.level)||typeof value.seed!=='string'||!value.seed.length||value.seed.length>80)fail('Choose Off, Subtle or More pronounced and a valid natural variation.');
+    return {level:value.level,seed:value.seed};
+  }
+  function naturalPattern(value){
+    const settings=naturalSettings(value),limits={off:[0,0,0,0],subtle:[.05,.015,.15,.15],pronounced:[.10,.03,.35,.35]}[settings.level];
+    function noise(channel,index){
+      let hash=2166136261;for(const c of settings.seed+'|'+channel+'|'+index)hash=Math.imul(hash^c.charCodeAt(0),16777619)>>>0;
+      hash^=hash>>>16;hash=Math.imul(hash,0x7feb352d);hash^=hash>>>15;hash=Math.imul(hash,0x846ca68b);hash^=hash>>>16;return (hash>>>0)/4294967295*2-1;
+    }
+    function drift(channel,index,span){const position=index/span,base=Math.floor(position),t=position-base,blend=t*t*(3-2*t);return noise(channel,base)*(1-blend)+noise(channel,base+1)*blend;}
+    return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
+      line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
+  }
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation},adjustments={},settings={}){
     const layout=pageLayout(settings),width=210-layout.margin_left-layout.margin_right,bottom=297-layout.margin_bottom,scale=height/80;
-    const {above,below}=writingExtents(used,height),advance=above+below+height*.8*line_spacing;
+    const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
+    // Vary whole glyphs around their reviewed baselines, never the stored samples.
+    if(natural.on)used=used.map(s=>{if(!s)return null;const factor=1+natural.size*natural.drift('size',glyphIndex++,6);return {...scaleSample(s,factor),natural_scale:factor};});
+    const extents=writingExtents(used,height),padding=natural.slope*width/2+natural.bend,above=extents.above+padding,below=extents.below+padding,advance=above+below+height*.8*line_spacing;
     if(above+below>bottom-layout.margin_top)fail('The writing is taller than the available page area. Reduce its size or margins.');
     const lines=[];let row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};
     const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){flush();i++;continue;}
-      if(letters[i]===' '){row.cursor+=height*.7*word_spacing;i++;continue;}
+      if(letters[i]===' '){row.cursor+=height*.7*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
@@ -400,8 +418,16 @@
       if(blank){baseline+=layout.paragraph_gap;blank=false;}
       if(baseline+below>bottom+.00001){if(page.paths.length){pages.push(page);if(pages.length>=20)fail('This document needs more than 20 pages. Split the text into smaller documents.');page={paths:[],chosen:[],lines:[]};}baseline=layout.margin_top+above;}
       const offset=layout.margin_left+(layout.alignment==='centre'?(width-line.right-line.left)/2:layout.alignment==='right'?width-line.right:0);
-      for(const {s,x,letter} of line.glyphs){for(const stroke of s.processed_strokes)page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));page.chosen.push({letter,capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
-      page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join('')});baseline+=advance;
+      const shape=natural.line(lineIndex++);
+      for(const {s,x,letter} of line.glyphs){for(const stroke of s.processed_strokes){
+        if(natural.on){
+          // Apply a continuous baseline drift to the complete line. The reserved
+          // envelope also contains quadratic control points after smoothing.
+          const points=stroke.points.map(p=>{const px=offset+x+p.x*scale,t=(px-layout.margin_left)/width;return {x:px,y:baseline+s.baseline_shift_mm+p.y*scale+shape.slope*(px-layout.margin_left-width/2)+shape.bend*Math.sin(Math.PI*t)};});
+          page.paths.push(pathData(points,smooth,0,0,1));
+        }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
+      }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join(''),...(natural.on?{natural_line:shape}: {})});baseline+=advance;
     }
     if(page.paths.length)pages.push(page);return pages;
   }
@@ -421,6 +447,7 @@
   function compose(files,data){
     const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
+    const natural=naturalSettings(data.natural_variation);
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
     if(!['originals','blends','both'].includes(source)||typeof use_preferred!=='boolean')fail('Choose original samples, saved blends or both.');
     if(!['latest_three','latest_four','latest_only','all'].includes(mode))fail('Choose which saved samples to use.');
@@ -453,8 +480,8 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing};
-    const layouts=data.page_layout!==undefined?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural};
+    const layouts=data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
     const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     return {svg:pages[0].svg,pages,used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
@@ -475,6 +502,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

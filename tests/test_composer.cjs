@@ -5,7 +5,7 @@ const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'compose.js'), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
-async function composer(extended=false,savedCompositions=false,shuffle=false,layout=false,recovery=false) {
+async function composer(extended=false,savedCompositions=false,shuffle=false,layout=false,recovery=false,natural=false) {
   function events(target) {
     const listeners = {};
     target.addEventListener = (name, fn) => (listeners[name] ??= []).push(fn);
@@ -21,6 +21,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
       removeAttribute(name) { delete this[name]; }});
   }
   if(layout)for(const name of ['margin-top','margin-right','margin-bottom','margin-left','alignment','paragraph-gap','layout-reset','page-previous','page-next','page-select','page-status'])elements['compose-'+name]=events({value:name.startsWith('margin-')?'20':name==='alignment'?'left':'0',disabled:false,replaceChildren(){this.value='';},append(option){if(!this.value)this.value=option.value;}});
+  if(natural){elements['compose-natural']=events({value:'off',disabled:false});elements['compose-natural-new']=events({disabled:true});}
   if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
   for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
   elements.phrase.value = 'a bad cab';
@@ -255,4 +256,19 @@ test('reopening a finished document restores every page and layout even without 
 test('composition recovery keeps partial form input, text and variation while requiring a fresh preview',async()=>{
  const c=await composer(true,true,true,true,true),e=c.elements;assert.equal(c.window.recovery.read(),null);e.phrase.value='my unfinished\nletter';e['compose-margin-left'].value='';e['compose-order'].value='shuffle';e['composition-title'].value='Draft letter';const draft=JSON.parse(JSON.stringify(c.window.recovery.read()));assert.equal(draft.fields['compose-margin-left'],'');
  const next=await composer(true,true,true,true,true);await next.window.recovery.restore(draft);assert.equal(next.elements.phrase.value,'my unfinished\nletter');assert.equal(next.elements['composition-title'].value,'Draft letter');assert.equal(next.elements['compose-margin-left'].value,'');assert.equal(next.window.recovery.read().seed,draft.seed);assert.equal(next.window.draftRecovered,true);assert.equal(next.elements['compose-download'].disabled,true);assert.equal(next.window.compositions.readDrawings().length,0);
+});
+
+test('natural controls update live, retain independent pattern seeds and survive saved settings and draft recovery',async()=>{
+ const c=await composer(true,true,true,true,true,true),e=c.elements;assert.equal(e['compose-natural-new'].disabled,true);
+ await e['compose-form'].onsubmit({preventDefault(){}});const first=JSON.parse(c.requests.at(-1).options.body),oldImage=e['composed-image'].src;
+ e['compose-natural'].value='subtle';e['compose-natural'].emit('change');assert.equal(e['compose-download'].disabled,true);assert.equal(e['composed-image'].src,oldImage);await new Promise(r=>setTimeout(r,230));await settle();
+ const subtle=JSON.parse(c.requests.at(-1).options.body);assert.equal(subtle.natural_variation.level,'subtle');assert.equal(subtle.natural_variation.seed,first.natural_variation.seed);assert.equal(subtle.sample_seed,first.sample_seed);assert.equal(e['compose-download'].disabled,false);
+ e['compose-natural'].value='pronounced';e['compose-natural'].emit('change');await new Promise(r=>setTimeout(r,230));await settle();assert.equal(JSON.parse(c.requests.at(-1).options.body).natural_variation.seed,first.natural_variation.seed);
+ e['compose-natural-new'].onclick();assert.equal(e['compose-gcode'].disabled,true);await new Promise(r=>setTimeout(r,230));await settle();const another=JSON.parse(c.requests.at(-1).options.body);assert.notEqual(another.natural_variation.seed,first.natural_variation.seed);assert.equal(another.sample_seed,first.sample_seed);
+ const saved=JSON.parse(JSON.stringify(c.window.compositions.read()));assert.deepEqual(saved.natural_variation,another.natural_variation);
+ await e['compose-form'].onsubmit({preventDefault(){}});assert.deepEqual(JSON.parse(c.requests.at(-1).options.body).natural_variation,saved.natural_variation);
+ const draft=JSON.parse(JSON.stringify(c.window.recovery.read())),next=await composer(true,true,true,true,true,true);await next.window.recovery.restore(draft);assert.deepEqual(JSON.parse(JSON.stringify(next.window.compositions.read().natural_variation)),saved.natural_variation);
+ await next.window.compositions.restore(saved);assert.deepEqual(JSON.parse(JSON.stringify(next.window.compositions.read().natural_variation)),saved.natural_variation);
+ const legacy={...saved};delete legacy.natural_variation;await next.window.compositions.restore(legacy);assert.equal(next.elements['compose-natural'].value,'off');assert.equal(next.elements['compose-natural-new'].disabled,true);
+ c.server.error='A word is too wide';e['compose-natural-new'].onclick();await new Promise(r=>setTimeout(r,230));await settle();assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.match(e['compose-status'].textContent,/Previous preview shown/);
 });

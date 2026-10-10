@@ -2,10 +2,12 @@
 (async()=>{
  const E=window.StudioEngine,$=id=>document.getElementById(id),query=new URLSearchParams(window.location.search),examples=window.StudioProofTexts.examples;
  let serial=0,timer=null,svg='',url='',automatic=true,pages=[],pageIndex=0,prefix='';
+ let naturalSeed=crypto.randomUUID();
  if(['comparison','passage'].includes(query.get('mode')))$('proof-mode').value=query.get('mode');
  const comparison=()=>$('proof-mode').value==='comparison',passage=()=>$('proof-mode').value==='passage';
  function modeControls(){
   const compare=comparison();$('proof-kind').disabled=compare||passage();for(const id of ['proof-source','proof-size'])$(id).disabled=compare;
+  $('proof-natural-controls').hidden=compare;$('proof-natural').disabled=compare;$('proof-natural-new').disabled=compare||$('proof-natural').value==='off';
   $('proof-alphabet-text').hidden=compare;$('proof-comparison-text').hidden=!compare;
   $('proof-text-label').textContent=passage()?'Passage to preview':'Test sentences · optional';$('proof-sentence').rows=passage()?8:4;
   $('proof-sentence').placeholder=passage()?'Choose a passage or paste your own text':'Leave blank for characters only';
@@ -40,7 +42,7 @@
     const source=$('proof-source').value,kind=$('proof-kind').value,counts=E.countsFor(cat.writers.find(p=>p.writer===selected),source),tokens=E.tokens(E.plans[kind].alphabet),ready=tokens.filter(c=>counts[c]>0),missing=tokens.filter(c=>!counts[c]);
     if(!passage())$('proof-missing').textContent=missing.length?'Missing included samples: '+missing.join(' ')+'. These are omitted from the character row.':'All characters in this group have an included sample.';
     if(automatic)$('proof-sentence').value=kind==='lowercase'&&ready.length===26?examples[0].text:ready.slice(0,8).join(' ');
-    result=E.proofSheet(files,{writer:selected,kind,source,height:Number($('proof-size').value),smooth:$('proof-smooth').checked,sentence:$('proof-sentence').value,text_only:passage()});
+    result=E.proofSheet(files,{writer:selected,kind,source,height:Number($('proof-size').value),smooth:$('proof-smooth').checked,sentence:$('proof-sentence').value,text_only:passage(),natural_variation:{level:$('proof-natural').value,seed:naturalSeed}});
    }
    pages=result.pages||[{svg:result.svg}];pageIndex=Math.min(previousPage,pages.length-1);prefix=comparison()?'comparison-proof-a4':passage()?'text-proof-a4':'alphabet-proof-a4';showPage();
    $('proof-status').textContent=(comparison()?'Ready · comparison at 3, 5 and 8 mm':'Ready · '+(passage()?'text passage':result.characters.length+' characters in the group')+' · '+$('proof-size').value+' mm writing')+' · '+selected+' · '+pages.length+(pages.length===1?' page.':' pages.')+' Downloads match the displayed page.';
@@ -48,6 +50,8 @@
  }
  function update(){serial++;disable();clearTimeout(timer);$('proof-status').textContent='Updating proof sheet…';timer=setTimeout(preview,200);}
  for(const id of ['proof-writer','proof-kind','proof-source','proof-size','proof-smooth'])$(id).addEventListener('change',update);
+ $('proof-natural').addEventListener('change',()=>{modeControls();update();});
+ $('proof-natural-new').onclick=()=>{if($('proof-natural-new').disabled)return;naturalSeed=crypto.randomUUID();update();};
  $('proof-mode').addEventListener('change',()=>{modeControls();update();});$('proof-compare-text').addEventListener('input',update);
  $('proof-example').addEventListener('change',()=>{
   const example=examples.find(e=>e.id===$('proof-example').value);automatic=$('proof-example').value==='automatic';

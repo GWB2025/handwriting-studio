@@ -18,6 +18,7 @@
   if(kind==='compose'){
    if(!p.fields||typeof p.fields!=='object'||Array.isArray(p.fields)||Object.keys(p.fields).length>40||Object.values(p.fields).some(v=>typeof v!=='string'&&typeof v!=='boolean')||typeof p.seed!=='string'||p.seed.length>80)throw Error('Invalid composition draft.');
    if(typeof p.fields.phrase!=='string'||p.fields.phrase.length>10000||typeof p.fields['composition-title']!=='string'||p.fields['composition-title'].length>100)throw Error('Invalid composition draft text.');
+   if(p.natural_seed!==undefined)E.naturalSettings({level:p.fields['compose-natural'],seed:p.natural_seed});
   }else{
    if(typeof p.writer!=='string'||p.writer.length>80||!Array.isArray(p.strokes)||!Array.isArray(p.undone)||typeof p.smooth!=='boolean')throw Error('Invalid writing draft.');
    const all=[...p.strokes,...p.undone.slice().reverse()];if(all.length)E.validateContent(p.writer.trim()||'Draft',all,p.smooth);

@@ -4,7 +4,7 @@
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
-  let sampleSeed=crypto.randomUUID();
+  let sampleSeed=crypto.randomUUID(),naturalSeed=crypto.randomUUID();
   let previewPages=[],pageIndex=0;
   const layoutIDs=['compose-margin-top','compose-margin-right','compose-margin-bottom','compose-margin-left','compose-alignment','compose-paragraph-gap','compose-layout-reset'];
   function pageLayoutData(){return byID('compose-alignment')?{page_layout:{...Object.fromEntries(['top','right','bottom','left'].map(side=>['margin_'+side,Number(byID('compose-margin-'+side).value||NaN)])),alignment:byID('compose-alignment').value,paragraph_gap:Number(byID('compose-paragraph-gap').value||NaN)}}:{};}
@@ -31,7 +31,8 @@
     byID('compose-page-next').onclick=()=>showPage(pageIndex+1);
   }
   const sampleOrderData=()=>byID('compose-order')?{sample_order:byID('compose-order').value,sample_seed:sampleSeed}:{};
-  function orderControls(){if(byID('compose-shuffle'))byID('compose-shuffle').disabled=loading||byID('compose-writer').disabled||!byID('compose-writer').value||byID('compose-order').value!=='shuffle';}
+  const naturalData=()=>byID('compose-natural')?{natural_variation:{level:byID('compose-natural').value,seed:naturalSeed}}:{};
+  function orderControls(){if(byID('compose-shuffle'))byID('compose-shuffle').disabled=loading||byID('compose-writer').disabled||!byID('compose-writer').value||byID('compose-order').value!=='shuffle';if(byID('compose-natural-new'))byID('compose-natural-new').disabled=loading||byID('compose-writer').disabled||!byID('compose-writer').value||byID('compose-natural').value==='off';}
   function sourceCounts(profile){return window.StudioEngine?.countsFor?window.StudioEngine.countsFor(profile,byID('compose-source')?.value||'both'):(profile?.counts||{});}
   function updateExample(){
     // Never replace text the writer entered (including browser-restored text).
@@ -68,7 +69,7 @@
     const selected=byID('compose-writer').value || new URLSearchParams(window.location.search).get('writer');
     const requestController=new AbortController();controller=requestController;
     const timeout=setTimeout(()=>requestController.abort(),15000);
-    for(const id of [...layoutIDs,'compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
+    for(const id of [...layoutIDs,'compose-natural','compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=true;
     byID('generate').disabled=true;byID('compose-writer').disabled=true;byID('refresh-writers').disabled=true;orderControls();
     for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=true;
     byID('compose-status').textContent='Loading your saved letters…';
@@ -84,7 +85,7 @@
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
-    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
+    finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-natural','compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
@@ -96,7 +97,7 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewPages=data.pages?.length?data.pages.map(page=>page.svg):[data.svg];showPage(pageIndex);window.StudioBlendPreview?.show(data.variation);
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
@@ -153,6 +154,12 @@
   function setLayout(settings={}){for(const side of ['top','right','bottom','left'])if(byID('compose-margin-'+side))byID('compose-margin-'+side).value=String(settings['margin_'+side]??20);if(byID('compose-alignment')){byID('compose-alignment').value=settings.alignment??'left';byID('compose-paragraph-gap').value=String(settings.paragraph_gap??0);}}
   for(const id of layoutIDs.filter(id=>id!=='compose-layout-reset'))byID(id)?.addEventListener(id==='compose-alignment'?'change':'input',liveLayout);
   if(byID('compose-layout-reset'))byID('compose-layout-reset').onclick=()=>{setLayout();liveLayout();};
+  function liveNatural(){
+    const active=hasPreview;invalidate({keepImage:active});
+    if(active){byID('compose-status').textContent='Updating natural variation… Downloads will be ready when all pages are updated.';liveTimer=setTimeout(()=>byID('compose-form').onsubmit({preventDefault(){},live:true}),180);}
+  }
+  byID('compose-natural')?.addEventListener('change',liveNatural);
+  if(byID('compose-natural-new'))byID('compose-natural-new').onclick=()=>{if(byID('compose-natural-new').disabled)return;naturalSeed=crypto.randomUUID();liveNatural();};
   byID('refresh-writers').onclick=loadWriters;
   async function checkForNewSamples(){
     if(checkingSamples || loading || byID('compose-writer').disabled)return;
@@ -181,21 +188,22 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData()}),restore:async (settings,drawing='',drawings)=>{
+    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData()}),restore:async (settings,drawing='',drawings)=>{
       const savedPages=drawings?.length?drawings:drawing?[drawing]:[];for(const svg of savedPages)window.StudioEngine.validateDrawingSVG(svg);
       const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!savedPages.length){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
       byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
       if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
+      if(byID('compose-natural'))byID('compose-natural').value=settings.natural_variation?.level??'off';naturalSeed=settings.natural_variation?.seed??'0';
       setLayout(settings.page_layout);pageIndex=0;hasPreview=false;invalidate();
       if(savedPages.length){previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
     }});
     if(window.StudioRecovery){
-      const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-order',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
-      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{seed:sampleSeed,fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
+      const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-order','compose-natural',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
+      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{seed:sampleSeed,...(byID('compose-natural')?{natural_seed:naturalSeed}:{}),fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
         if(!profiles.some(p=>p.writer===data.fields['compose-writer'])){const option=document.createElement('option');option.value=data.fields['compose-writer'];option.textContent=(option.value||'Choose a writer')+' · recovered draft';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
         for(const id of draftIDs)if(byID(id)&&data.fields[id]!==undefined){if(['compose-smooth','compose-preferred','compose-joined'].includes(id))byID(id).checked=data.fields[id];else byID(id).value=data.fields[id];}
-        sampleSeed=data.seed;phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
+        sampleSeed=data.seed;naturalSeed=data.natural_seed??'0';if(byID('compose-natural'))byID('compose-natural').value=data.fields['compose-natural']??'off';phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
         for(const name of ['letter','word','line'])byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
         byID('compose-status').textContent='Composition draft restored. Generate a preview and Save composition to keep it. Your earlier saved document is unchanged.';
       }});
