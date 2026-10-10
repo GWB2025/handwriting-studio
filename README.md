@@ -268,6 +268,12 @@ Open `http://127.0.0.1:8766/` on the Mac, or the Mac’s current local IP addres
 
 The local repository, handwriting and `.venv` for this setup are on `/Volumes/EXTRA Apps/Documents/Writing Robot T-A4/handwriting-studio-v2`; keep that drive connected. The Desktop launcher points there. `python3 launch_handwriting_studio.py` can also start the local app; `--no-browser` checks/starts it without opening a browser, and `--port` changes its port. It leaves unrelated services untouched and does not install dependencies. Use the launcher instead of opening `static/` HTML files directly.
 
+## Licence
+
+Handwriting Studio is licensed under the [MIT License](LICENSE). Copyright © 2026 Gordon Brindle.
+
+You may use, modify and redistribute the software, including commercially, provided you retain the copyright and licence notice. See the [full licence](LICENSE) for the terms and warranty disclaimer.
+
 ## Acknowledgement
 
 Inspired by **[Dan Catt](https://revdancatt.com/projects)** and the workflow in [his handwriting video](https://www.youtube.com/watch?v=nD3XlqFhcEI), including guided practice, repeated samples, changing capture positions and blending around 22–24 minutes. His [Generative Handwriting project diary](https://revdancatt.com/projects/Generative%20Handwriting/dev-diary) provides further context. Handwriting Studio is an independent implementation for the 2D Pen Plotter project.
