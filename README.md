@@ -106,7 +106,9 @@ Alphabet sheets and passages continue onto further A4 pages when needed, up to 1
 
 **Natural variation → Off / Subtle / More pronounced** adds gentle changes to word spacing, letter size and line slope/curve, with a live preview. Off is the default and keeps the original geometry. **Try another natural variation** chooses another pattern; refresh, page navigation and amount changes keep the current one while this page is open. Download SVG or G-code to keep the exact proof; proof settings are not saved on closing the page. Natural variation is unavailable in Compare versions, which keeps its fixed comparison layout.
 
-Exports use A4 with 20 mm margins and the existing calibration. The screen fits the page to the display; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
+The typed text box is for editing; the **Handwriting preview** below shows the rendered result. Its toolbar keeps **Preview zoom** and **Natural variation** together, with the active amount shown below. Choose **200%** or **300%**, then switch between Off and More pronounced to inspect small differences. Scroll or swipe inside the preview to see enlarged areas. Zoom ranges from **Fit page width** to **400%** and remains selected as settings or pages change. It changes only the display, not the writing size, variation pattern or exported drawing.
+
+Exports use A4 with 20 mm margins and the existing calibration; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
 
 ### Compare originals, blends and preferred choices
 

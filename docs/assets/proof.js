@@ -1,16 +1,21 @@
 'use strict';
 (async()=>{
  const E=window.StudioEngine,$=id=>document.getElementById(id),query=new URLSearchParams(window.location.search),examples=window.StudioProofTexts.examples;
- let serial=0,timer=null,svg='',url='',automatic=true,pages=[],pageIndex=0,prefix='';
+ let serial=0,timer=null,svg='',url='',automatic=true,pages=[],pageIndex=0,prefix='',previewState='updating';
  let naturalSeed=crypto.randomUUID();
  if(['comparison','passage'].includes(query.get('mode')))$('proof-mode').value=query.get('mode');
  const comparison=()=>$('proof-mode').value==='comparison',passage=()=>$('proof-mode').value==='passage';
+ function viewStatus(){
+  const amount={off:'Off',subtle:'Subtle',pronounced:'More pronounced'}[$('proof-natural').value];
+  $('proof-view-status').textContent=(comparison()?'Compare versions · natural variation is not applied.':'Natural variation: '+amount+(amount==='Off'?' · choose Subtle or More pronounced to enable it.':'.'))+' Preview zoom: '+($('proof-zoom').value==='100'?'fit page width':$('proof-zoom').value+'%')+'.'+(previewState==='updating'?' Updating handwriting…':previewState==='error'?' Preview unavailable; see the message above.':'');
+ }
  function modeControls(){
   const compare=comparison();$('proof-kind').disabled=compare||passage();for(const id of ['proof-source','proof-size'])$(id).disabled=compare;
   $('proof-natural-controls').hidden=compare;$('proof-natural').disabled=compare;$('proof-natural-new').disabled=compare||$('proof-natural').value==='off';
   $('proof-alphabet-text').hidden=compare;$('proof-comparison-text').hidden=!compare;
   $('proof-text-label').textContent=passage()?'Passage to preview':'Test sentences · optional';$('proof-sentence').rows=passage()?8:4;
   $('proof-sentence').placeholder=passage()?'Choose a passage or paste your own text':'Leave blank for characters only';
+  viewStatus();
  }
  const groups=new Map();
  for(const example of examples){
@@ -27,9 +32,10 @@
   $('proof-image').alt='A4 handwriting proof sheet · page '+(pageIndex+1)+' of '+pages.length;if(old)URL.revokeObjectURL(old);
   $('proof-previous').disabled=pageIndex===0;$('proof-next').disabled=pageIndex===pages.length-1;$('proof-page-number').textContent='Page '+(pageIndex+1)+' of '+pages.length;
   $('proof-svg').disabled=false;$('proof-gcode').disabled=false;$('proof-svg').textContent=pages.length>1?'Download this page SVG':'Download A4 SVG';$('proof-gcode').textContent=pages.length>1?'Download this page G-code':'Download plotter G-code';
+  previewState='ready';viewStatus();
  }
  async function preview(){
-  clearTimeout(timer);const ticket=++serial,previousPage=pageIndex;disable();$('proof-status').textContent='Updating proof sheet…';$('proof-missing').textContent='';
+  clearTimeout(timer);timer=null;const ticket=++serial,previousPage=pageIndex;disable();previewState='updating';viewStatus();$('proof-status').textContent='Updating proof sheet…';$('proof-missing').textContent='';
   try{const files=await window.StudioStorage.snapshot();if(ticket!==serial)return;
    const cat=E.catalog(files),writer=$('proof-writer').value||query.get('writer');$('proof-writer').replaceChildren();
    for(const profile of cat.writers){const option=document.createElement('option');option.value=profile.writer;option.textContent=profile.writer;$('proof-writer').append(option);}
@@ -46,9 +52,10 @@
    }
    pages=result.pages||[{svg:result.svg}];pageIndex=Math.min(previousPage,pages.length-1);prefix=comparison()?'comparison-proof-a4':passage()?'text-proof-a4':'alphabet-proof-a4';showPage();
    $('proof-status').textContent=(comparison()?'Ready · comparison at 3, 5 and 8 mm':'Ready · '+(passage()?'text passage':result.characters.length+' characters in the group')+' · '+$('proof-size').value+' mm writing')+' · '+selected+' · '+pages.length+(pages.length===1?' page.':' pages.')+' Downloads match the displayed page.';
-  }catch(error){if(ticket!==serial)return;disable();$('proof-image').hidden=true;$('proof-status').textContent=error.message;}
+  }catch(error){if(ticket!==serial)return;disable();$('proof-image').hidden=true;previewState='error';viewStatus();$('proof-status').textContent=error.message;}
  }
- function update(){serial++;disable();clearTimeout(timer);$('proof-status').textContent='Updating proof sheet…';timer=setTimeout(preview,200);}
+ function update(){serial++;disable();previewState='updating';viewStatus();clearTimeout(timer);$('proof-status').textContent='Updating proof sheet…';timer=setTimeout(preview,200);}
+ $('proof-zoom').addEventListener('change',()=>{const zoom=Number($('proof-zoom').value);$('proof-image').style.width='min('+zoom+'%, '+650*zoom/100+'px)';viewStatus();});
  for(const id of ['proof-writer','proof-kind','proof-source','proof-size','proof-smooth'])$(id).addEventListener('change',update);
  $('proof-natural').addEventListener('change',()=>{modeControls();update();});
  $('proof-natural-new').onclick=()=>{if($('proof-natural-new').disabled)return;naturalSeed=crypto.randomUUID();update();};

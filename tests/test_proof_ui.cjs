@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),E=require('../web/engine'),{files}=require('./browser_helpers');
 async function workspace(){
- function element(tag='div'){return {tag,value:'',hidden:false,disabled:false,checked:true,children:[],listeners:{},append(...nodes){this.children.push(...nodes);if(tag==='select'&&!this.value)this.value=nodes[0]?.value||'';},replaceChildren(){this.children=[];this.value='';},addEventListener(name,fn){this.listeners[name]=fn;},click(){downloads.push(this.download);},remove(){}};}
- const ids={};for(const id of ['proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
- ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
+ function element(tag='div'){return {tag,value:'',hidden:false,disabled:false,checked:true,style:{},children:[],listeners:{},append(...nodes){this.children.push(...nodes);if(tag==='select'&&!this.value)this.value=nodes[0]?.value||'';},replaceChildren(){this.children=[];this.value='';},addEventListener(name,fn){this.listeners[name]=fn;},click(){downloads.push(this.download);},remove(){}};}
+ const ids={};for(const id of ['proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
+ ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
  const doc={getElementById:id=>ids[id],createElement:element,body:element(),addEventListener(){}},context={document:doc,StudioEngine:E,crypto:require('node:crypto').webcrypto,StudioComparison:require('../web/proof-comparison'),StudioStorage:{snapshot:()=>snapshot()},StudioPlotter:{fromSVG(svg){exported.push(svg);return 'G21\n';}},Blob,URLSearchParams,URL:{createObjectURL(blob){urls.push(blob);return 'blob:'+urls.length;},revokeObjectURL(){}},setTimeout,clearTimeout,location:{search:'?writer=Writer'},addEventListener(){}};context.window=context;
  const root=process.env.STUDIO_PAGES_TEST?'docs/assets/':'web/';vm.runInNewContext(fs.readFileSync(root+'proof-texts.js','utf8'),context);
  await vm.runInNewContext(fs.readFileSync(root+'proof.js','utf8'),context);return {ids,records,urls,downloads,exported,setSnapshot(fn){snapshot=fn;}};
@@ -59,4 +59,37 @@ test('natural proof settings preserve a pattern through refresh, amount changes 
  e['proof-mode'].value='alphabet';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.equal(await w.urls.at(-1).text(),subtle);
  e['proof-natural-new'].onclick();assert.equal(e['proof-gcode'].disabled,true);await e['proof-refresh'].onclick();const next=await w.urls.at(-1).text();assert.notEqual(next,subtle);e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),next);
  e['proof-natural'].value='off';e['proof-natural'].listeners.change();await e['proof-refresh'].onclick();assert.equal(await w.urls.at(-1).text(),plain);assert.equal(e['proof-natural-new'].disabled,true);
+});
+
+test('changing natural variation updates the proof automatically without Refresh preview',async()=>{
+ const w=await workspace(),e=w.ids,plain=await w.urls.at(-1).text();
+ e['proof-natural'].value='pronounced';e['proof-natural'].listeners.change();assert.equal(e['proof-svg'].disabled,true);
+ await new Promise(resolve=>setTimeout(resolve,260));
+ assert.equal(e['proof-svg'].disabled,false);const changed=await w.urls.at(-1).text();assert.notEqual(changed,plain);
+ e['proof-natural-new'].onclick();await new Promise(resolve=>setTimeout(resolve,260));assert.equal(e['proof-svg'].disabled,false);assert.notEqual(await w.urls.at(-1).text(),changed);
+ e['proof-natural'].value='off';e['proof-natural'].listeners.change();await new Promise(resolve=>setTimeout(resolve,260));assert.equal(await w.urls.at(-1).text(),plain);
+});
+
+test('proof zoom enlarges only the display and survives variation updates and page navigation',async()=>{
+ const w=await workspace(),e=w.ids;let snapshots=0;w.setSnapshot(async()=>{snapshots++;return w.records;});
+ e['proof-mode'].value='passage';e['proof-mode'].listeners.change();e['proof-sentence'].value=Array(80).fill('a bad cab').join('\n');e['proof-sentence'].listeners.input();
+ e['proof-natural'].value='pronounced';e['proof-natural'].listeners.change();await e['proof-refresh'].onclick();
+ const svg=await w.urls.at(-1).text(),blobCount=w.urls.length,loadCount=snapshots,src=e['proof-image'].src;
+ for(const value of ['150','200','300','400','100','300']){e['proof-zoom'].value=value;e['proof-zoom'].listeners.change();}
+ assert.equal(snapshots,loadCount);assert.equal(w.urls.length,blobCount);assert.equal(e['proof-image'].src,src);assert.equal(e['proof-image'].style.width,'min(300%, 1950px)');
+ assert.equal(e['proof-svg'].disabled,false);assert.match(e['proof-view-status'].textContent,/More pronounced.*300%/);e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),svg);
+ e['proof-svg'].onclick();assert.equal(await w.urls.at(-1).text(),svg);
+ e['proof-next'].onclick();assert.match(e['proof-page-number'].textContent,/Page 2/);assert.equal(e['proof-image'].style.width,'min(300%, 1950px)');
+ e['proof-previous'].onclick();assert.equal(await w.urls.at(-1).text(),svg);
+ e['proof-natural'].value='subtle';e['proof-natural'].listeners.change();await e['proof-refresh'].onclick();assert.equal(e['proof-image'].style.width,'min(300%, 1950px)');
+ e['proof-natural'].value='pronounced';e['proof-natural'].listeners.change();await e['proof-refresh'].onclick();assert.equal(await w.urls.at(-1).text(),svg);
+});
+
+test('proof inspection status distinguishes Off, updating, failed and comparison previews even when zoom changes',async()=>{
+ const w=await workspace(),e=w.ids;assert.match(e['proof-view-status'].textContent,/Off.*choose Subtle.*fit page width/);
+ e['proof-natural'].value='subtle';e['proof-natural'].listeners.change();e['proof-zoom'].value='200';e['proof-zoom'].listeners.change();assert.match(e['proof-view-status'].textContent,/Subtle.*200%.*Updating/);
+ await e['proof-refresh'].onclick();assert.doesNotMatch(e['proof-view-status'].textContent,/Updating|unavailable/);
+ e['proof-sentence'].value='Z';e['proof-sentence'].listeners.input();await e['proof-refresh'].onclick();e['proof-zoom'].value='300';e['proof-zoom'].listeners.change();
+ assert.match(e['proof-view-status'].textContent,/300%.*Preview unavailable/);assert.doesNotMatch(e['proof-view-status'].textContent,/Updating/);assert.equal(e['proof-svg'].disabled,true);
+ e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.match(e['proof-view-status'].textContent,/Compare versions.*not applied.*300%/);assert.doesNotMatch(e['proof-view-status'].textContent,/Updating|unavailable/);
 });
