@@ -164,8 +164,10 @@
     const request={writer:$('review-writer').value,capture_id:selected.capture_id,letter:selected.letter,text:$('review-word').value,included:true,...(strokeEnabled()?{stroke_edit:strokeEdit}:{}),baseline_shift_mm:shiftValue(),scale_factor:sizeValue()};
     $('review-word-status').textContent='Updating word preview…';
     wordTimer=setTimeout(async()=>{try{const result=await api('/api/review-preview',request);if(ticket!==wordTicket)return;
-      $('review-word-preview').innerHTML=result.svg;const svg=$('review-word-preview').querySelector('svg'),box=svg.querySelector('g').getBBox();svg.setAttribute('viewBox',`${box.x-2} ${box.y-2} ${box.width+4} ${box.height+4}`);svg.removeAttribute('width');svg.removeAttribute('height');
-      $('review-word-status').textContent=request.text.includes(request.letter)?'Live word preview · this sample uses your pending size and position.':'This text does not contain '+request.letter+'. Add it to compare the adjustment.';
+      $('review-word-preview').innerHTML=result.svg;const svg=$('review-word-preview').querySelector('svg'),box=svg.getAttribute('viewBox').split(/\s+/).map(Number);
+      // Keep pixels per preview unit fixed while the word grows or shrinks. Long words scroll.
+      svg.style.width=(180*box[2]/box[3])+'px';svg.style.height='180px';svg.removeAttribute('width');svg.removeAttribute('height');
+      $('review-word-status').textContent=result.used_samples?.some(s=>s.capture_id===request.capture_id&&s.letter===request.letter)?'Live word preview · '+(request.letter.length>1?'this joined pair':'this sample')+' uses your pending size and position.':'This text does not use '+request.letter+'. Add it to compare the adjustment.';
     }catch(error){if(ticket===wordTicket){$('review-word-preview').replaceChildren();$('review-word-status').textContent=error.message;}}},120);
   }
   function changed(){

@@ -160,7 +160,8 @@
     r.reviews[data.letter]={...r.reviews[data.letter],included:true,baseline_shift_mm:data.baseline_shift_mm,scale_factor:data.scale_factor??1,...(data.stroke_edit!==undefined?{stroke_edit:clone(data.stroke_edit)}:{})};if(!old)copy.push({key,value:r});
     const sample=catalog(copy).byWriter.get(data.writer)?.find(s=>s.capture_id===data.capture_id&&s.letter===data.letter);if(!sample)fail('This sample is unavailable.');
     const pref=choosePreferred(copy,{writer:data.writer,letter:data.letter,capture_id:data.capture_id}),index=copy.findIndex(f=>f.key===pref.key);if(index<0)copy.push(pref);else copy[index]=pref;
-    return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:false,samples:'latest_only'});
+    // Review only substitutes the selected joined pair, so another pair cannot hide it.
+    return composeWriting(copy,{writer:data.writer,phrase:data.text,height:5,joined:pairs.includes(data.letter),samples:'latest_only'},sample);
   }
   function createSavedBlend(files,data){
     if(!uuid(data.id)||(typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80)||!Array.isArray(data.source_ids)||![2,4].includes(data.source_ids.length)||new Set(data.source_ids).size!==data.source_ids.length||!finite(data.horizontal,0,100)||!finite(data.vertical,0,100))fail('Choose two or four distinct source samples and valid mix controls.');
@@ -360,7 +361,7 @@
   }
   function layoutWriting(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},frame={x:20,y:20,width:170,bottom:277},adjustments={},extents=writingExtents(used,height)){
     const scale=height/80,{above,below}=extents,right=frame.x+frame.width;let x=frame.x,baseline=frame.y+above;
-    const line=above+below+height*.8*line_spacing,paths=[],chosen=[];
+    const line=above+below+height*.8*line_spacing,paths=[],chosen=[];let maxRight=frame.x;
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){x=frame.x;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
@@ -369,9 +370,9 @@
       if(x+wordWidth>right){x=frame.x;baseline+=line;}
       if(baseline+below>frame.bottom)fail('This phrase does not fit on one A4 page. Use fewer words or a smaller writing size.');
       for(let j=i;j<end;j++){const s=used[j];for(const stroke of s.processed_strokes)paths.push(pathData(stroke.points,smooth&&!s.missing,x+positions[j-i]-left,baseline+s.baseline_shift_mm,scale));chosen.push({letter:letters[j],capture_id:s.capture_id,...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
-      x+=Math.max(0,cursor-left)+height*.22;i=end;
+      maxRight=Math.max(maxRight,x+wordWidth);x+=Math.max(0,cursor-left)+height*.22;i=end;
     }
-    return {paths,chosen,height:baseline+below-frame.y};
+    return {paths,chosen,height:baseline+below-frame.y,width:maxRight-frame.x};
   }
   function pageLayout(value={}){
     if(!value||typeof value!=='object'||Array.isArray(value))fail('Choose valid page layout settings.');
@@ -447,7 +448,8 @@
       state.last=state.bag.shift();return state.last;
     };
   }
-  function compose(files,data){
+  function compose(files,data){return composeWriting(files,data);}
+  function composeWriting(files,data,reviewSample=null){
     const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
     const natural=naturalSettings(data.natural_variation);
@@ -465,7 +467,7 @@
     const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred_sets||{};
     for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
     for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred?preferenceIDs(preferences[letter]).map(id=>list.find(s=>s.capture_id===id)).filter(Boolean):[];variants[letter]=preferred.length?preferred:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
-    const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
+    const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&(!reviewSample||pair===reviewSample.letter)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
     const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
     if(missing.length)fail('No included '+(source==='blends'?'saved blends':source==='originals'?'original samples':'samples')+' for: '+missing.join(', ')+'. '+(source==='blends'?'Save blends for these characters or choose Both.':'Capture them or include a saved example in Review samples.'));
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
@@ -484,6 +486,17 @@
       }return original;
     });
     const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural};
+    if(reviewSample){
+      // Reserve the full review range once: 50–200% size and ±10 mm position.
+      // The baseline and display scale must not follow the changing ink bounds.
+      const largest={...sampleAtSize(files,reviewSample,2),baseline_shift_mm:0};
+      const extents=writingExtents(used.map(s=>s?.capture_id===reviewSample.capture_id&&s.letter===reviewSample.letter?largest:s),height);
+      extents.above+=10;extents.below+=10;
+      const layout=layoutWriting(letters,used,options,{x:2,y:2,width:1000000,bottom:1000000},profile.character_spacing,extents);
+      const box=[0,0,Math.max(20,layout.width+4),layout.height+4];
+      const svg=drawingSVG(layout.paths,'Review: '+phrase).replace('width="210mm" height="297mm" viewBox="0 0 210 297"','viewBox="'+box.join(' ')+'"');
+      return {svg,used_samples:layout.chosen};
+    }
     const layouts=data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
     const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));

@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),test=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,(process.env.STUDIO_PAGES_TEST?'../docs/assets/':'../static/')+'review.js'),'utf8');
 const settle=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
-async function review(extended=false,{initialShift=0,initialScale=1,enhanced=false,failSave=false,wideCrossbar=false,strokeTools=false}={}){
+async function review(extended=false,{initialShift=0,initialScale=1,enhanced=false,failSave=false,wideCrossbar=false,strokeTools=false,previewReply=null}={}){
   function node(tag='div'){let value='';return {tag,parent:null,style:{},get value(){return value;},set value(v){value=String(v);},checked:false,dataset:{},children:[],attributes:{},
     append(...items){for(const item of items){if(item.parent)item.parent.children=item.parent.children.filter(c=>c!==item);item.parent=this;this.children.push(item);}if(!this.value&&items[0]?.value)this.value=items[0].value;},
     replaceChildren(){for(const c of this.children)c.parent=null;this.children=[];this.value='';},
@@ -21,10 +21,10 @@ async function review(extended=false,{initialShift=0,initialScale=1,enhanced=fal
   const fetch=async(url,options={})=>{
     requests.push({url,options});
     let data;
-    if(url==='/api/letters/writers')data={writers:[{writer:'Writer',counts:{a:1,j:1,z:1},total_counts:{a:1,j:1,z:1}}]};
-    else if(url==='/api/review-preview')data={svg:'<svg viewBox="0 0 210 297"><g><path d="M20 20 L25 25"/></g></svg>'};
+    if(url==='/api/letters/writers')data={writers:[{writer:'Writer',counts:{a:1,j:1,z:1,th:1},total_counts:{a:1,j:1,z:1,th:1}}]};
+    else if(url==='/api/review-preview'){const body=JSON.parse(options.body);data=previewReply?await previewReply(body):{svg:'<svg viewBox="0 0 40 44"><g><path d="M20 20 L25 25"/></g></svg>',used_samples:[{capture_id:body.capture_id,letter:body.letter}]};}
     else if(options.method==='POST'){if(failSave)return {ok:false,json:async()=>({error:'Storage unavailable'})};Object.assign(settings,JSON.parse(options.body));data={...settings,svg:svg(settings.baseline_shift_mm,settings.scale_factor??1,settings.stroke_edit)};}
-    else{const letter=new URL('https://test.invalid'+url).searchParams.get('letter');data={samples:['a','j','z'].includes(letter)?[{letter,capture_id:'id-'+letter,saved_at:'2026-10-08T12:00:00Z',stroke_count:2,...(strokeTools?{stroke_sample:raw,stroke_edit:E.originalStrokeEdit(2)}:{}),included:true,baseline_shift_mm:initialShift,scale_factor:initialScale,svg:svg(initialShift,initialScale)}]:[]};}
+    else{const letter=new URL('https://test.invalid'+url).searchParams.get('letter');data={samples:['a','j','z','th'].includes(letter)?[{letter,capture_id:'id-'+letter,saved_at:'2026-10-08T12:00:00Z',stroke_count:2,...(strokeTools?{stroke_sample:raw,stroke_edit:E.originalStrokeEdit(2)}:{}),included:true,baseline_shift_mm:initialShift,scale_factor:initialScale,svg:svg(initialShift,initialScale)}]:[]};}
     return {ok:true,json:async()=>data};
   };
   const window={...(extended?{StudioEngine:require('../web/engine.js')} : {}),location:{search:'?writer=Writer'},addEventListener(){},studioFetch:fetch};
@@ -158,4 +158,21 @@ test('stroke edits preserve pending size and baseline adjustments without applyi
  e['stroke-later'].onclick();assert.equal(e['sample-image'].querySelector('g').getAttribute('transform'),before);assert.equal(e['sample-size'].value,'150');assert.equal(e['sample-shift'].value,'3');
  await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.scale_factor,1.5);assert.equal(r.settings.baseline_shift_mm,-3);assert.deepEqual(r.settings.stroke_edit,{order:[1,0],reversed:[false,false]});
  const first=e['sample-image'].querySelector('path').getBBox();assert.equal(first.y,-108);assert.equal(first.width,45);
+});
+
+test('joined-pair word preview renders actual size and position changes at a steady display scale',async()=>{
+ const E=require('../web/engine'),records=[...require('./browser_helpers').files(),...require('./extended_helpers').extendedFiles('pairs')];
+ const r=await review(true,{enhanced:true,previewReply:data=>{
+  const sample=E.catalog(records).byWriter.get('Writer').find(s=>s.letter===data.letter),result=E.reviewWord(records,{...data,capture_id:sample.capture_id});
+  result.used_samples=result.used_samples.map(s=>({...s,capture_id:s.capture_id===sample.capture_id?data.capture_id:s.capture_id}));return result;
+ }}),e=r.elements;
+ e['review-kind'].value='pairs';e['review-kind'].onchange();await settle();assert.equal(e['review-word'].value,'ththth');
+ const dimensions=()=>{const svg=e['review-word-preview'].querySelector('svg'),box=svg.getAttribute('viewBox').split(' ').map(Number),ink=svg.querySelector('g').getBBox();return {height:box[3],pixelsPerUnit:parseFloat(svg.style.width)/box[2],ink,svg};};
+ await new Promise(resolve=>setTimeout(resolve,150));const original=dimensions();assert.match(e['review-word-status'].textContent,/this joined pair/);
+ for(const size of [50,77.12,200]){
+  e['sample-size'].value=size;e['sample-size'].oninput();await new Promise(resolve=>setTimeout(resolve,150));const current=dimensions();
+  assert.equal(current.height,original.height);assert.equal(current.pixelsPerUnit,original.pixelsPerUnit);assert(Math.abs(current.ink.height-original.ink.height*size/100)<.0002);assert.equal(current.svg.style.height,'180px');
+ }
+ const before=dimensions();e['sample-shift'].value='-0.587';e['sample-shift'].oninput();await new Promise(resolve=>setTimeout(resolve,150));const moved=dimensions();assert.equal(moved.height,before.height);assert.equal(moved.pixelsPerUnit,before.pixelsPerUnit);assert(Math.abs(moved.ink.y-before.ink.y-.587)<.0002);
+ e['review-reset'].onclick();await new Promise(resolve=>setTimeout(resolve,150));assert.deepEqual(dimensions().ink,original.ink);assert.deepEqual(r.settings,{});
 });

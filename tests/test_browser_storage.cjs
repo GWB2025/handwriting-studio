@@ -159,3 +159,12 @@ test('multi-page compositions round-trip atomically and reject old-client or inv
  const invalid=E.clone(backup);invalid.files.find(f=>f.key.startsWith('compositions/')).value.drawings[1]=drawings[1].replace(/M[\d.]+ [\d.]+/,'M0 0');await assert.rejects(next.StudioStorage.importBackup(invalid));assert.deepEqual(await next.StudioStorage.snapshot(),backup.files);
  const shorter={...payload,settings:{...settings,phrase:'abc'},drawings:[drawings[0]]};assert.equal((await call(next,'/api/compositions',shorter)).status,200);assert.equal((await call(next,'/api/compositions')).data.compositions[0].drawings.length,1);
 });
+
+test('joined-pair preview is temporary, and saving its adjustment survives backup and reopening',async()=>{
+ const b=browser(),original=require('./extended_helpers').extendedFiles('pairs');await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:original});
+ const selected=(await call(b,'/api/letters/samples?writer=Writer&letter=th')).data.samples[0],before=await b.StudioStorage.snapshot(),data={writer:'Writer',capture_id:selected.capture_id,letter:'th',text:'ththth',included:true,scale_factor:.7712,baseline_shift_mm:.587};
+ const preview=await call(b,'/api/review-preview',data);assert.equal(preview.status,200);assert(preview.data.used_samples.every(s=>s.letter==='th'&&s.capture_id===selected.capture_id));assert.equal(preview.data.used_samples.length,3);assert.deepEqual(await b.StudioStorage.snapshot(),before);
+ assert.equal((await call(b,'/api/letters/samples/'+selected.capture_id+'/th/review',{included:true,scale_factor:data.scale_factor,baseline_shift_mm:data.baseline_shift_mm})).status,200);
+ const fresh=browser();await fresh.StudioStorage.importBackup(await b.StudioStorage.backup());const reopened=(await call(fresh,'/api/letters/samples?writer=Writer&letter=th')).data.samples[0];assert.equal(reopened.scale_factor,data.scale_factor);assert.equal(reopened.baseline_shift_mm,data.baseline_shift_mm);assert.equal((await call(fresh,'/api/review-preview',data)).data.svg,preview.data.svg);
+ assert.deepEqual((await fresh.StudioStorage.snapshot()).filter(f=>f.key.startsWith('letters/')),before.filter(f=>f.key.startsWith('letters/')));
+});
