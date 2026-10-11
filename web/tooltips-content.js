@@ -1,14 +1,13 @@
 'use strict';
 (function(root){
- const size='Choose the physical small-letter height: 3, 5, 8, 10, 12, 16 or 20 mm. Taller letters and tails keep their proportions. Larger writing may need more A4 pages.';
- const zoom='Enlarge the preview for inspection. This changes only the display, not saved handwriting or the printed size.';
+ const size='Set the physical small-letter guide height to 3, 5, 8, 10, 12, 16 or 20 mm. Captured proportions and saved Review scaling still apply. Larger writing may need more A4 pages.';
  const colours='Show each pen stroke in a different colour: first dark, second blue, then other colours. Exported writing stays black.';
  const starts='Show numbered dots where each stroke begins, so you can compare drawing order and direction.';
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
- const natural='Add small variations to word gaps, letter sizes and the slope and curve of lines. Choose Off, Subtle or More pronounced.';
+ const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
   'backup-open':'Open backup and import tools for the writing saved in this browser.',
-  'backup-download':'Download a JSON backup of saved handwriting, blends, preferences and compositions. Unfinished recovery drafts are not included.',
+  'backup-download':'Download saved captures, blends, Review adjustments, preferred choices, spacing, compositions and free-writing pages. Save unfinished drafts first; recovery copies are not included.',
   'backup-confirm':'Confirm that you have kept the downloaded backup file. This updates the backup reminder.',
   'backup-file':'Choose a Handwriting Studio JSON backup from this device. Selecting a file does not import it yet.',
   'backup-import':'Add the selected backup to this browser. Existing records are kept; conflicting versions are reported instead of overwritten.',
@@ -40,18 +39,18 @@
   'review-kind':'Choose the character group to review, including symbols and experimental joined pairs.',
   'review-letter':'Choose a character to see all its saved originals and blends.',
   'review-refresh':'Reload saved samples and their latest review adjustments.',
-  'review-zoom':zoom,'review-colours':colours,'review-starts':starts,
+  'review-zoom':'Enlarge this sample’s display from 100% to 300%. To resize the saved sample, use Letter size below and Save changes.','review-colours':colours,'review-starts':starts,
   'sample-shift':'Move the character up or down relative to the fixed baseline. Slide up to raise it. Save changes to keep the position.',
-  'sample-included':'Include this sample in the available handwriting choices, or exclude it without deleting it. Save changes to keep your choice.',
+  'sample-included':'Include or exclude this sample without deleting it. Excluded originals also cannot be blend sources. Save changes to keep your choice.',
   'stroke-target':'Choose which pen stroke to move in the sequence or reverse.',
   'stroke-earlier':'Move the selected stroke one place earlier in the drawing order. Save changes to keep it.',
   'stroke-later':'Move the selected stroke one place later in the drawing order. Save changes to keep it.',
   'stroke-reverse':'Reverse the drawing direction of the selected stroke. Its shape stays the same.',
   'stroke-undo':'Undo the most recent stroke-order or direction adjustment in this review session.',
   'stroke-original':'Return to the captured stroke order and directions. Save changes to keep this reset.',
-  'sample-size':'Scale this sample from 50% to 400% around its baseline. This affects future blends and compositions after Save changes.',
+  'sample-size':'Scale this sample’s height and width from 50% to 400% around its baseline. Save changes to use it in new blends, My alphabet, proofs and Compose. Preview zoom only changes the display.',
   'sample-size-reset':'Return this sample to its original 100% size. Save changes to keep it.',
-  'review-word':'Try the pending size and baseline adjustment in a short word. A joined-pair review uses that selected pair wherever it occurs.',
+  'review-word':'Try the pending size and baseline adjustment in a short word at 5 mm writing size. A joined-pair review uses that selected pair wherever it occurs. Previewing does not save changes.',
   'review-word-preview':'Inspect the pending adjustment at a steady display scale. Scroll sideways for long words. Changes are kept only after Save changes.',
   'sample-zero':'Return this sample to its original baseline position. Save changes to keep it.',
   'review-save':'Save this sample’s inclusion, baseline, size and stroke corrections. Original captured strokes are kept.',
@@ -59,24 +58,24 @@
   'single-writer':'Choose the writer under whose name the new blended sample will be saved.',
   'single-pool':'Choose whether source originals come from this writer only or all writers. This helps when capture sets used different names.',
   'single-letter':'Choose the character to blend. Only characters with included original samples are listed.',
-  'single-count':'Blend two distinct originals from left to right, or four originals across and up or down.',
+  'single-count':'Choose two or four distinct, compatible originals of the same character. Drag the result left/right for two sources, or in any direction for four.',
   'single-find':'Choose two or four distinct originals with compatible stroke counts, order and direction where possible.',
-  'single-save':'Save the current blended character as a new sample under the selected writer. Source originals stay unchanged.',
+  'single-save':'Save the blend in this browser under the selected writer, ready for Review, My alphabet and Compose. Source originals stay unchanged. Use Backup / Import to keep an external copy.',
   'single-refresh':'Reload the original samples and their latest Review adjustments.',
   'single-prefer':'Use this newly saved blend as a preferred version for the character in Compose and proof sheets.',
   'single-view':'Open the saved blended sample in My alphabet.',
-  'single-next':'Move to the next available character to blend.',
+  'single-next':'Move to the next character and centre the mix. Save blended sample first if you want to keep the current result.',
   'single-saved-choice':'Choose a previously saved blend of this character to reopen.',
   'single-reopen':'Restore the selected blend’s original source samples, adjustments and mix position. Saving creates a new version.',
   'single-guides':'Show or hide baseline guides and background shading behind the sample letters.',
-  'single-colours':colours,'single-starts':starts,'single-zoom':zoom,
+  'single-colours':colours,'single-starts':starts,'single-zoom':'Enlarge source letters and the result from 100% to 200% for inspection. This changes only the display, not the saved blend.',
   'single-centre':'Return the blend to the midpoint: equal weight from two sources, or all four sources.',
   'alphabet-writer':'Choose whose alphabet and preferred samples to manage.',
   'alphabet-kind':'Show lowercase letters, capitals, numbers, symbols or experimental joined pairs.',
   'alphabet-proof':'Open a proof sheet for this writer and group, with test sentences and physical writing sizes from 3 to 20 mm.',
   'alphabet-compare':'Compare originals, saved blends and preferred versions in three columns. Choose the classic 3, 5 and 8 mm sheet or a single size up to 20 mm.',
   'alphabet-refresh':'Reload the alphabet, saved samples and preferred choices.',
-  'alphabet-zoom':zoom,'alphabet-zoom-reset':'Return the alphabet previews to 100% display size.',
+  'alphabet-zoom':'Enlarge alphabet tiles and sample cards from 100% to 300%. This changes only the display; use Review to resize one sample, or a proof sheet to choose a physical writing size.','alphabet-zoom-reset':'Return the alphabet previews to 100% display size.',
   'alphabet-colours':colours,'alphabet-clear':'Clear the preferred choices for this character. Samples are kept, and Compose can use the available sample pool.',
   'spacing-before':'Adjust space before this character, from −2 to +3 mm at 5 mm writing size. Negative values tighten the gap; Save spacing keeps it.',
   'spacing-after':'Adjust space after this character, from −2 to +3 mm at 5 mm writing size. It scales with writing size; Save spacing keeps it.',
@@ -89,7 +88,7 @@
   'proof-kind':'Choose the character group for the alphabet sheet. Joined pairs are experimental and are used only when this group is selected; text passages use individual letters.',
   'proof-source':'Use original samples, saved blends, or both. Included preferred versions are used when the chosen source type allows them.',
   'proof-size':size,'proof-smooth':smooth,
-  'proof-example':'Load a suggested pangram or poem, or choose your own text. Lowercase-only versions need fewer captured characters.',
+  'proof-example':'Replace the text with a pangram, Sonnet 18 or The Hand in Ink. Passage examples open Text passage. Lowercase-only versions need no capitals or punctuation; Your own text keeps the current text editable.',
   'proof-sentence':'Edit the test sentences or passage to show in your handwriting. Line breaks are kept and long lines wrap between words.',
   'proof-compare-size':'Compare all three source columns at 3, 5 and 8 mm together, or choose a single physical writing size from 3 to 20 mm. Larger sizes may need shorter test words.',
   'proof-compare-text':'Enter short words or characters for comparison. All three source columns use the selected comparison writing size.',
@@ -98,7 +97,8 @@
   'proof-gcode':'Download plotter instructions for the displayed A4 page. Downloading does not move the plotter.',
   'proof-previous':'Show the previous A4 proof page. Downloads use the page currently displayed.',
   'proof-next':'Show the next A4 proof page. Downloads use the page currently displayed.',
-  'proof-zoom':zoom,'proof-natural':natural,
+  'proof-zoom':'Inspect the handwriting from Fit page width up to 400%. Scroll inside the preview to see enlarged areas. Exported writing keeps its selected physical size.',
+  'proof-natural':natural+' The handwriting preview below updates live. Compare versions does not use natural variation.',
   'proof-natural-new':'Try a different pattern of natural variation while keeping the selected amount.',
   'composition-title':'Name this composition so you can find it again in this browser and in backups.',
   'composition-save':'Save the text and settings, updating the open composition if there is one. Generate first to keep every finished page too.',
@@ -109,7 +109,7 @@
   'compose-size':size,'compose-smooth':smooth,
   'compose-samples':'Choose how many recent included samples per character to use. Eligible preferred choices take priority when enabled.',
   'phrase':'Enter text using captured characters. Line breaks are kept, words wrap, and longer writing continues onto more A4 pages.',
-  'compose-natural':natural,'compose-natural-new':'Try a different natural-variation pattern without changing the selected letter samples.',
+  'compose-natural':natural+' After Generate preview, the amount updates live on every page.','compose-natural-new':'Try a different natural-variation pattern without changing the selected letter samples.',
   'compose-order':'Cycle through eligible samples in sequence, or shuffle them for a varied but repeatable result.',
   'compose-shuffle':'Shuffle the sample choices again. The new selection stays fixed through spacing and layout edits.',
   'compose-source':'Choose original samples, saved blends, or both. Missing characters are reported before export.',
@@ -168,7 +168,7 @@
   if(!tip&&control.matches('a')){
    const href=control.getAttribute('href')||'',path=href.split(/[?#]/)[0];
    tip=href.startsWith('#')?'Jump to '+text+' in the help guide.':routes[path]||'Open '+text+'.';
-   if(href.includes('github.com/GWB2025/handwriting-studio'))tip=href.includes('#sending-g-code')?'Read the instructions for sending a downloaded plotter file from the connected Mac.':'Open the Handwriting Studio source code, README and project history on GitHub.';
+   if(href.includes('github.com/GWB2025/handwriting-studio'))tip=href.includes('#sending-g-code')?'Read the instructions for sending a downloaded plotter file from the connected Mac.':href.includes('DEVELOPMENT.md')?'Read the developer documentation, local setup and Mac sender limits.':'Open the Handwriting Studio source code, README and project history on GitHub.';
    if(href.includes('shakespeare.mit.edu'))tip='Read the original text of Shakespeare’s Sonnet 18.';
    if(control.getAttribute('target')==='_blank')tip+=' Opens in a separate tab.';
   }
