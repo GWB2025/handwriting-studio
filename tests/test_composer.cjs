@@ -81,9 +81,9 @@ test('sample choice reaches the server and changing it invalidates the old downl
 
 test('opening a saved composition restores the complete form and invalidates earlier exports',async()=>{
  const c=await composer(true,true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(e['compose-download'].disabled,false);
- const settings={...c.window.compositions.read(),phrase:'a saved letter',height:8,samples:'all',source:'blends',use_preferred:false,joined:false,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
+ const settings={...c.window.compositions.read(),phrase:'a saved letter',height:20,samples:'all',source:'blends',use_preferred:false,joined:false,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
  await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),settings);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
- await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');
+ await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');assert.equal(JSON.parse(c.requests.at(-1).options.body).height,20);
  await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
 });
 

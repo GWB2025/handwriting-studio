@@ -6,6 +6,18 @@ function browser(indexedDB=new IDBFactory()){
 }
 async function call(b,url,data){const response=await b.studioFetch(url,data?{method:'POST',body:JSON.stringify(data)}:{});return {status:response.status,data:await response.json()};}
 
+test('larger writing sizes and their exact pages survive saving, reopening and backup import',async()=>{
+ const b=browser();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:files()});
+ const expected=new Map();
+ for(const height of [10,12,16,20]){
+  const settings=E.compositionSettings({writer:'Writer',phrase:Array(12).fill('a bad cab').join('\n'),height,page_layout:{},natural_variation:{level:'pronounced',seed:'large-writing'}}),result=await call(b,'/api/compose',settings);assert.equal(result.status,200);
+  const drawings=result.data.pages.map(p=>p.svg);assert(drawings.length>1);
+  const id=webcrypto.randomUUID();assert.equal((await call(b,'/api/compositions',{id,title:height+' mm',settings,drawings})).status,200);expected.set(id,{settings,drawings});
+ }
+ const fresh=browser();await fresh.StudioStorage.importBackup(await b.StudioStorage.backup());const restored=(await call(fresh,'/api/compositions')).data.compositions;assert.equal(restored.length,4);
+ for(const record of restored){assert.deepEqual(record.settings,expected.get(record.id).settings);assert.deepEqual(record.drawings,expected.get(record.id).drawings);assert.deepEqual((await call(fresh,'/api/compose',record.settings)).data.pages.map(p=>p.svg),record.drawings);}
+});
+
 test('natural variation and every finished page round-trip in backups and reject saves from an older form',async()=>{
  const b=browser();await b.StudioStorage.importBackup({format:'handwriting-studio-backup',version:1,files:files()});
  const settings=E.compositionSettings({writer:'Writer',phrase:Array(70).fill('a bad cab').join('\n'),page_layout:{},natural_variation:{level:'pronounced',seed:'backup-pattern'}}),result=await call(b,'/api/compose',settings),drawings=result.data.pages.map(p=>p.svg);assert(drawings.length>1);

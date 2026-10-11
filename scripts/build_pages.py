@@ -53,6 +53,8 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs</option></select></label><label>Character <select')
         html=html.replace('Choose a letter and inspect its saved examples, newest first.', 'Choose a writer, group and character, then inspect its originals and saved blends, newest first. Blends are labelled.')
     if(source=='compose.html'):
+        # Larger sizes are supported by the browser engine; the legacy server keeps its original choices.
+        html=html.replace('<option value="8">Large · 8 mm</option>', '<option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option>')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-natural.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-order.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<script src="assets/compose.js"></script>','<script src="assets/compositions.js"></script><script src="assets/compose.js"></script>')

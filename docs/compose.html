@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
 <link rel="stylesheet" href="assets/style.css?v=0c5cca319b9c">
-<script src="assets/engine.js?v=5c8ed8f09417"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
+<script src="assets/engine.js?v=58f7aa8fd6c5"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
 <script src="assets/recovery.js?v=daf3be38dd97"></script></head>
 <body class="compose-page"><dialog id="recovery-dialog" aria-labelledby="recovery-title">
 <h2 id="recovery-title">Recover unfinished work</h2>
@@ -23,7 +23,7 @@
   <p>Type with your saved letters, numbers and punctuation. Choose a fixed sequence or shuffled selection below. Included preferred versions are used when enabled and allowed by the source type; otherwise the chosen sample pool is used. Excluded samples are skipped.</p>
   <fieldset class="saved-compositions"><legend>Saved compositions</legend><label>Name <input id="composition-title" type="text" maxlength="100" placeholder="For example: Letter to a friend"></label><div class="compose-actions"><button id="composition-save" type="button">Save composition</button><button id="composition-copy" type="button">Save a copy</button></div><label>Saved documents <select id="composition-list"></select></label><button id="composition-open" type="button" disabled>Open composition</button><p id="composition-status" role="status" class="subtle">Save text, writing size, source choices, spacing and page layout in this browser. Generate a preview before saving to keep every finished page too. Opening it restores all pages for repeat downloads. Generate preview uses your current handwriting; settings can also be saved as a draft. Use Backup / Import to transfer compositions.</p></fieldset>
 <form id="compose-form">
-    <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
+    <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
     <div class="compose-settings sample-settings"><label>Samples <select id="compose-samples"><option value="latest_three">Latest three per letter</option><option value="latest_only">Latest only — check new writing</option><option value="latest_four">Latest four per character</option><option value="all">All saved — newest first</option></select></label></div>
     <p id="compose-counts" class="subtle"></p>
     <label for="phrase">Your phrase</label>

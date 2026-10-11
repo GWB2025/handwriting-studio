@@ -19,6 +19,15 @@ test('a stale proof load cannot replace a newer preview or reenable downloads',a
  w.setSnapshot(async()=>w.records);await e['proof-refresh'].onclick();assert.equal(e['proof-svg'].disabled,true);assert.match(e['proof-status'].textContent,/No included samples/);resolve(w.records);await pending;assert.equal(e['proof-svg'].disabled,true);assert.match(e['proof-status'].textContent,/No included samples/);
 });
 
+test('larger proof sizes update automatically and export the enlarged page',async()=>{
+ const w=await workspace(),e=w.ids;
+ for(const height of [10,12,16,20]){
+  const previous=await w.urls.at(-1).text();e['proof-size'].value=String(height);e['proof-size'].listeners.change();assert.equal(e['proof-gcode'].disabled,true);
+  await new Promise(resolve=>setTimeout(resolve,260));assert.equal(e['proof-gcode'].disabled,false);assert.match(e['proof-status'].textContent,new RegExp(height+' mm'));
+  const displayed=await w.urls.at(-1).text();assert.notEqual(displayed,previous);e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),displayed);
+ }
+});
+
 test('comparison mode shows three sizes, reports missing versions and exports the labelled preview',async()=>{
  const w=await workspace(),e=w.ids;e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();assert.equal(e['proof-kind'].disabled,true);assert.equal(e['proof-size'].disabled,true);assert.equal(e['proof-comparison-text'].hidden,false);await e['proof-refresh'].onclick();
  assert.equal(e['proof-svg'].disabled,false);assert.match(e['proof-status'].textContent,/3, 5 and 8/);assert.match(e['proof-missing'].textContent,/Crossed boxes/);const svg=await w.urls.at(-1).text();

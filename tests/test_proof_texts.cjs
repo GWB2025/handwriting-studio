@@ -10,10 +10,10 @@ test('sonnets retain all fourteen lines, with explicit lowercase alternatives an
  const handwriting=text('handwriting-sonnet-original');assert.equal(handwriting.split('\n').length,14);assert.equal(text('handwriting-sonnet-lowercase'),handwriting.toLowerCase().replace(/[^a-z \n]/g,''));
  for(const example of T.examples.filter(e=>e.id.startsWith('handwriting-sonnet-'))){assert.equal(example.sonnet,undefined);assert.match(example.note,/original sonnet by Codex/);}
 });
-test('passages preserve every character, line and preference across A4 pages at all writing sizes',()=>{
+test('passages preserve every character, line and preference across A4 pages up to 16 mm',()=>{
  const records=files(),originals=[...records,...extendedFiles('uppercase'),...extendedFiles('symbols')],before=JSON.stringify(originals);
  const selected=E.catalog(records).byWriter.get('Writer').find(s=>s.letter==='a');records.push(E.choosePreferred(records,{writer:'Writer',letter:'a',capture_id:selected.capture_id}));
- for(const example of T.examples.filter(e=>e.passage))for(const height of [3,5,8]){
+ for(const example of T.examples.filter(e=>e.passage))for(const height of [3,5,8,10,12,16]){
   const sentence=example.text,lowercaseOnly=/^[a-z \n]+$/.test(sentence),r=E.proofSheet(lowercaseOnly?records:originals,{writer:'Writer',kind:'numbers',sentence,height,text_only:true});
   assert.equal(r.used_samples.map(s=>s.letter).join(''),sentence.replace(/\s/g,''));
   if(lowercaseOnly)assert(r.used_samples.filter(s=>s.letter==='a').every(s=>s.capture_id===selected.capture_id));
@@ -29,4 +29,5 @@ test('passages reject missing handwriting, blank text and excessive length witho
  assert.throws(()=>E.proofSheet(records,{writer:'Writer',sentence:' ',text_only:true}),/Enter a passage/);
  assert.throws(()=>E.proofSheet(records,{writer:'Writer',sentence:'a'.repeat(10001),text_only:true}),/10,000/);
  assert.throws(()=>E.proofSheet(records,{writer:'Writer',sentence:'abc',source:'blends',text_only:true}),/No included saved blends/);
+ assert.throws(()=>E.proofSheet(records,{writer:'Writer',sentence:text('sonnet-lowercase'),height:20,text_only:true}),/more than 20 pages/);
 });

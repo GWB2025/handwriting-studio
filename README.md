@@ -2,7 +2,7 @@
 
 [Open the public app](https://gwb2025.github.io/handwriting-studio/) · [Read the help guide](https://gwb2025.github.io/handwriting-studio/help.html)
 
-Current public website documentation · updated 10 October 2026.
+Current public website documentation · updated 11 October 2026.
 
 Handwriting Studio captures your handwriting, reviews and blends individual characters, and composes A4 pages for SVG export or a pen plotter. The website runs in Safari or Chrome, including on an iPad. No Mac server, Python setup or login is needed to use it. **Help guide** on each screen opens the relevant instructions in a separate tab; **Show help** on Capture and Free writing provides short instructions in place.
 
@@ -108,7 +108,7 @@ These settings do not move or resize the saved strokes or change blend geometry.
 
 ## Alphabet proof sheet
 
-Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm) or Large (8 mm). The proof cycles through included preferred choices when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
+Open **Alphabet proof sheet** from **My alphabet**. It starts with that writer and group. Choose originals, saved blends or both, and Small (3 mm), Medium (5 mm), Large (8 mm), or 10, 12, 16 or 20 mm. The proof cycles through included preferred choices when allowed by the source type; otherwise it uses the newest included sample. It shows the available characters in group order followed by an optional test sentence.
 
 Missing group characters are listed and omitted from the character row. A test sentence requiring unavailable characters reports the missing samples and prevents export; edit it or leave it blank. The initial sentence uses the lowercase pangram when all lowercase letters are available, otherwise a short selection of available characters. Edited text is preserved across setting changes. Settings and sentence edits update the preview automatically; **Refresh preview** also reloads saved choices.
 
@@ -163,7 +163,7 @@ Changing amount, spacing or layout, or pressing Generate preview, keeps the same
 
 **Use saved joined pairs** replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
 
-Small/Medium/Large refer to the capture guide’s small-letter height (3/5/8 mm), retaining natural proportions. A review baseline shift is applied as a physical offset afterwards. Saved character spacing scales with writing size and is applied in addition to the general spacing controls. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word prompts smaller writing, narrower margins or a space. Documents beyond 20 pages must be split or shortened; output is never silently clipped.
+Writing sizes are 3, 5, 8, 10, 12, 16 and 20 mm, with 5 mm selected initially. The measurement refers to the capture guide’s small-letter height, retaining natural proportions for taller letters and tails. Larger writing may flow onto more pages; preview zoom changes only the display. A review baseline shift is applied as a physical offset afterwards. Saved character spacing scales with writing size and is applied in addition to the general spacing controls. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word prompts smaller writing, narrower margins or a space. Documents beyond 20 pages must be split or shortened; output is never silently clipped.
 
 **Letter spacing**, **Word spacing** and **Line gap** range from 50% to 200%, with 100% preserving the normal layout. Letter spacing changes the distance between character starts; word spacing changes the space width; line gap changes the clearance between lines. Character shape and writing size stay unchanged. Tight letter spacing can overlap characters, so inspect the preview. **Reset spacing** restores all three to 100%.
 
