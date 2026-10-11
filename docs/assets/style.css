@@ -201,3 +201,14 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 #recovery-dialog p {line-height:1.5;}
 #recovery-list {display:block;width:100%;font:inherit;font-size:16px;min-height:44px;margin:8px 0;}
 @media(max-width:600px){.browser-storage{flex-wrap:wrap;gap:8px}.storage-buttons{flex-shrink:1;}}
+
+/* Fixed overlays keep tips from moving the writing area or its controls. */
+.studio-tip-descriptions {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;pointer-events:none}
+.studio-tip-panel {position:fixed;z-index:10000;box-sizing:border-box;width:max-content;max-width:360px;padding:12px 16px;border:1px solid #b7ccbe;border-radius:10px;background:#183e32;color:white;box-shadow:0 4px 18px #10231c33;font:16px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;text-align:left;overflow:auto;touch-action:pan-y}
+.studio-tip-panel[hidden],.studio-tip-panel button[hidden] {display:none!important}
+.studio-tip-panel p {margin:0;line-height:1.45;color:inherit}
+.studio-tip-panel button {display:block;min-height:44px;padding:8px 14px;margin:10px 0 0;background:white;color:#183e32;border:1px solid white;border-radius:6px;font:inherit;cursor:pointer}
+.studio-tip-toggle {min-height:44px;touch-action:manipulation}
+.studio-tip-toggle[aria-pressed="true"] {background:#245c4a;color:white;border-color:#245c4a}
+dialog>.studio-tip-toggle {margin-top:12px}
+.studio-tip-ui:focus-visible,.studio-tip-panel button:focus-visible {outline:3px solid #edbb40;outline-offset:3px}

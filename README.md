@@ -8,6 +8,8 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 
 **Writing is saved in this browser on this device.** It is not uploaded to GitHub and does not automatically sync between devices. Use **Backup / Import** regularly. Automatic recovery keeps local copies of unfinished capture, free writing and Compose edits. Reopening offers Restore draft or Discard draft. Save restored work normally before backing up; recovery copies are not included in backups.
 
+**Control tips** are available on every screen. Hover over a control with a mouse or reach it with the Tab key to read its explanation; Escape dismisses it. On an iPad, tap **Control tips**, then tap a control to read about it without activating it. Tap **Done with tips** or **Control tips** again to resume normal use. The mode is also available inside backup, draft-recovery and saved-page windows. Tips cover dynamically added sample cards and blend sources, and descriptions are available to screen readers.
+
 ## Current workflow
 
 1. **Capture** lowercase, uppercase, numbers, punctuation and symbols, or common joined pairs. Repeat sets to collect variations.

@@ -26,8 +26,9 @@ for name in ['app.js','symbol-guides.js','capture.js','compose.js','review.js','
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
 style+='\n'+(ROOT/'web/compose-layout.css').read_text()+'\n'+(ROOT/'web/recovery.css').read_text()
+style+='\n'+(ROOT/'web/tooltips.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','compositions.js','character-spacing.js']:
+for name in ['tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
     html=adapt((ROOT/('web' if source in ['help.html','proof.html'] else 'static')/source).read_text())
@@ -93,6 +94,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         if source!='compose.html':html=html.replace('</body>','<script src="assets/writing-recovery.js"></script></body>')
     html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')
+    html=html.replace('</body>','<script src="assets/tooltips-content.js"></script><script src="assets/tooltips.js"></script>\n</body>')
     # Changed assets get fresh URLs when a tablet reloads the page.
     html=re.sub(r'assets/([a-z.-]+)', lambda m: m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12], html)
     (DEST/target).write_text(html)
