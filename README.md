@@ -12,7 +12,7 @@ Handwriting Studio captures your handwriting, reviews and blends individual char
 
 ## Current workflow
 
-1. **Capture** lowercase, uppercase, numbers, punctuation and symbols, or common joined pairs. Repeat sets to collect variations.
+1. **Capture** lowercase, uppercase, numbers, punctuation and symbols, or common joined pairs (experimental). Repeat sets to collect variations.
 2. **Review samples** to include/exclude individual originals or saved blends, adjust their size and baseline, and compare a short word live.
 3. **Blend a character** from two or four different original captures by dragging the live result towards its sources. Save the result as a new sample.
 4. **My alphabet** shows coverage, original/blend counts and preferred versions for each writer and group.
@@ -128,6 +128,8 @@ The typed text box is for editing; the **Handwriting preview** below shows the r
 
 Exports use A4 with 20 mm margins and the existing calibration; exported dimensions are physical millimetres. Print SVG at 100% without fit-to-page. This page generates downloads and does not send commands to the plotter.
 
+Alphabet sheets and text passages use individual letters. Select **Group → Joined pairs · Experimental** on an alphabet sheet to inspect your pair samples explicitly.
+
 ### Compare originals, blends and preferred choices
 
 Choose **Compare versions** in My alphabet, or **Sheet → Compare versions** on the proof screen. It compares your latest included originals, latest included saved blends, and included preferred choices in three labelled columns on one A4 page. **Comparison writing size** offers **3, 5 and 8 mm together** (the default), or a single size of **3, 5, 8, 10, 12, 16 or 20 mm**. Preferred choices cycle in their saved order; each size restarts the same choices. Current Review size/position and individual character spacing apply. Joined-pair substitution is off so individual characters can be compared.
@@ -163,7 +165,7 @@ Changing amount, spacing or layout, or pressing Generate preview, keeps the same
 
 **Try another variation** generates a new selection immediately in shuffled mode. Changing spacing, margins or alignment, or pressing Generate preview again, keeps the current selection for unchanged text and samples. **Save composition** stores the variation so reopening a draft can regenerate it from the same library. Generating before saving also preserves the exact drawing independently of later library changes. Older compositions open with In sequence. Shuffling changes sample selection, not letter shapes or sizes.
 
-**Use saved joined pairs** replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
+**Use saved joined pairs · Experimental** is **off by default for new compositions**. Saved compositions and restored drafts retain their previous choice; existing pair captures and blends remain available. Pair sizes may differ from individual letters, and pairs do not automatically connect to neighbouring letters. When enabled, this option replaces matching pairs where an allowed sample exists; otherwise composition uses the individual characters. Pair samples follow the same source, inclusion and preference rules. Supported pairs are `th he in er an re on at en nd oo fi of tt`. This is not automatic cursive joining between arbitrary letters.
 
 Writing sizes are 3, 5, 8, 10, 12, 16 and 20 mm, with 5 mm selected initially. The measurement refers to the capture guide’s small-letter height, retaining natural proportions for taller letters and tails. Larger writing may flow onto more pages; preview zoom changes only the display. A review baseline shift is applied as a physical offset afterwards. Saved character spacing scales with writing size and is applied in addition to the general spacing controls. Gentle smoothing uses midpoint curves without rewriting raw strokes. Neighbouring stroke shapes help determine spacing; whole words wrap at the right margin. An oversized word prompts smaller writing, narrower margins or a space. Documents beyond 20 pages must be split or shortened; output is never silently clipped.
 

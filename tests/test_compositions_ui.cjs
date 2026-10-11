@@ -13,7 +13,7 @@ test('saved compositions update in place, copy independently and reopen every sa
  const w=await workspace(),{ids}=w;assert.equal(ids['composition-open'].disabled,true);assert.equal(w.api.hasUnsavedChanges(),false);
  ids['composition-title'].value='Test letter';await ids['composition-save'].onclick();const first=w.records[0].value.id;
  assert.equal(w.records.length,1);assert.equal(w.api.hasUnsavedChanges(),false);assert.equal(ids['composition-open'].disabled,false);
- w.draft={...w.draft,phrase:'new words',source:'blends',samples:'all',use_preferred:false,joined:false,smooth:false,word_spacing:1.5,line_spacing:.75,height:3};await ids['composition-save'].onclick();
+ w.draft={...w.draft,phrase:'new words',source:'blends',samples:'all',use_preferred:false,joined:true,smooth:false,word_spacing:1.5,line_spacing:.75,height:3};await ids['composition-save'].onclick();
  assert.equal(w.records.length,1);assert.equal(w.records[0].value.id,first);const saved=E.clone(w.draft);
  ids['composition-title'].value='Second version';await ids['composition-copy'].onclick();assert.equal(w.records.length,2);assert.notEqual(w.records[1].value.id,first);
  w.draft={...w.draft,phrase:'unfinished'};ids['composition-list'].value=first;w.confirm=false;await ids['composition-open'].onclick();assert.equal(w.draft.phrase,'unfinished');assert.equal(w.restored.length,0);

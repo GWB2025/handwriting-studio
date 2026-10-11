@@ -40,13 +40,19 @@ test('normalisation and blending leave originals untouched; reversed and differe
  const result=E.compose(files(),{writer:'Writer',phrase:'aaaa',variation:'blend',seed:'fixed'});
  assert.equal(result.variation.blended,4);assert.deepEqual(E.compose(files(),{writer:'Writer',phrase:'aaaa',variation:'blend',seed:'fixed'}).svg,result.svg);
 });
-test('joined pairs substitute only when included and can be disabled',()=>{
+test('joined pairs are off by default, and explicit saved choices still substitute included pairs',()=>{
  const records=[...files(),...extendedFiles('pairs')];
- assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'the'}).used_samples.map(s=>s.letter),['th','e']);
+ assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'the'}).used_samples.map(s=>s.letter),['t','h','e']);
+ assert.equal(E.compositionSettings({writer:'Writer',phrase:'the'}).joined,false);
+ for(const joined of [true,false]){
+  const settings=E.compositionSettings({writer:'Writer',phrase:'the',joined}),record=E.createComposition({id:require('node:crypto').randomUUID(),title:'Saved choice',settings});
+  E.validateRecord('compositions/'+record.id+'.json',record);assert.equal(record.settings.joined,joined);
+  assert.deepEqual(E.compose(records,record.settings).used_samples.map(s=>s.letter),joined?['th','e']:['t','h','e']);
+ }
  assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'the',joined:false}).used_samples.map(s=>s.letter),['t','h','e']);
  const f=records.find(f=>f.value.samples.some(s=>s.letter==='th'));
  records.push({key:'letter_reviews/'+f.value.id+'.json',value:{capture_id:f.value.id,reviews:{th:{included:false,baseline_shift_mm:0}}}});
- assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'the'}).used_samples.map(s=>s.letter),['t','he']);
+ assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'the',joined:true}).used_samples.map(s=>s.letter),['t','he']);
 });
 test('whole words share a baseline at wrap and oversized words are rejected',()=>{
  const result=E.compose(files(),{writer:'Writer',phrase:Array(10).fill('abcde').join(' '),height:12});

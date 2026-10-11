@@ -140,7 +140,7 @@
   }
   function compositionSettings(data){
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>(data.page_layout!==undefined?10000:2000))fail('Choose a writer and enter text within the document limit before saving a composition.');
-    const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??true,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
+    const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??false,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
     if(![3,5,8,10,12,16,20].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
     if(data.page_layout!==undefined)result.page_layout=pageLayout(data.page_layout);
@@ -195,7 +195,7 @@
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
     const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:true,phrase,page_layout:{},natural_variation:data.natural_variation});
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:kind==='pairs'&&!text_only,phrase,page_layout:{},natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
   }
   function validateBlendReferences(files){
@@ -450,7 +450,7 @@
   }
   function compose(files,data){return composeWriting(files,data);}
   function composeWriting(files,data,reviewSample=null){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=true,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=false,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
     const natural=naturalSettings(data.natural_variation);
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');

@@ -19,7 +19,7 @@ test('the inspected pair wins over overlapping other pairs and single-letter rev
  const records=[...files(),...extendedFiles('pairs')],samples=E.catalog(records).byWriter.get('Writer'),th=samples.find(s=>s.letter==='th'),t=samples.find(s=>s.letter==='t');
  const reviewed=E.reviewWord(records,request(th,'ath the'));assert.deepEqual(reviewed.used_samples.map(s=>s.letter),['a','th','th','e']);assert(reviewed.used_samples.filter(s=>s.letter==='th').every(s=>s.capture_id===th.capture_id));
  assert.deepEqual(E.reviewWord(records,request(t,'ththth')).used_samples.map(s=>s.letter),['t','h','t','h','t','h']);
- assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'ath the'}).used_samples.map(s=>s.letter),['at','h','th','e']);
+ assert.deepEqual(E.compose(records,{writer:'Writer',phrase:'ath the',joined:true}).used_samples.map(s=>s.letter),['at','h','th','e']);
  assert.throws(()=>E.reviewWord(extendedFiles('pairs'),request(th,'xth')),/unavailable/);
  const pairOnly=extendedFiles('pairs'),pair=E.catalog(pairOnly).byWriter.get('Writer').find(s=>s.letter==='th');assert.throws(()=>E.reviewWord(pairOnly,request(pair,'xth')),/No included samples for: x/);
 });

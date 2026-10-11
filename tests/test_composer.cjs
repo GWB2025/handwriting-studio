@@ -23,7 +23,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   if(layout)for(const name of ['margin-top','margin-right','margin-bottom','margin-left','alignment','paragraph-gap','layout-reset','page-previous','page-next','page-select','page-status'])elements['compose-'+name]=events({value:name.startsWith('margin-')?'20':name==='alignment'?'left':'0',disabled:false,replaceChildren(){this.value='';},append(option){if(!this.value)this.value=option.value;}});
   if(natural){elements['compose-natural']=events({value:'off',disabled:false});elements['compose-natural-new']=events({disabled:true});}
   if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
-  for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=true;
+  for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=/<input[^>]*id="compose-joined"[^>]*\bchecked\b/.test(fs.readFileSync('docs/compose.html','utf8'));
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -81,7 +81,7 @@ test('sample choice reaches the server and changing it invalidates the old downl
 
 test('opening a saved composition restores the complete form and invalidates earlier exports',async()=>{
  const c=await composer(true,true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(e['compose-download'].disabled,false);
- const settings={...c.window.compositions.read(),phrase:'a saved letter',height:20,samples:'all',source:'blends',use_preferred:false,joined:false,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
+ const settings={...c.window.compositions.read(),phrase:'a saved letter',height:20,samples:'all',source:'blends',use_preferred:false,joined:true,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
  await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),settings);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
  await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');assert.equal(JSON.parse(c.requests.at(-1).options.body).height,20);
  await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
@@ -160,9 +160,9 @@ test('baseline review changes invalidate a previous composition even when counts
 
 
 test('browser composer sends blending and joined options and invalidates preview when they change',async()=>{
- const c=await composer(true),e=c.elements;e['compose-variation'].value='blend';e['compose-joined'].checked=false;
+ const c=await composer(true),e=c.elements;assert.equal(e['compose-joined'].checked,false);await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).joined,false);e['compose-variation'].value='blend';e['compose-joined'].checked=true;
  await e['compose-form'].onsubmit({preventDefault(){}});
- const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.variation,'blend');assert.equal(data.joined,false);assert.ok(data.seed);
+ const data=JSON.parse(c.requests.at(-1).options.body);assert.equal(data.variation,'blend');assert.equal(data.joined,true);assert.ok(data.seed);
  e['compose-variation'].emit('change');assert.equal(e['compose-download'].disabled,true);
 });
 

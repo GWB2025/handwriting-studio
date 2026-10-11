@@ -1,6 +1,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),E=require('../web/engine'),P=require('../static/plotter'),{files}=require('./browser_helpers'),{extendedFiles}=require('./extended_helpers'),{randomUUID}=require('node:crypto');
 const paths=svg=>[...svg.matchAll(/<path d="([^"]+)"/g)].map(m=>m[1]);
 const starts=svg=>paths(svg).map(d=>P.flatten(d)[0]);
+test('ordinary proofs avoid joined pairs, while explicit pair proofing and pair review remain available',()=>{
+ const records=[...files(),...extendedFiles('pairs')],before=JSON.stringify(records);
+ for(const kind of ['lowercase','pairs']){
+  const passage=E.proofSheet(records,{writer:'Writer',kind,text_only:true,sentence:'the'});assert.deepEqual(passage.used_samples.map(s=>s.letter),['t','h','e']);
+ }
+ const alphabet=E.proofSheet(records,{writer:'Writer',sentence:'the'});assert(alphabet.used_samples.every(s=>s.letter.length===1));
+ const pairs=E.proofSheet(records,{writer:'Writer',kind:'pairs'});assert.deepEqual(pairs.used_samples.map(s=>s.letter),E.pairs);
+ const sample=E.catalog(records).byWriter.get('Writer').find(s=>s.letter==='th');
+ const review=E.reviewWord(records,{writer:'Writer',capture_id:sample.capture_id,letter:'th',text:'the',included:true,baseline_shift_mm:0,scale_factor:1});assert.deepEqual(review.used_samples.map(s=>s.letter),['th','e']);
+ assert.equal(JSON.stringify(records),before);
+});
 test('proof sheet uses preferred samples, lists gaps and exports within A4 margins',()=>{
  const records=files(),orig=E.catalog(records).byWriter.get('Writer').filter(s=>s.letter==='a'),blend=E.createSavedBlend(records,{id:randomUUID(),writer:'Writer',letter:'a',source_ids:orig.slice(0,2).map(s=>s.capture_id),horizontal:40,vertical:50});records.push({key:'blends/'+blend.id+'.json',value:blend});records.push(E.choosePreferred(records,{writer:'Writer',letter:'a',capture_id:blend.id}));
  const before=JSON.stringify(records);
