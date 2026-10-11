@@ -27,13 +27,13 @@ test('pending size and position change the ink against a fixed baseline and disp
  const records=[...files(),...extendedFiles('pairs')];
  for(const letter of ['a','th']){
   const sample=E.catalog(records).byWriter.get('Writer').find(s=>s.letter===letter),data=request(sample,letter.repeat(3)),base=E.reviewWord(records,data),height=box(base.svg)[3];
-  for(const scale_factor of [.5,.7712,1,2])for(const baseline_shift_mm of [-10,.587,10]){
+  for(const scale_factor of [.5,.7712,1,2,3,4])for(const baseline_shift_mm of [-10,.587,10]){
    const result=E.reviewWord(records,{...data,scale_factor,baseline_shift_mm}),frame=box(result.svg);assert.equal(frame[3],height);
    const original=bounds(paths(base.svg)[0]),changed=bounds(paths(result.svg)[0]);close(changed.width,original.width*scale_factor);close(changed.height,original.height*scale_factor);
    const unshifted=paths(E.reviewWord(records,{...data,scale_factor}).svg),shifted=paths(result.svg);
    shifted.forEach((stroke,i)=>stroke.forEach((point,j)=>{close(point[1]-unshifted[i][j][1],baseline_shift_mm);assert(point[0]>=0&&point[0]<=frame[2]);assert(point[1]>=0&&point[1]<=frame[3]);}));
   }
-  const long=E.reviewWord(records,{...data,text:letter.repeat(Math.floor(40/letter.length)),scale_factor:2});assert.equal(box(long.svg)[3],height);assert(box(long.svg)[2]>box(base.svg)[2]);
+  const long=E.reviewWord(records,{...data,text:letter.repeat(Math.floor(40/letter.length)),scale_factor:4});assert.equal(box(long.svg)[3],height);assert(box(long.svg)[2]>box(base.svg)[2]);
  }
 });
 test('reviewing an excluded original or a saved joined blend uses its pending edits without changing saved records',()=>{

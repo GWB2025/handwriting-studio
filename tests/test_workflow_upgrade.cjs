@@ -9,7 +9,7 @@ test('size scales both axes around the baseline once, retains physical shift, an
  const p=E.choosePreferred(records,{writer:'Writer',letter:'a',capture_id:s.capture_id});records.push(p);
  const output=E.compose(records,{writer:'Writer',phrase:'aa'});assert(output.svg.includes('stroke="black"'));
  assert.equal(JSON.stringify(records.filter(f=>f.key.startsWith('letters/'))),before);E.validateRecord(records.at(-2).key,records.at(-2).value);
- for(const scale_factor of [.49,2.01,'1',NaN])assert.throws(()=>E.validateReview({included:true,baseline_shift_mm:0,scale_factor}));
+ for(const scale_factor of [.49,4.01,'1',NaN])assert.throws(()=>E.validateReview({included:true,baseline_shift_mm:0,scale_factor}));
 });
 test('old and scaled blend recipes restore exactly after source reviews change size',()=>{
  const records=files(),sources=originalAs(records).slice(0,2),request={id:randomUUID(),writer:'Writer',letter:'a',source_ids:sources.map(s=>s.capture_id),horizontal:40,vertical:50};
@@ -20,6 +20,16 @@ test('old and scaled blend recipes restore exactly after source reviews change s
  sources.forEach(s=>review(records,s,.7,-2));E.validateBlendReferences(records);
  assert.deepEqual(E.createSavedBlend(records,{...E.savedBlendRecipe(records,scaled.id),id:randomUUID()}).samples,scaled.samples);
  const tampered=E.clone(records);tampered.find(f=>f.key.startsWith('blends/')&&f.value.schema_version===5).value.source_scales[0]=1.4;assert.throws(()=>E.validateBlendReferences(tampered),/match its sources/);
+});
+test('two- and four-source blends retain 400% recipes after the original review sizes change',()=>{
+ for(const count of [2,4]){
+  const records=[...files(),...files()],sources=originalAs(records).slice(0,count);assert.equal(sources.length,count);sources.forEach(s=>review(records,s,4));
+  const request={id:randomUUID(),writer:'Writer',letter:'a',source_ids:sources.map(s=>s.capture_id),horizontal:30,vertical:60},blend=E.createSavedBlend(records,request),key='blends/'+blend.id+'.json';
+  assert.deepEqual(blend.source_scales,Array(count).fill(4));E.validateRecord(key,blend);records.push({key,value:blend});sources.forEach(s=>review(records,s,.5));
+  E.validateBlendReferences(records);const recipe=E.savedBlendRecipe(records,blend.id);assert.deepEqual(recipe.source_scales,Array(count).fill(4));assert.deepEqual(E.createSavedBlend(records,{...recipe,id:randomUUID()}).samples,blend.samples);
+  assert.throws(()=>E.createSavedBlend(records,{...request,source_scales:Array(count).fill(4.01)}),/source sizes/);
+  assert.throws(()=>E.validateRecord(key,{...blend,source_scales:Array(count).fill(4.01)}),/blend sizes/);
+ }
 });
 test('preferred sets cycle deterministically, respect exclusions and source filters, and retain legacy choices',()=>{
  const records=files(),[a,b,c]=originalAs(records),key=E.alphabetKey('Writer');records.push(E.choosePreferred(records,{writer:'Writer',letter:'b',capture_id:E.catalog(records).byWriter.get('Writer').find(s=>s.letter==='b').capture_id}));

@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),E=require('../web/engine'),{files}=require('./browser_helpers');
 async function workspace(){
  function element(tag='div'){return {tag,value:'',hidden:false,disabled:false,checked:true,style:{},children:[],listeners:{},append(...nodes){this.children.push(...nodes);if(tag==='select'&&!this.value)this.value=nodes[0]?.value||'';},replaceChildren(){this.children=[];this.value='';},addEventListener(name,fn){this.listeners[name]=fn;},click(){downloads.push(this.download);},remove(){}};}
- const ids={};for(const id of ['proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
- ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
+ const ids={};for(const id of ['proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-writing-size','proof-compare-size','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
+ ids['proof-compare-size'].value='classic';ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
  const doc={getElementById:id=>ids[id],createElement:element,body:element(),addEventListener(){}},context={document:doc,StudioEngine:E,crypto:require('node:crypto').webcrypto,StudioComparison:require('../web/proof-comparison'),StudioStorage:{snapshot:()=>snapshot()},StudioPlotter:{fromSVG(svg){exported.push(svg);return 'G21\n';}},Blob,URLSearchParams,URL:{createObjectURL(blob){urls.push(blob);return 'blob:'+urls.length;},revokeObjectURL(){}},setTimeout,clearTimeout,location:{search:'?writer=Writer'},addEventListener(){}};context.window=context;
  const root=process.env.STUDIO_PAGES_TEST?'docs/assets/':'web/';vm.runInNewContext(fs.readFileSync(root+'proof-texts.js','utf8'),context);
  await vm.runInNewContext(fs.readFileSync(root+'proof.js','utf8'),context);return {ids,records,urls,downloads,exported,setSnapshot(fn){snapshot=fn;}};
@@ -34,6 +34,19 @@ test('comparison mode shows three sizes, reports missing versions and exports th
  e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),svg);assert.equal(w.downloads.at(-1),'comparison-proof-a4.gcode');
  e['proof-compare-text'].value='a'.repeat(100);e['proof-compare-text'].listeners.input();await e['proof-refresh'].onclick();assert.equal(e['proof-svg'].disabled,true);assert.match(e['proof-status'].textContent,/shorter/);
  e['proof-mode'].value='alphabet';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.equal(e['proof-size'].disabled,false);assert.equal(e['proof-svg'].disabled,false);
+});
+
+test('comparison sizes through 20 mm refresh and export the chosen size without changing alphabet size',async()=>{
+ const w=await workspace(),e=w.ids;e['proof-size'].value='12';e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();
+ assert.equal(e['proof-writing-size'].hidden,true);assert.equal(e['proof-compare-size'].disabled,false);e['proof-compare-text'].value='a';
+ for(const height of [3,5,8,10,12,16,20]){
+  e['proof-compare-size'].value=String(height);e['proof-compare-size'].listeners.change();assert.equal(e['proof-svg'].disabled,true);await e['proof-refresh'].onclick();
+  assert.equal(e['proof-svg'].disabled,false);assert.match(e['proof-status'].textContent,new RegExp('comparison at '+height+' mm'));
+  const displayed=await w.urls.at(-1).text();e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),displayed);assert.equal(w.downloads.at(-1),'comparison-proof-a4.gcode');
+ }
+ e['proof-mode'].value='alphabet';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.equal(e['proof-writing-size'].hidden,false);assert.equal(e['proof-size'].value,'12');assert.equal(e['proof-compare-size'].disabled,true);
+ e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.match(e['proof-status'].textContent,/comparison at 20 mm/);
+ e['proof-compare-size'].value='classic';e['proof-compare-size'].listeners.change();await e['proof-refresh'].onclick();assert.match(e['proof-status'].textContent,/3, 5 and 8 mm/);
 });
 
 test('pangrams and Sonnet 18 load editable text, preserve edits and report missing original capitals and punctuation',async()=>{

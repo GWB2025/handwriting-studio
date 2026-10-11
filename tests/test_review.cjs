@@ -169,10 +169,29 @@ test('joined-pair word preview renders actual size and position changes at a ste
  e['review-kind'].value='pairs';e['review-kind'].onchange();await settle();assert.equal(e['review-word'].value,'ththth');
  const dimensions=()=>{const svg=e['review-word-preview'].querySelector('svg'),box=svg.getAttribute('viewBox').split(' ').map(Number),ink=svg.querySelector('g').getBBox();return {height:box[3],pixelsPerUnit:parseFloat(svg.style.width)/box[2],ink,svg};};
  await new Promise(resolve=>setTimeout(resolve,150));const original=dimensions();assert.match(e['review-word-status'].textContent,/this joined pair/);
- for(const size of [50,77.12,200]){
+ for(const size of [50,77.12,200,300,400]){
   e['sample-size'].value=size;e['sample-size'].oninput();await new Promise(resolve=>setTimeout(resolve,150));const current=dimensions();
   assert.equal(current.height,original.height);assert.equal(current.pixelsPerUnit,original.pixelsPerUnit);assert(Math.abs(current.ink.height-original.ink.height*size/100)<.0002);assert.equal(current.svg.style.height,'180px');
  }
  const before=dimensions();e['sample-shift'].value='-0.587';e['sample-shift'].oninput();await new Promise(resolve=>setTimeout(resolve,150));const moved=dimensions();assert.equal(moved.height,before.height);assert.equal(moved.pixelsPerUnit,before.pixelsPerUnit);assert(Math.abs(moved.ink.y-before.ink.y-.587)<.0002);
  e['review-reset'].onclick();await new Promise(resolve=>setTimeout(resolve,150));assert.deepEqual(dimensions().ink,original.ink);assert.deepEqual(r.settings,{});
+});
+
+test('400% review edits stay centred and inside a fixed frame, save, and reopen without scaling twice',async()=>{
+ for(const initialScale of [1,4]){
+  const r=await review(true,{enhanced:true,initialScale,wideCrossbar:true}),e=r.elements,svg=e['sample-image'].querySelector('svg'),ink=svg.querySelector('g'),frame=svg.getAttribute('viewBox'),[x,y,width,height]=frame.split(' ').map(Number);
+  assert.equal(Number(e['sample-size'].value),initialScale*100);
+  for(const size of [50,200,300,400])for(const shift of [-10,10]){
+   e['sample-size'].value=size;e['sample-size'].oninput();e['sample-shift'].value=shift;e['sample-shift'].oninput();
+   assert.equal(svg.getAttribute('viewBox'),frame);const [dx,dy]=ink.getAttribute('transform').match(/translate\(([^)]+)\)/)[1].split(' ').map(Number),ratio=size/100/initialScale;
+   const bounds=ink.getBBox();assert(Math.abs(bounds.x*ratio+dx+bounds.width*ratio/2-x-width/2)<.0001);
+   assert(bounds.x*ratio+dx>=x&&((bounds.x+bounds.width)*ratio+dx)<=x+width);
+   assert(bounds.y*ratio+dy>=y&&((bounds.y+bounds.height)*ratio+dy)<=y+height);
+  }
+  assert.equal(e['sample-size-value'].textContent,'400%');assert.equal(e['review-save'].disabled,false);
+  await e['review-form'].onsubmit({preventDefault(){}});assert.equal(r.settings.scale_factor,4);assert.equal(e['review-save'].disabled,true);
+  e['sample-size-reset'].onclick();assert.equal(e['sample-size'].value,'100');e['review-reset'].onclick();assert.equal(e['sample-size'].value,'400');assert.equal(e['review-save'].disabled,true);
+  e['sample-size'].value='401';e['sample-size'].oninput();assert.equal(e['review-save'].disabled,true);assert.match(e['review-status'].textContent,/50% to 400%/);
+  e['review-reset'].onclick();await new Promise(resolve=>setTimeout(resolve,150));
+ }
 });

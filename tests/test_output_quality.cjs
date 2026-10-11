@@ -31,6 +31,18 @@ test('comparison separates originals, blends and preferred choices at physical s
  const missing=C.comparisonProof(files(),{writer:'Writer',text:'f i j l t z\nfizz\njilt'});assert.equal(missing.missing.length,12);assert(missing.rows.every(r=>r.columns[1].used_samples.length===0&&r.columns[2].used_samples.length===0));P.generate(paths(missing.svg));
  assert.throws(()=>C.comparisonProof(records,{writer:'Writer',text:'a'.repeat(100)}),/shorter/);
 });
+test('comparison offers every writing size through 20 mm with correctly sized ink and complete plotted labels',()=>{
+ const records=files(),sources=E.catalog(records).byWriter.get('Writer').filter(s=>s.letter==='a').slice(0,2),blend=E.createSavedBlend(records,{id:randomUUID(),writer:'Writer',letter:'a',source_ids:sources.map(s=>s.capture_id),horizontal:50,vertical:50});records.push({key:'blends/'+blend.id+'.json',value:blend});records.push(E.choosePreferred(records,{writer:'Writer',letter:'a',capture_id:blend.id}));
+ for(const height of [3,5,8,10,12,16,20]){
+  const result=C.comparisonProof(records,{writer:'Writer',text:'a',smooth:false,heights:[height]});
+  assert.deepEqual(result.heights,[height]);assert.equal(result.rows.length,1);assert.equal(result.missing.length,0);
+  const samples=E.catalog(records).byWriter.get('Writer');
+  paths(result.svg).slice(-3).forEach((path,i)=>{const ys=P.flatten(path).map(p=>p[1]),id=result.rows[0].columns[i].used_samples[0].capture_id,sample=samples.find(s=>s.capture_id===id&&s.letter==='a'),raw=sample.processed_strokes.flatMap(s=>s.points.map(p=>p.y));close(Math.max(...ys)-Math.min(...ys),(Math.max(...raw)-Math.min(...raw))*height/80);});
+  E.validateDrawingSVG(result.svg);P.generate(paths(result.svg));assert(!result.svg.includes('<text'));
+ }
+ for(const heights of [[],[21],[4],['20'],[NaN],[3,20],null])assert.throws(()=>C.comparisonProof(records,{writer:'Writer',heights}),/writing size/);
+ assert.throws(()=>C.comparisonProof(records,{writer:'Writer',text:'a'.repeat(20),heights:[20]}),/shorter/);
+});
 test('finished compositions retain exact safe A4 geometry independently of later handwriting changes',()=>{
  const records=files(),settings=E.compositionSettings({writer:'Writer',phrase:'abc'}),svg=E.compose(records,settings).svg,record=E.createComposition({id:randomUUID(),title:'Finished page',settings,drawing:svg});
  E.validateRecord('compositions/'+record.id+'.json',record);assert.equal(record.schema_version,2);assert.equal(record.drawing,svg);

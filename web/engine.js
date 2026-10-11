@@ -99,7 +99,7 @@
     const result=clone(sample);if(edit===undefined)return result;validateStrokeEdit(edit,sample.processed_strokes.length);
     const strokes=result.processed_strokes;result.processed_strokes=edit.order.map(i=>{const stroke=strokes[i];if(edit.reversed[i])stroke.points.reverse();return stroke;});return result;
   }
-  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10)||!finite(review.scale_factor??1,.5,2))fail('Choose inclusion, a position within 10 mm of the baseline, and a size from 50% to 200%.');if(review.stroke_edit!==undefined)validateStrokeEdit(review.stroke_edit);}
+  function validateReview(review){if(!review||typeof review.included!=='boolean'||!finite(review.baseline_shift_mm,-10,10)||!finite(review.scale_factor??1,.5,4))fail('Choose inclusion, a position within 10 mm of the baseline, and a size from 50% to 400%.');if(review.stroke_edit!==undefined)validateStrokeEdit(review.stroke_edit);}
   function scaleSample(sample,factor){
     const result=clone(sample);if(factor===1)return result;
     for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
@@ -167,7 +167,7 @@
     if(!uuid(data.id)||(typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80)||!Array.isArray(data.source_ids)||![2,4].includes(data.source_ids.length)||new Set(data.source_ids).size!==data.source_ids.length||!finite(data.horizontal,0,100)||!finite(data.vertical,0,100))fail('Choose two or four distinct source samples and valid mix controls.');
     const all=[...catalog(files).byWriter.values()].flat();
     if(data.source_shifts!==undefined&&(!Array.isArray(data.source_shifts)||data.source_shifts.length!==data.source_ids.length||!data.source_shifts.every(v=>finite(v,-10,10))))fail('Invalid source baseline adjustments.');
-    if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,2))))fail('Invalid source sizes.');
+    if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,4))))fail('Invalid source sizes.');
     if(data.source_edits!==undefined&&(!Array.isArray(data.source_edits)||data.source_edits.length!==data.source_ids.length))fail('Invalid source stroke corrections.');
     if(data.source_edits!==undefined)data.source_edits.forEach(e=>validateStrokeEdit(e));
     const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
@@ -246,7 +246,7 @@
     }
     if(key==='blends/'+r.id+'.json'){
       size(r);if(![4,5,6].includes(r.schema_version)||r.derived!==true||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||!Number.isFinite(Date.parse(r.saved_at))||!Array.isArray(r.order)||r.order.length!==1||![...characters,...pairs].includes(r.order[0])||!Array.isArray(r.source_ids)||![2,4].includes(r.source_ids.length)||new Set(r.source_ids).size!==r.source_ids.length||!r.source_ids.every(uuid)||!Array.isArray(r.source_shifts)||r.source_shifts.length!==r.source_ids.length||!r.source_shifts.every(v=>finite(v,-10,10))||!finite(r.horizontal,0,100)||!finite(r.vertical,0,100))fail('Invalid saved blend.');
-      if((r.schema_version===4&&r.source_scales!==undefined)||(r.schema_version>=5&&(!Array.isArray(r.source_scales)||r.source_scales.length!==r.source_ids.length||!r.source_scales.every(v=>finite(v,.5,2)))))fail('Invalid saved blend sizes.');
+      if((r.schema_version===4&&r.source_scales!==undefined)||(r.schema_version>=5&&(!Array.isArray(r.source_scales)||r.source_scales.length!==r.source_ids.length||!r.source_scales.every(v=>finite(v,.5,4)))))fail('Invalid saved blend sizes.');
       if(r.schema_version===6){if(!Array.isArray(r.source_edits)||r.source_edits.length!==r.source_ids.length)fail('Invalid saved stroke corrections.');r.source_edits.forEach(e=>validateStrokeEdit(e));}else if(r.source_edits!==undefined)fail('Unexpected saved stroke corrections.');
       const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
@@ -487,9 +487,9 @@
     });
     const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural};
     if(reviewSample){
-      // Reserve the full review range once: 50–200% size and ±10 mm position.
+      // Reserve the full review range once: 50–400% size and ±10 mm position.
       // The baseline and display scale must not follow the changing ink bounds.
-      const largest={...sampleAtSize(files,reviewSample,2),baseline_shift_mm:0};
+      const largest={...sampleAtSize(files,reviewSample,4),baseline_shift_mm:0};
       const extents=writingExtents(used.map(s=>s?.capture_id===reviewSample.capture_id&&s.letter===reviewSample.letter?largest:s),height);
       extents.above+=10;extents.below+=10;
       const layout=layoutWriting(letters,used,options,{x:2,y:2,width:1000000,bottom:1000000},profile.character_spacing,extents);

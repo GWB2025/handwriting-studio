@@ -68,7 +68,7 @@
     if(svg){
       const paths=Array.from(svg.querySelectorAll('path')),box=svg.getAttribute('viewBox').split(/\s+/).map(Number),savedShift=sample.baseline_shift_mm*16;
       // Keep guides and scale fixed throughout editing, including the full ±10 mm range.
-      let top=-180,bottom=110,left=Infinity,right=-Infinity;const savedScale=sample.scale_factor??1,maxScale=$('sample-size')?2/savedScale:1;
+      let top=-180,bottom=110,left=Infinity,right=-Infinity;const savedScale=sample.scale_factor??1,maxScale=$('sample-size')?4/savedScale:1;
       for(const path of paths){const bounds=path.getBBox();const minScale=$('sample-size')?.5/savedScale:1;top=Math.min(top,(bounds.y-savedShift)*maxScale-160-25,(bounds.y-savedShift)*minScale-160-25);bottom=Math.max(bottom,(bounds.y+bounds.height-savedShift)*maxScale+160+25,(bounds.y+bounds.height-savedShift)*minScale+160+25);left=Math.min(left,bounds.x);right=Math.max(right,bounds.x+bounds.width);}
       box[2]=Math.max(box[2],(right-left)*maxScale+60);svg.setAttribute('viewBox',`${box[0]} ${top} ${box[2]} ${bottom-top}`);
       previewCentre=box[0]+box[2]/2;previewInkCentre=(left+right)/2;previewPaths=paths;
@@ -152,7 +152,7 @@
     finally{busy=false;controls();}
   }
   function sizeValue(){return $('sample-size')?Number($('sample-size').value)/100:1;}
-  function validSize(){const size=sizeValue();return Number.isFinite(size)&&size>=.5&&size<=2;}
+  function validSize(){const size=sizeValue();return Number.isFinite(size)&&size>=.5&&size<=4;}
   function inspection(){
     if(!$('review-zoom'))return;
     const zoom=Number($('review-zoom').value);$('sample-image').style.height=280*zoom/100+'px';$('review-zoom-value').textContent=zoom+'%';
@@ -175,7 +175,7 @@
     const shift=shiftValue(),valid=Number.isFinite(shift)&&shift>=-10&&shift<=10&&validSize();
     dirty=$('sample-included').checked!==selected.included || shift!==selected.baseline_shift_mm || sizeValue()!==(selected.scale_factor??1) || (strokeEnabled()&&!window.StudioEngine.same(strokeEdit,selected.stroke_edit??window.StudioEngine.originalStrokeEdit(selected.stroke_count)));
     if(valid){shiftReadout(shift);const ratio=sizeValue()/(selected.scale_factor??1);previewX=previewCentre-previewInkCentre*ratio;if(previewInk)previewInk.setAttribute('transform',`translate(${previewX} ${(shift-selected.baseline_shift_mm*ratio)*16})`+(ratio===1?'':` scale(${ratio})`));for(const path of previewPaths)path.setAttribute('stroke-width',1.8/ratio);if($('sample-size-value'))$('sample-size-value').textContent=Number((sizeValue()*100).toFixed(2))+'%';}wordPreview();
-    controls();status(!valid?'Choose a position within 10 mm up or down and a size from 50% to 200%. The preview keeps the last valid position.':dirty?'Preview: '+shiftLabel(shift)+'. Changes not saved yet. Tap Save changes or Reset changes.':'This sample has no unsaved changes.');
+    controls();status(!valid?'Choose a position within 10 mm up or down and a size from 50% to 400%. The preview keeps the last valid position.':dirty?'Preview: '+shiftLabel(shift)+'. Changes not saved yet. Tap Save changes or Reset changes.':'This sample has no unsaved changes.');
   }
   if($('sample-size')){$('sample-size').oninput=changed;$('sample-size-reset').onclick=()=>{if(busy||!selected)return;$('sample-size').value='100';changed();};$('review-word').oninput=wordPreview;for(const id of ['review-zoom','review-colours','review-starts'])$(id).oninput=inspection;}
   $('sample-included').onchange=changed;$('sample-shift').oninput=changed;

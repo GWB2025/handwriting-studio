@@ -8,11 +8,13 @@ const font={
  F:'0,1 0,0 1,0|0,.5 .8,.5',G:'1,0 0,0 0,1 1,1 1,.5 .5,.5',I:'0,0 1,0|.5,0 .5,1|0,1 1,1',
  L:'0,0 0,1 1,1',M:'0,1 0,0 .5,.6 1,0 1,1',N:'0,1 0,0 1,1 1,0',O:'0,0 1,0 1,1 0,1 0,0',
  P:'0,1 0,0 1,0 1,.5 0,.5',R:'0,1 0,0 1,0 1,.5 0,.5|.5,.5 1,1',S:'1,0 0,0 0,.5 1,.5 1,1 0,1',
+ '0':'0,0 1,0 1,1 0,1 0,0','1':'.2,.2 .5,0 .5,1|.1,1 .9,1','2':'0,0 1,0 1,.5 0,1 1,1','6':'1,0 0,0 0,1 1,1 1,.5 0,.5',
  X:'0,0 1,1|0,1 1,0','3':'0,0 1,0 1,1 0,1|.3,.5 1,.5','5':'1,0 0,0 0,.5 1,.5 1,1 0,1','8':'0,.5 0,0 1,0 1,1 0,1 0,.5 1,.5'
 };
 function label(text,x,y,height=2.5){const paths=[];for(const [i,c] of [...text].entries()){if(c===' ')continue;if(!font[c])throw Error('Unsupported proof label.');for(const line of font[c].split('|'))paths.push(line.split(' ').map((p,j)=>{const [px,py]=p.split(',').map(Number);return (j?'L':'M')+(x+i*height*.85+px*height*.55).toFixed(4)+' '+(y+py*height).toFixed(4);}).join(' '));}return paths;}
-function comparisonProof(files,{writer,text='f i j l t z\nfizz\njilt',smooth=true}={}){
+function comparisonProof(files,{writer,text='f i j l t z\nfizz\njilt',smooth=true,heights=[3,5,8]}={}){
  if(typeof text!=='string'||!text.trim()||text.length>120||text.split('\n').length>6||[...text].some(c=>!(E.characters+' \n').includes(c)))throw Error('Enter up to six short lines using captured characters (120 characters maximum).');
+ if(!Array.isArray(heights)||!(heights.length===1&&[3,5,8,10,12,16,20].includes(heights[0])||E.same(heights,[3,5,8])))throw Error('Choose 3, 5 and 8 mm together, or a writing size of 3, 5, 8, 10, 12, 16 or 20 mm.');
  if(typeof smooth!=='boolean')throw Error('Choose a smoothing setting.');
  const cat=E.catalog(files),profile=cat.writers.find(p=>p.writer===writer),all=(cat.byWriter.get(writer)||[]).filter(s=>s.included);
  if(!profile||!all.length)throw Error('Choose a writer with included samples.');
@@ -22,7 +24,7 @@ function comparisonProof(files,{writer,text='f i j l t z\nfizz\njilt',smooth=tru
  })));
  columns.forEach((column,i)=>paths.push(...label(column.name,20+i*59,27)));paths.push(...label('X MISSING',138,20,2));
  let y=36;
- for(const height of [3,5,8]){
+ for(const height of heights){
   if(y+3>277)throw Error('Comparison does not fit on A4. Use fewer or shorter test lines.');
   paths.push(...label(height+' MM',20,y));y+=7;
   const occurrence=columns.map(()=>({}));
@@ -44,7 +46,7 @@ function comparisonProof(files,{writer,text='f i j l t z\nfizz\njilt',smooth=tru
   y+=5;
  }
  const svg=E.drawingSVG(paths,'Handwriting comparison: '+text);E.validateDrawingSVG(svg);
- return {svg,rows,missing:[...missing.values()],heights:[3,5,8]};
+ return {svg,rows,missing:[...missing.values()],heights:heights.slice()};
 }
 const api={comparisonProof};if(typeof module!=='undefined')module.exports=api;else root.StudioComparison=api;
 })(typeof window==='undefined'?globalThis:window);
