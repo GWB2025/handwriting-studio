@@ -35,7 +35,9 @@ Capture, Free writing and Compose also keep local **Drafts** for recovery. Resto
 
 ## Sending G-code from the Mac
 
-The website downloads files; it does not connect directly to USB. Transfer the G-code to the connected Mac. Prepare the A4 paper, home at its top-left corner and raise the pen. From the repository folder:
+Open **Plotter** in the app for instructions. On the USB-connected Mac, double-click **Start Plotter.command**. Choose a G-code file to preview and check, connect the idle plotter, use **Home**, prepare the paper and start. The window shows progress and time estimates, with **Pause**, **Continue** and **Cancel drawing**. See [Mac plotting setup](DEVELOPMENT.md#mac-plotting-window).
+
+The public website downloads files; USB control runs locally on the Mac. For command-line use, prepare and home the plotter with its pen raised, then run from the repository folder:
 
 ```sh
 # Validate without moving the plotter:
@@ -46,7 +48,7 @@ python3 scripts/send_plot.py ~/Downloads/composed-handwriting-a4.gcode --run
 
 Replace the filename with your download. The verified setup uses **+X right, −Y down; Z0.5 pen up, Z5 pen down**. The [Calibration help](https://gwb2025.github.io/handwriting-studio/help.html#calibration) explains the pen checks, dimensioned shapes and centre mark.
 
-Wait for **Completed**, not just “All commands accepted”. Ctrl+C requests a pause when connected. The repository sender has no automatic reconnect/resume; restarting sends the whole file. [Sender setup and limits](DEVELOPMENT.md#mac-g-code-sender) cover dependencies, the USB port and interrupted jobs.
+Wait for **Completed**, not just all commands sent. Both senders try three reconnections and continue only when the stopping point is verified. A reset or uncertain position stops the job. Cancel (or Ctrl+C in the command-line sender) ends the drawing; a new Start sends the whole file. [Sender details](DEVELOPMENT.md#mac-g-code-sender) explain interrupted jobs.
 
 ## Development
 

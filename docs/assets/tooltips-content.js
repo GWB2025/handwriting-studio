@@ -133,6 +133,19 @@
   'calibration-stage':'Choose a stage of the verified A4 calibration check, or the combined drawing. This does not change machine settings.',
   'download-gcode':'Download the selected calibration stage as plotter instructions. Send the file from the connected Mac when ready.',
   'download-svg':'Download an A4 drawing of the selected calibration stage. The pen-only check has no drawing.',
+  'plot-open-local':'Open the plotting window after starting Start Plotter.command on the USB-connected Mac. This address does not start the sender or work from an iPad.',
+  'plot-file':'Choose a Studio G-code file to check page bounds, preview its paths and estimate movement time. Loading a file does not move the plotter.',
+  'plot-port':'Choose the connected T-A4 controller. Only supported USB devices appear here.',
+  'plot-refresh':'Look again for the USB plotter. This does not open a serial connection or move the machine.',
+  'plot-connect':'Connect to the idle plotter. Use Home afterwards before starting a drawing.',
+  'plot-disconnect':'Close the USB connection after the current operation has finished. To end a running drawing, use Cancel drawing first.',
+  'plot-home':'Raise the pen and run the machine’s homing cycle, then verify top-left home with the pen raised. This moves the plotter and is available only outside a drawing.',
+  'plot-ready':'Confirm that paper is in place and the pen and bed are ready for this drawing. Start also requires a checked file and a homed plotter.',
+  'plot-start':'Start the checked drawing from the beginning. Progress counts commands sent; completion is confirmed only when movement finishes at home with the pen raised.',
+  'plot-pause':'Pause the current drawing without discarding it. Wait for Paused, then use Continue to resume or Cancel drawing to end it.',
+  'plot-continue':'Continue the paused drawing from its current point. This does not restart the file.',
+  'plot-cancel':'Stop the drawing and clear queued movement. The cancelled job cannot be continued; use Home before a deliberate new run.',
+  'plot-travel':'Show dashed pen-up travel in the A4 preview. This changes only the display, not the G-code or plotter movement.',
  };
  for(const side of ['top','bottom','left','right'])ids['compose-margin-'+side]='Set the '+side+' page margin from 20 to 60 mm. Larger margins leave less room for writing.';
  const routes={
@@ -144,6 +157,7 @@
   'compose.html':'Compose text using your saved handwriting and export A4 pages.',
   'proof.html':'Create handwriting proof sheets, passages or comparisons.',
   'calibration.html':'Download the verified A4 calibration checks for the plotter.',
+  'plotting.html':'Open instructions for the USB-connected Mac plotting window.',
   'help.html':'Open the help guide with instructions for the current screen.'
  };
  function describe(control,doc){
@@ -166,7 +180,7 @@
   if(control.matches('.preview-scroll'))tip='Scroll sideways to inspect enlarged source letters. Drag the outlined blended character to change the mix.';
   if(control.matches('.proof-paper'))tip='Scroll or swipe inside the preview to inspect the enlarged page. Preview zoom does not affect exports.';
   if(!tip&&control.matches('a')){
-   const href=control.getAttribute('href')||'',path=href.split(/[?#]/)[0];
+   const href=control.getAttribute('href')||'',path=href.replace(/^https:\/\/gwb2025\.github\.io\/handwriting-studio\//,'').split(/[?#]/)[0];
    tip=href.startsWith('#')?'Jump to '+text+' in the help guide.':routes[path]||'Open '+text+'.';
    if(href.includes('github.com/GWB2025/handwriting-studio'))tip=href.includes('#sending-g-code')?'Read the instructions for sending a downloaded plotter file from the connected Mac.':href.includes('DEVELOPMENT.md')?'Read the developer documentation, local setup and Mac sender limits.':'Open the Handwriting Studio source code, README and project history on GitHub.';
    if(href.includes('shakespeare.mit.edu'))tip='Read the original text of Shakespeare’s Sonnet 18.';

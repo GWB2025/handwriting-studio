@@ -28,12 +28,14 @@ style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius
 style+='\n'+(ROOT/'web/compose-layout.css').read_text()+'\n'+(ROOT/'web/recovery.css').read_text()
 style+='\n'+(ROOT/'web/tooltips.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','compositions.js','character-spacing.js']:
+for name in ['tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
     html=adapt((ROOT/('web' if source in ['help.html','proof.html'] else 'static')/source).read_text())
     if source not in ['alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
     if source not in ['blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
+    if '</nav>' in html:html=html.replace('</nav>','<a class="button" href="plotting.html">Plotter</a></nav>',1)
+    else:html=html.replace('<div class="header-actions">','<div class="header-actions"><a class="button" href="plotting.html">Plotter</a>',1)
     if source!='help.html':
         topic={'capture.html':'capture','index.html':'notebook'}.get(source,source.removesuffix('.html'))
         help_link=f'<a class="button" href="help.html#{topic}" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a>'
@@ -98,5 +100,9 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     # Changed assets get fresh URLs when a tablet reloads the page.
     html=re.sub(r'assets/([a-z.-]+)', lambda m: m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12], html)
     (DEST/target).write_text(html)
+(assets/'plotting.css').write_text((ROOT/'web/plotting.css').read_text())
+plotting=(ROOT/'web/plotting.html').read_text()
+plotting=re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],plotting)
+(DEST/'plotting.html').write_text(plotting)
 (DEST/'.nojekyll').write_text('')
-print('Built eight Pages screens, the help guide and browser-only assets in docs/. No handwriting data was copied.')
+print('Built nine Pages screens, the help guide and browser-only assets in docs/. No handwriting data was copied.')

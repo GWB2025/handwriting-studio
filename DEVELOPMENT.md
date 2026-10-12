@@ -6,7 +6,7 @@ The public GitHub Pages app is the current version. The Flask server described b
 
 ## Build, test and publish
 
-`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. `web/recovery-store.js` uses a separate local database for recovery copies and confirmed backup manifests; these housekeeping records never enter handwriting backups. `web/recovery.js` provides the shared recovery controls. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds eight working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
+`web/engine.js` contains browser capture, normalisation, blend and composition rules. `web/browser-api.js` supplies the browser storage adapter using IndexedDB. `web/recovery-store.js` uses a separate local database for recovery copies and confirmed backup manifests; these housekeeping records never enter handwriting backups. `web/recovery.js` provides the shared recovery controls. Shared screens and interaction code are in `static/`; browser-only pages and features are in `web/`. `web/help.html` is the public help source. `scripts/build_pages.py` builds nine working screens and the help guide into `docs/`, with relative links and hashed asset URLs. It adapts public instructions separately from the older Mac server. Edit source files and rebuild rather than editing generated `docs/` pages directly.
 
 ```sh
 npm ci --ignore-scripts
@@ -17,7 +17,7 @@ STUDIO_PAGES_TEST=1 node --test tests/test_composer.cjs tests/test_viewport.cjs 
 python3 -m unittest discover -s tests
 ```
 
-Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions, saved-mix reopening, proof sheets, live spacing, export, draft recovery and backup reminders. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation and sender rules. Use disposable data for manual testing; keep private handwriting and backups out of commits.
+Node checks cover capture, browser storage/import, review, composition, saved blends, dragging, preferred versions, saved-mix reopening, proof sheets, live spacing, export, draft recovery and backup reminders. Generated-page checks exercise the adapted browser scripts. Python checks cover the local server, capture/storage validation, the plotting API and simulated serial operation, including pause, cancellation and reconnection. They never open the physical USB port. Use disposable data for manual testing; keep private handwriting and backups out of commits.
 
 In repository Settings → Pages, choose **GitHub Actions**. The **Publish Handwriting Studio** workflow tests and deploys `docs/` on pushes to `main`. The build copies only named UI files, never local handwriting or backups. When a feature changes, update the relevant Help guide section and tooltips, plus the README overview when needed, rebuild, and check help links before publishing.
 
@@ -63,12 +63,43 @@ python3 scripts/export_backup.py --output ~/Desktop/handwriting-studio-backup.js
 
 Import the file through the public app’s **Backup / Import**. Export does not change the original local data. Keep private handwriting, backups and plotting jobs out of commits. Newer browser-only records cannot be copied into the legacy server’s data folder.
 
+## Mac plotting window
+
+The public app’s Plotter page explains the local companion. In the repository on the USB-connected Mac, double-click **Start Plotter.command**, or run `python3 launch_plotter.py`. The launcher selects an existing Python environment with Flask, starts `plotter_app.py` on **127.0.0.1:8767**, and opens the plotting window. `--no-browser` starts/checks it without opening a tab; `--port` chooses another local port. Existing unrelated services are left alone. This is separate from the legacy handwriting server on port 8766.
+
+For first-time setup:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt -r requirements-plotter.txt
+python3 launch_plotter.py
+```
+
+`plotting.py` owns validation, preview geometry, estimates and the serial worker. `plotter_app.py` serves only the plotting screen/assets and its API. It binds to loopback, checks the Host and request origin, and requires a per-session token on API requests. The public page never probes localhost or opens USB. The companion does not expose the handwriting database or a general-purpose G-code console.
+
+The window uses `web/plotting.html`, `web/plotting.css` and `web/plotting.js`, built into `docs/`. After source changes, run `npm run build`; restart the local companion only after its current job is finished. The launcher log is `logs/plotter-server.log`. `logs/plotter-state.json` records the latest job fingerprint, progress and reported position; it is diagnostic, not an automatic resume file. Closing the tab leaves the sender running. Reopening shows its current job; restarting the process requires a new file selection and never resumes prior movement automatically.
+
 ## Mac G-code sender
 
-See [Sending G-code from the Mac](README.md#sending-g-code-from-the-mac) for the commands. The repository sender validates the entire Studio file, rejects coordinates outside A4, and requires an idle controller at X0 Y0 with zero work offset. It does not home automatically. Each command needs an acknowledgement; the sender then checks physical completion at home with the pen raised.
+[The README](README.md#sending-g-code-from-the-mac) gives the command-line form. Both the window and `scripts/send_plot.py` use the same validator and serial worker. Files are limited to 32 MB and 600,000 supported commands, with millimetres, explicit absolute moves, A4 bounds, the calibrated pen heights, and a final pen-up home. Unknown commands are rejected. Preview paths are built from validated numbers, never from uploaded SVG/HTML.
 
-The calibrated T-A4 profile is A4 portrait, 210 × 297 mm, with home at the paper’s top-left: **+X right, −Y down; Z0.5 up, Z5 down**. Drawing uses 900 mm/min, travel 2400 mm/min and serial 115200 baud. The owner verified the calibration on 8 October 2026; the [help guide](https://gwb2025.github.io/handwriting-studio/help.html#calibration) describes the checks. These commands are specific to that setup, not a universal plotter profile.
+The calibrated T-A4 profile is A4 portrait, 210 × 297 mm, with home at the top-left: **+X right, −Y down; Z0.5 up, Z5 down**. Drawing uses 900 mm/min, travel 2400 mm/min and serial 115200 baud. The owner verified this calibration on 8 October 2026. This is a specific DrawCore profile, not a universal plotter controller.
 
-The default port is `/dev/cu.usbmodem201912341`; use `--port` to override it. If pyserial is unavailable, install `requirements-plotter.txt` in your Python environment. The sender also supports the existing Inkscape serial dependency on the configured Mac. A lock prevents simultaneous Studio senders.
+USB discovery recognises the verified vendor/product family and records the selected unit’s serial identity. The Mac window requires its own Home check before Start. The command-line `--run` option retains the requirement that the operator has already physically homed the plotter. Both check an idle home, zero work offset and millimetre/absolute/feed-per-minute modes before drawing. Neither changes firmware settings. The default CLI port is `/dev/cu.usbmodem201912341`; override with `--port`. pyserial is loaded only when needed, with the existing Inkscape dependency as a fallback. A shared process lock prevents simultaneous Studio senders.
 
-**Ctrl+C requests feed hold** when connected. A lost USB connection may prevent that request reaching the machine. Check the plotter locally if it keeps moving. The repository sender has no automatic reconnect or resume: restarting sends the whole file. Do not assume a controller’s coordinates survived a disconnection; check and home the machine before a deliberate new run. “All commands accepted” means the controller has received the job, not that movement has finished.
+**Pause** requests GRBL feed hold, waits for a stopped report and keeps the current job. **Continue** resumes that buffer. **Cancel** (or Ctrl+C in the CLI) holds motion, clears queued commands with a reset, and raises the pen if the controller is idle. If an alarm or unavailable USB prevents this, inspect the machine locally. Cancellation invalidates home and cannot be resumed. Home is never run as a recovery action.
+
+After connection loss, the worker makes up to three attempts to reconnect to the same USB identity. It waits for queued motion to finish and checks modes, zero offset, reset indicators and the last acknowledged/pending command endpoints. Only an unambiguous match can continue. Partial writes, reset controllers, changed modes, unresolved paused movement or ambiguous positions stop the job. The worker never blindly resends a command or restarts the drawing. Reconnection support does not guarantee that every dropped connection can be recovered.
+
+Completion means **Idle at X0 Y0 with Z0.5**, after all commands are acknowledged. The time estimate is a minimum based on travel, drawing and dwell; it excludes acceleration and connection/pausing overhead. See the [GRBL command reference](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) and [interface reference](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Interface) for protocol semantics. The vendor’s installed DrawCore extension also uses `$H` for homing.
+
+## Practical iPad-to-paper check
+
+Automated checks use disposable handwriting and a simulated controller. Before treating a release as hardware-tested:
+
+1. On the iPad, capture letters with a dot and crossbar, review their baseline and scale, and drag two- and four-source blends. Confirm scrolling and Pencil input on that device.
+2. Preview a passage at 3, 5, 8, 12 and 20 mm. Export each desired page and compare its geometry with the Mac plotting preview.
+3. Download and confirm a backup. Import into a separate empty browser profile; check sample counts, saved blends, preferences and a saved finished composition. Preserve the original browser data.
+4. With the plotter prepared, run a small calibration job through the Mac window. Check Pause/Continue, then test Cancel and Home on a separate short job. Compare the plotted dimensions with the SVG. Simulated recovery tests do not require deliberately unplugging a moving machine.
+
+Record device, browser, firmware and the observed result. The current implementation was checked without sending physical movement commands.
