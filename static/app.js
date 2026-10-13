@@ -15,6 +15,7 @@ function updateSave(){
   $('undo').disabled=saving || (!active && !strokes.length);
   $('redo').disabled=saving || !!active || !undone.length;
   window.notebookMode?.updateControls();
+  window.StudioCaptureUI?.sync();
   window.StudioRecovery?.changed();
 }
 const message=text=>{$('status').textContent=text;updateSave();};
@@ -46,6 +47,7 @@ function finishWriter(){
   if(writer)finishedWriter=writer;
   updateSave();
   $('writer').blur();
+  window.StudioCaptureUI?.writerFinished();
   settlePage();
 }
 
@@ -126,7 +128,7 @@ window.addEventListener('pageshow',settlePage);
 window.addEventListener('orientationchange',settlePage);
 window.visualViewport?.addEventListener('resize',settlePage);
 window.visualViewport?.addEventListener('scroll',fitPage);
-$('focus').onclick=()=>{interrupt();const help=$('guidance');help.hidden=!help.hidden;$('focus').textContent=help.hidden?'Show help':'Hide help';$('focus').setAttribute('aria-expanded',String(!help.hidden));fitPage();};
+if($('focus'))$('focus').onclick=()=>{interrupt();const help=$('guidance');help.hidden=!help.hidden;$('focus').textContent=help.hidden?'Show help':'Hide help';$('focus').setAttribute('aria-expanded',String(!help.hidden));fitPage();};
 new ResizeObserver(redraw).observe(canvas.parentElement);
 $('undo').onclick=()=>{
   if(saving)return;
@@ -142,6 +144,7 @@ $('clear').onclick=()=>{if(saving)return;release();strokes=[];undone=[];origin=n
 // Keep focus inside the user gesture so Safari can show its keyboard.
 function requestWriterKeyboard(){
   if(saving)return;
+  window.StudioCaptureUI?.editWriter();
   $('writer').focus({preventScroll:true});
   settlePage();
 }

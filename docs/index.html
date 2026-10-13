@@ -1,11 +1,5 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Handwriting Studio · Letter capture</title>
-<link rel="stylesheet" href="assets/style.css?v=3a347bc8ac0c">
-<script src="assets/engine.js?v=3300f081397d"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Handwriting Studio · Letter capture</title><link rel="stylesheet" href="assets/style.css?v=81a4c8f600dd"><script src="assets/engine.js?v=3300f081397d"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
 <script src="assets/recovery.js?v=daf3be38dd97"></script></head>
 <body><dialog id="recovery-dialog" aria-labelledby="recovery-title">
 <h2 id="recovery-title">Recover unfinished work</h2>
@@ -17,23 +11,22 @@
 <p>Recovery copies stay on this device and are not included in backups. Save restored work normally before downloading a backup.</p>
 </dialog>
 
-<main id="notebook" class="letter-capture">
+<main id="notebook" class="letter-capture capture-workspace">
   <section class="controls" aria-label="Capture settings">
-    <aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small><small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons"><button id="recovery-open" type="button">Drafts</button><button id="backup-open" type="button">Backup / Import</button></div></aside>
-<header>
-      <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
-      <nav class="header-actions" aria-label="Studio"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button><a class="button" href="calibration.html">Calibration</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend a character</a><a class="button" href="plotting.html">Plotter</a><a class="button" href="help.html#capture" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a></nav>
+    <header class="capture-topbar">
+      <nav class="capture-navigation" aria-label="Studio"><a class="button" href="index.html" aria-current="page">Capture</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="capture-more" type="button" aria-haspopup="dialog" aria-controls="capture-more-dialog">More</button></nav>
+      <div class="capture-account"><div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done" list="known-writers"></label><datalist id="known-writers"></datalist><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div><div id="writer-summary" hidden><span>Writer: <strong id="writer-name"></strong></span><button id="writer-change" type="button">Change</button></div><div id="capture-storage"><aside class="browser-storage"><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside></div></div>
       <button id="saved-pages" hidden>Saved pages</button>
     </header>
-    <label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><div class="capture-heading"><strong id="capture-step">Practice · not saved</strong><span id="sample-counts"></span><button id="more-sheets" hidden>Capture another set</button></div>
-    <p class="capture-instruction" id="capture-instruction">Try one letter in each labelled box. Keep a, c and e small; b and d reach the tall-letter line. Start capture when comfortable.</p>
-    <div id="guidance" hidden>
-      <p>Use your usual handwriting, one example per box. Choose lowercase, uppercase, numbers, punctuation and symbols, or experimental joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress. Start capture continues after your latest saved sheet.</p>
-      <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These lowercase letters keep the drawn baseline; other lowercase letters settle onto it automatically. Capitals reach the tall-letter line. Capitals, numbers, punctuation and joined pairs keep their drawn baseline; write joined pairs as a connected shape. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
-      <p>On symbol sheets, pale a letters show the context of the blue positioning example. Draw only the labelled symbol in your own handwriting. Symbol placement hides or shows these references and their hints; they are never part of your saved writing. Quotes sit high, commas dip below the baseline, and an underscore belongs just below it.</p>
-      <p>Practice is optional and is not saved. Switch each guide on or off below. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Drafts offers recovery of unfinished writing. Use Save sheet to keep it in your alphabet before backing up. Use Backup / Import to keep a copy of saved work.</p>
-    <p>After capture, use Review samples to check originals, Blend a character to mix two or four examples, and My alphabet to choose preferred versions for Compose.</p></div>
-    <div class="toolbar">
+    <div class="capture-workbar"><label class="capture-group-label">Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><button id="capture-guides" type="button" aria-haspopup="dialog" aria-controls="capture-guides-dialog">Guides</button><button id="capture-help" type="button" aria-haspopup="dialog" aria-controls="capture-help-dialog">Help</button><strong id="capture-step">Practice · not saved</strong><button id="more-sheets" hidden>Capture another set</button><button id="writing-focus" type="button" aria-pressed="false">Writing focus</button></div>
+    <p class="capture-instruction" id="capture-instruction">Write one character in each labelled box. Practice is optional.</p>
+  </section>
+  <div class="paper"><div class="capture-legend" aria-hidden="true"><div id="capture-guide-labels"><span id="label-tall">Tall</span><span id="label-small">Small</span><span id="label-baseline">Baseline</span><span id="label-tail">Tails</span></div></div><div class="capture-paper-surface"><canvas id="paper" aria-label="Write one character in each labelled box" width="1000" height="500"></canvas></div></div>
+  <div class="actions" aria-label="Writing actions"><div class="capture-history"><button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button></div><button id="clear">Clear sheet</button><button id="save" class="primary">Start capture</button></div>
+  <p id="status" role="status" aria-live="polite">Enter a writer name, then tap Start capture. Practice is optional.</p>
+</main>
+<dialog id="capture-more-dialog" class="capture-dialog" aria-labelledby="capture-more-title"><div class="capture-panel-heading"><h2 id="capture-more-title">More from Studio</h2><button id="capture-more-close" type="button">Close</button></div><p id="sample-counts"></p><nav class="capture-panel-links" aria-label="More Studio pages"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" href="proof.html">Proof sheets</a><a class="button" href="notebook.html">Free writing</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="plotting.html">Plotter</a></nav><div id="capture-drafts"><button id="recovery-open" type="button">Drafts</button><p id="draft-status" role="status">Checking draft recovery…</p></div><button id="export">Download sheet SVG</button></dialog>
+<dialog id="capture-guides-dialog" class="capture-dialog" aria-labelledby="capture-guides-title"><div class="capture-panel-heading"><h2 id="capture-guides-title">Writing guides</h2><button id="capture-guides-close" type="button">Done</button></div><p>Show the guides that help you write comfortably. These marks are not saved with your strokes.</p><div class="toolbar">
       <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
       <div class="guide-options" role="group" aria-label="Writing guides">
         <span>Guides:</span>
@@ -44,22 +37,15 @@
         <label id="guide-symbols-option" hidden><input id="guide-symbols" type="checkbox" checked> Symbol placement</label>
         <label><input id="guide-shading" type="checkbox" checked> Shading</label>
       </div>
-      <span id="input">Ready for Pencil</span>
-    </div>
-  </section>
-  <div class="paper"><canvas id="paper" aria-label="Practice: write a, c, e, b, d in the five labelled boxes" width="1000" height="500"></canvas></div>
-  <div class="actions">
-    <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="clear">Clear sheet</button>
-    <button id="save" class="primary">Start capture</button><button id="export">Download sheet SVG</button>
-  </div>
-  <p id="status" role="status" aria-live="polite">Enter a writer name. Practice is optional; Start capture opens your next alphabet sheet.</p>
-</main>
-
-<script src="assets/app.js?v=1d66964d6aca"></script>
-<script src="assets/symbol-guides.js?v=55b7e7c8a69d"></script>
-<script src="assets/capture.js?v=9c9c9e5533d1"></script>
-<script src="assets/writing-recovery.js?v=4d364a2d27a3"></script><dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js?v=ff1f62d2c1e9"></script>
-<script src="assets/tooltips-content.js?v=645397bce157"></script><script src="assets/tooltips.js?v=8617495965ca"></script>
-</body>
-</html>
+</div></dialog>
+<dialog id="capture-help-dialog" class="capture-dialog" aria-labelledby="capture-help-title"><div class="capture-panel-heading"><h2 id="capture-help-title">Capture help</h2><button id="capture-help-close" type="button">Close</button></div><div class="capture-help-links"><div id="capture-tips"></div><a class="button" href="help.html#capture" target="_blank" rel="noopener">Help guide</a></div><p id="input">Ready for Pencil</p><p>Use <strong>Writing focus</strong> for a larger sheet. <strong>Show controls</strong> brings back the toolbar. Undo, Redo and Save stay within reach. Finish the Pencil stroke before changing the layout.</p><div id="guidance">
+      <p>Use your usual handwriting, one example per box. Choose lowercase, uppercase, numbers, punctuation and symbols, or experimental joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress. Start capture continues after your latest saved sheet.</p>
+      <p>For f, g, j, p, q and y, put the body on the baseline and any tail below it. These lowercase letters keep the drawn baseline; other lowercase letters settle onto it automatically. Capitals reach the tall-letter line. Capitals, numbers, punctuation and joined pairs keep their drawn baseline; write joined pairs as a connected shape. Review samples lets you adjust placement or exclude a sample without deleting it.</p>
+      <p>On symbol sheets, pale a letters show the context of the blue positioning example. Draw only the labelled symbol in your own handwriting. Symbol placement hides or shows these references and their hints; they are never part of your saved writing. Quotes sit high, commas dip below the baseline, and an underscore belongs just below it.</p>
+      <p>Practice is optional and is not saved. Open Guides to switch each line or shading on or off. For a baseline only, leave Baseline ticked and untick the other guides and Shading. Letter labels and box dividers stay visible. <a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Drafts offers recovery of unfinished writing. Use Save sheet to keep it in your alphabet before backing up. Use Backup / Import to keep a copy of saved work.</p>
+    </div></dialog>
+<script src="assets/app.js?v=c6828b566e2c"></script><script src="assets/symbol-guides.js?v=55b7e7c8a69d"></script><script src="assets/capture.js?v=1b30e912e1c7"></script><script src="assets/capture-layout.js?v=96ca545d0355"></script>
+<script src="assets/writing-recovery.js?v=4d364a2d27a3"></script><dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p id="backup-reminder" role="status">Checking backup status…</p><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js?v=2795a23ff9b5"></script>
+<script src="assets/tooltips-content.js?v=c1b9c837e135"></script><script src="assets/tooltips.js?v=1058612d6e04"></script>
+</body></html>

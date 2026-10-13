@@ -212,3 +212,57 @@ dialog, dialog * { -webkit-user-select: none; user-select: none; -webkit-touch-c
 .studio-tip-toggle[aria-pressed="true"] {background:#245c4a;color:white;border-color:#245c4a}
 dialog>.studio-tip-toggle {margin-top:12px}
 .studio-tip-ui:focus-visible,.studio-tip-panel button:focus-visible {outline:3px solid #edbb40;outline-offset:3px}
+
+/* Capture keeps its 1000 × 500 coordinates; only the view becomes larger. */
+.capture-workspace {gap:8px;padding:12px;grid-template-rows:auto minmax(0,1fr) auto auto;}
+.capture-workspace [hidden] {display:none!important;}
+.capture-workspace .controls {overflow:visible;max-height:none;}
+.capture-topbar {display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-bottom:10px;border-bottom:1px solid #d6ded5;}
+.capture-navigation,.capture-account,#writer-summary {display:flex;align-items:center;gap:6px;min-width:0;}
+.capture-account {margin-left:auto;gap:12px;}
+.capture-navigation .button,.capture-navigation button {padding:8px 12px;}
+.capture-navigation [aria-current=page] {background:#e1eae0;border-color:#8da598;font-weight:650;}
+.capture-workspace #writer {width:180px;}
+#writer-summary span {max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#writer-change {border-color:transparent;background:transparent;text-decoration:underline;text-underline-offset:3px;padding:8px;}
+.capture-workspace .browser-storage {padding:0;background:transparent;gap:0;}
+.capture-workspace .storage-info {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+.capture-workspace .storage-buttons {flex-wrap:nowrap;}
+.capture-workbar {display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding-top:10px;}
+.capture-group-label {display:flex;align-items:center;gap:6px;}
+.capture-workspace #capture-kind {max-width:220px;min-height:44px;}
+#capture-step {font-size:14px;color:#245e4b;}
+#writing-focus {margin-left:auto;white-space:nowrap;}
+.capture-workspace .capture-instruction {margin:6px 0 0;line-height:1.35;font-size:14px;}
+.capture-workspace .paper {display:flex;gap:6px;padding:6px;background:#edf0e9;}
+.capture-paper-surface {position:relative;flex:1;min-width:0;min-height:0;touch-action:none;}
+.capture-legend {position:relative;flex:0 0 66px;color:#52675f;font-size:12px;}
+#capture-guide-labels {position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);}
+#capture-guide-labels span {position:absolute;right:0;transform:translateY(-50%);}
+#label-baseline {font-weight:650;}
+.capture-workspace .actions {display:flex;flex-wrap:nowrap;gap:12px;padding-top:2px;}
+.capture-history {display:flex;gap:6px;}
+.capture-workspace #clear {margin-left:12px;background:transparent;}
+.capture-workspace #save {margin-left:auto;min-width:160px;}
+.capture-workspace #status {background:transparent;padding:0 2px;font-size:13px;font-weight:500;height:2.8em;max-height:2.8em;touch-action:pan-y;}
+.capture-workspace.writing-focused .capture-topbar,.capture-workspace.writing-focused .capture-group-label,.capture-workspace.writing-focused #capture-guides,.capture-workspace.writing-focused #capture-help,.capture-workspace.writing-focused .capture-instruction {display:none;}
+.capture-workspace.writing-focused .capture-workbar {padding:0;}
+.capture-dialog {width:calc(100% - 24px);max-width:640px;padding:20px;border:1px solid #a9beb1;border-radius:14px;color:#203832;background:#fffdf8;}
+.capture-dialog[open] {display:block;height:fit-content;max-height:calc(100dvh - 24px);overflow:auto;inset:0;margin:auto;touch-action:pan-y;overscroll-behavior:contain;}
+.capture-dialog::backdrop {background:#10231c66;}
+.capture-panel-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.capture-panel-heading h2 {margin:0;font-size:1.3rem;}
+.capture-panel-links {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0;}
+.capture-dialog p {line-height:1.45;}
+.capture-dialog .toolbar,.capture-dialog .guide-options {display:grid;grid-template-columns:1fr;gap:6px;}
+.capture-dialog .toolbar label {display:flex;align-items:center;gap:10px;min-height:44px;white-space:normal;}
+.capture-dialog .toolbar input {width:22px;height:22px;margin:0;}
+.capture-dialog .guide-options>span {display:none;}
+#capture-drafts {display:inline-block;margin:0 8px 12px 0;}
+.capture-dialog .studio-tip-toggle {margin-top:10px;}
+@media(max-width:850px){.capture-topbar{gap:6px}.capture-account{width:100%;justify-content:space-between;margin:0}.capture-navigation{flex:1;justify-content:space-between}.capture-navigation .button,.capture-navigation button{padding:8px 10px}.capture-workbar{gap:6px}#capture-step{order:1;width:100%;}#more-sheets{order:2}.writing-focused #capture-step{order:0;width:auto;}}
+@media(max-width:500px){.capture-workspace{padding:8px;gap:6px}.capture-navigation .button,.capture-navigation button{padding:8px;font-size:14px}.capture-workspace #writer{width:125px}.capture-workspace #capture-kind{max-width:155px}.capture-group-label{font-size:14px}#capture-guides,#capture-help,#writing-focus{padding:8px;font-size:14px}.capture-legend{flex-basis:48px;font-size:10px}.capture-workspace .actions{gap:6px}.capture-workspace .actions button{padding:8px;font-size:14px}.capture-workspace #clear{margin-left:0}.capture-workspace #save{min-width:0}.capture-workspace .capture-instruction{font-size:12px;max-height:3.9em;overflow:auto;touch-action:pan-y;}}
+@media(max-height:520px){.capture-workspace .capture-instruction{display:none}.capture-topbar{padding-bottom:4px}.capture-workbar{padding-top:4px}.capture-workspace{gap:4px;}.capture-workspace #status{height:1.4em;max-height:1.4em;}}
+
+.capture-help-links {display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;}
+.capture-help-links .studio-tip-toggle {margin:0;}

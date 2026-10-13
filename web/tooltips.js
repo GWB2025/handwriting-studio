@@ -63,10 +63,11 @@
   }
   function addToggle(parent){
    const button=doc.createElement('button');button.type='button';button.className='studio-tip-toggle studio-tip-ui';button.textContent='Control tips';button.setAttribute('aria-pressed','false');button.setAttribute('aria-label','Control tips: tap controls for explanations without activating them');button.title='Turn on tap-to-explain mode. Turn it off to use controls normally.';
-   button.addEventListener('click',()=>setInspect(!inspect,button));parent.append(button);toggles.push(button);
+   button.addEventListener('click',()=>{const help=button.closest('#capture-help-dialog');if(help){help.close();setInspect(!inspect,doc.getElementById('capture-help'));}else setInspect(!inspect,button);});parent.append(button);toggles.push(button);
   }
-  addToggle(doc.querySelector('.storage-buttons')||doc.querySelector('header')||doc.body);
-  for(const dialog of doc.querySelectorAll('dialog'))addToggle(dialog);
+  const captureTips=doc.querySelector('#capture-tips');
+  addToggle(captureTips||doc.querySelector('.storage-buttons')||doc.querySelector('header')||doc.body);
+  for(const dialog of doc.querySelectorAll('dialog'))if(!captureTips||!dialog.contains(captureTips))addToggle(dialog);
   done.addEventListener('click',()=>setInspect(false));scan(doc.body);
   const cancel=event=>{event.preventDefault();event.stopImmediatePropagation();};
   doc.addEventListener('pointerover',event=>{

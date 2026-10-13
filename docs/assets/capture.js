@@ -51,6 +51,7 @@
   }
   function drawGuides(context){
     context.save();
+    window.StudioCaptureUI?.drawLegend(plan.guides,canvas.style.height);
     const labelScale=1000/Math.max(1,canvas.getBoundingClientRect().width);
     const width=1000/order().length;
     for(let i=0;i<order().length;i++){
@@ -67,7 +68,7 @@
         if(!$(id).checked)continue;
         context.strokeStyle=y===330?'#93ad9b':'#d1dcd1';context.lineWidth=y===330?1.4:.8;
         context.setLineDash(y===330?[]:[5,5]);context.beginPath();context.moveTo(x+8,y);context.lineTo(x+width-8,y);context.stroke();
-        context.fillText(symbols()?label.replace(' letters',' line').replace(' below',''):label,x+10,y-7);
+        if(!window.StudioCaptureUI)context.fillText(symbols()?label.replace(' letters',' line').replace(' below',''):label,x+10,y-7);
       }
       context.setLineDash([]);context.strokeStyle='#b9cbbd';context.lineWidth=1;
       if(i){context.beginPath();context.moveTo(x,0);context.lineTo(x,500);context.stroke();}
@@ -163,13 +164,18 @@
   $('clear').onclick=()=>{if(saving || phase==='complete')return;blankSheet();message(phase==='practice'?'Practice cleared. Nothing was saved.':'Current sheet cleared. Previously saved letter samples are kept.');};
   function writerChanged(){
     if($('writer').value.trim())$('writer').removeAttribute('aria-invalid');
+    if(phase==='practice'&&!strokes.length&&!undone.length)practiceMessage();
     updateCounts();updateSave();
+  }
+  function practiceMessage(){
+    $('status').textContent=$('writer').value.trim()?'Practice is optional. Start capture opens your next sheet; practice strokes are cleared.':'Enter a writer name, then tap Start capture. Practice is optional.';
   }
   $('writer').addEventListener('input',writerChanged);
   $('writer').addEventListener('change',writerChanged);
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};
   for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'])$(id).onchange=()=>{redraw();window.StudioRecovery?.changed();};
   try{if(!$('writer').value)$('writer').value=localStorage.getItem('handwriting-writer')||'';}catch{}
+  practiceMessage();
   if($('capture-kind') && window.StudioEngine){
     $('capture-kind').onchange=()=>{
       if(saving || active || phase==='capture')return;
@@ -180,5 +186,5 @@
     };
   }
   if(window.StudioEngine)instructions();
-  loadCounts();updateSave();redraw();
+  labelSheet();loadCounts();updateSave();redraw();
 })();

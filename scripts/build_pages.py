@@ -27,16 +27,18 @@ style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
 style+='\n'+(ROOT/'web/compose-layout.css').read_text()+'\n'+(ROOT/'web/recovery.css').read_text()
 style+='\n'+(ROOT/'web/tooltips.css').read_text()
+style+='\n'+(ROOT/'web/capture-layout.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
+for name in ['capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
-    html=adapt((ROOT/('web' if source in ['help.html','proof.html'] else 'static')/source).read_text())
-    if source not in ['alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
-    if source not in ['blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
-    if '</nav>' in html:html=html.replace('</nav>','<a class="button" href="plotting.html">Plotter</a></nav>',1)
+    html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
+    if source not in ['capture.html','alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
+    if source not in ['capture.html','blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
+    if source=='capture.html':pass
+    elif '</nav>' in html:html=html.replace('</nav>','<a class="button" href="plotting.html">Plotter</a></nav>',1)
     else:html=html.replace('<div class="header-actions">','<div class="header-actions"><a class="button" href="plotting.html">Plotter</a>',1)
-    if source!='help.html':
+    if source not in ['capture.html','help.html']:
         topic={'capture.html':'capture','index.html':'notebook'}.get(source,source.removesuffix('.html'))
         help_link=f'<a class="button" href="help.html#{topic}" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a>'
         if '</nav>' in html:html=html.replace('</nav>',help_link+'</nav>',1)
@@ -79,7 +81,6 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('A4 portrait · 20 mm margins', 'A4 portrait · adjustable margins, at least 20 mm')
         html=html.replace('<form id="compose-form">',(ROOT/'web/compositions.html').read_text()+'<form id="compose-form">')
     if(source=='capture.html'):
-        html=html.replace('<div class="capture-heading">','<label>Capture <select id="capture-kind"><option value="lowercase">Lowercase a–z</option><option value="uppercase">Uppercase A–Z</option><option value="numbers">Numbers 0–9</option><option value="symbols">Punctuation and symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><div class="capture-heading">')
         html=html.replace('Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets.', 'Choose lowercase, uppercase, numbers, punctuation and symbols, or experimental joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress.')
         html=html.replace('These letters keep the drawn baseline; other letters settle onto it automatically.', 'These lowercase letters keep the drawn baseline; other lowercase letters settle onto it automatically. Capitals reach the tall-letter line. Capitals, numbers, punctuation and joined pairs keep their drawn baseline; write joined pairs as a connected shape.')
         html=html.replace('<a href="notebook.html">Open free writing</a>.', '<a href="notebook.html">Open free writing</a>. Pencil or mouse draws; fingers use controls. Drafts offers recovery of unfinished writing. Use Save sheet to keep it in your alphabet before backing up. Use Backup / Import to keep a copy of saved work.')
@@ -94,7 +95,13 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('</head>','<script src="assets/recovery.js"></script></head>')
         html=re.sub(r'(<body[^>]*>)',lambda m:m.group(1)+(ROOT/'web/recovery.html').read_text(),html,count=1)
         if source!='compose.html':html=html.replace('</body>','<script src="assets/writing-recovery.js"></script></body>')
-    html=html.replace('<header>',banner+'<header>',1)
+    if source=='capture.html':
+        # Keep the backup warning visible, with its detail and draft status in panels.
+        banner='<aside class="browser-storage"><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>'
+        modal=modal.replace('<p>Writing stays', '<p id="backup-reminder" role="status">Checking backup status…</p><p>Writing stays')
+        html=html.replace('<div id="capture-storage"></div>','<div id="capture-storage">'+banner+'</div>')
+        html=html.replace('<div id="capture-drafts"></div>','<div id="capture-drafts"><button id="recovery-open" type="button">Drafts</button><p id="draft-status" role="status">Checking draft recovery…</p></div>')
+    else:html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')
     html=html.replace('</body>','<script src="assets/tooltips-content.js"></script><script src="assets/tooltips.js"></script>\n</body>')
     # Changed assets get fresh URLs when a tablet reloads the page.

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + 'app.js'), 'utf8');
 
-function notebook(guided = false, profiles = [], shuffled = false, recovery = false) {
+function notebook(guided = false, profiles = [], shuffled = false, recovery = false, compact = false) {
   const listeners = target => {
     const events = {};
     target.listenerOptions = {};
@@ -19,9 +19,11 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
     documentElement: {style: {setProperty: (key, value) => styles[key] = value}},
     getElementById: id => elements[id], createElement: () => ({})});
   for (const id of ['notebook','paper','writer','writer-done','saved-pages','save','status','input','smooth','guides','focus','guidance','undo','redo','clear','export',
-    'compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols','guide-symbols-option']) {
+    'writer-entry','writer-summary','writer-name','writer-change','writing-focus','capture-more','capture-guides','capture-help','capture-more-dialog','capture-guides-dialog','capture-help-dialog','capture-more-close','capture-guides-close','capture-help-close','capture-guide-labels','label-tall','label-small','label-baseline','label-tail','backup-open','recovery-open','compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols','guide-symbols-option']) {
     elements[id] = listeners({value: '', checked: true, hidden: true, style: {},
-      attributes: {}, classList: {toggle() {}},
+      attributes: {}, classes: new Set(), classList: {toggle(name,on) {on?elements[id].classes.add(name):elements[id].classes.delete(name);}},
+      querySelectorAll() {return [];},
+      showModal() {this.open=true;}, close() {this.open=false;this.emit('close');},
       setAttribute(name, value) { this.attributes[name] = value; },
       removeAttribute(name) { delete this.attributes[name]; },
       append() {}, replaceChildren() {},
@@ -30,6 +32,7 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
       getBoundingClientRect: () => ({width: 1000, height: 500, left: 0, top: 0}),
       setPointerCapture() {}, hasPointerCapture: () => false});
   }
+  document.querySelector = selector => selector==='.writer-entry'?elements['writer-entry']:Object.values(elements).find(el=>el.open)||null;
   elements.paper.parentElement = elements.paper;
   const drawing=[];
   const drawingContext=new Proxy({measureText:()=>({actualBoundingBoxLeft:0,actualBoundingBoxRight:60,actualBoundingBoxAscent:80,actualBoundingBoxDescent:20})}, {get:(target,key)=>key in target?target[key]:(...args)=>drawing.push({op:key,args})});
@@ -61,6 +64,7 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
   vm.runInContext(source, context);
   if (guided) for(const name of ['symbol-guides.js','capture.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, (process.env.STUDIO_PAGES_TEST ? '../docs/assets/' : '../static/') + name), 'utf8'), context);
   if(recovery)vm.runInContext(fs.readFileSync(process.env.STUDIO_PAGES_TEST?'docs/assets/writing-recovery.js':'web/writing-recovery.js','utf8'),context);
+  if(compact)window.StudioCaptureUI=require('../web/capture-layout').init(document,{busy:()=>vm.runInContext('!!active||saving',context),fit:()=>vm.runInContext('settlePage()',context),requestWriter:()=>vm.runInContext('requestWriterKeyboard()',context),finishWriter:()=>vm.runInContext('finishWriter()',context)});
   flush();
   return {elements, styles, viewport, window, document, context, flush, advance,requests,drawing};
 }
@@ -363,4 +367,51 @@ test('free-writing recovery preserves undone strokes and resumes the original po
  const n=notebook(false,[],true,true);n.elements.writer.value='Writer';draw(n,100,400);draw(n,200,500);n.elements.undo.onclick();const draft=JSON.parse(JSON.stringify(n.window.recovery.read()));
  const restored=notebook(false,[],true,true);await restored.window.recovery.restore(draft);restored.elements.redo.onclick();assert.equal(vm.runInContext('strokes.length',restored.context),2);assert.equal(restored.elements.save.disabled,false);const end=vm.runInContext('strokes.at(-1).points.at(-1).t',restored.context);draw(restored,300,1);assert(vm.runInContext('strokes.at(-1).points[0].t',restored.context)>=end);
  restored.elements.clear.onclick();assert.equal(restored.window.recovery.read(),null);
+});
+
+
+test('compact capture collapses a committed writer, reopens editing and keeps useful practice feedback',()=>{
+ const n=notebook(true,[],true,false,true),e=n.elements;
+ e.writer.value='Gordon';e.writer.emit('input');e['writer-done'].onclick();n.flush();
+ assert.equal(e['writer-entry'].hidden,true);assert.equal(e['writer-summary'].hidden,false);assert.equal(e['writer-name'].textContent,'Gordon');
+ assert.doesNotMatch(e.status.textContent,/Enter a writer/);assert.match(e.status.textContent,/Start capture/);
+ e['writer-change'].onclick();assert.equal(n.document.activeElement,e.writer);assert.equal(e['writer-entry'].hidden,false);assert.equal(e['writer-done'].disabled,false);
+ e.writer.value='New writer';e.writer.emit('input');e['writer-done'].onclick();assert.equal(e['writer-name'].textContent,'New writer');
+});
+
+test('focus mode preserves strokes and redo, and blocked layout actions do not interrupt the active pen',()=>{
+ const n=notebook(true,[],true,false,true),e=n.elements;
+ e.writer.value='Writer';e['writer-done'].onclick();draw(n,100,0);draw(n,200,100);e.undo.onclick();
+ const raw=vm.runInContext('JSON.stringify({strokes,undone})',n.context);
+ e['writing-focus'].onclick();n.flush();assert(e.notebook.classes.has('writing-focused'));assert.equal(e['writing-focus'].textContent,'Show controls');
+ e['writing-focus'].onclick();n.flush();assert(!e.notebook.classes.has('writing-focused'));assert.equal(vm.runInContext('JSON.stringify({strokes,undone})',n.context),raw);
+ const pen={pointerType:'pen',pointerId:7,clientX:400,clientY:100,timeStamp:200,preventDefault(){}};
+ e.paper.emit('pointerdown',pen);const size={...e.paper.style};
+ for(const id of ['writing-focus','capture-more','capture-guides','capture-help','writer-change','backup-open'])assert.equal(e[id].disabled,true,id);
+ e['writing-focus'].onclick();e['capture-guides'].onclick();n.flush();assert.equal(e['capture-guides-dialog'].open,undefined);assert.deepEqual(e.paper.style,size);assert.equal(vm.runInContext('active.points.length',n.context),1);
+ n.window.emit('pointerup',{...pen,timeStamp:210});n.flush();assert.equal(e['writing-focus'].disabled,false);assert.equal(vm.runInContext('strokes.length',n.context),2);
+});
+
+test('first Pencil stroke leaves compact writer editing in place until the stroke ends',()=>{
+ const n=notebook(true,[],true,false,true),e=n.elements;e.writer.value='Writer';e.writer.focus();
+ const pen={pointerType:'pen',pointerId:7,clientX:150,clientY:100,timeStamp:100,preventDefault(){}};
+ e.paper.emit('pointerdown',pen);n.flush();assert.equal(e['writer-entry'].hidden,false);assert.equal(vm.runInContext('active.points.length',n.context),1);
+ n.window.emit('pointerup',{...pen,timeStamp:120});n.flush();assert.equal(e['writer-entry'].hidden,true);assert.equal(vm.runInContext('strokes[0].points[0].x',n.context),150);
+});
+
+test('guide panels preserve the sheet and show one aligned legend outside the ink',()=>{
+ const n=notebook(true,[],true,false,true),e=n.elements;draw(n,100,0);const raw=vm.runInContext('JSON.stringify(strokes)',n.context);
+ e['capture-guides'].onclick();assert.equal(e['capture-guides-dialog'].open,true);
+ n.drawing.length=0;e['guide-small'].checked=false;e['guide-small'].onchange();n.flush();
+ assert.equal(e['label-small'].hidden,true);assert.equal(e['label-baseline'].style.top,'66%');assert(!n.drawing.some(d=>d.op==='fillText'&&d.args[0]==='baseline'));
+ assert.equal(vm.runInContext('JSON.stringify(strokes)',n.context),raw);
+ e['capture-guides-close'].onclick();assert.equal(e['capture-guides-dialog'].open,false);
+});
+
+test('restored capture keeps its writer, labels and strokes in the compact interface',async()=>{
+ const E=require('../web/engine'),n=notebook(true,[],true,true,true),e=n.elements;
+ const draft={writer:'Restored writer',strokes:[{points:[{x:120,y:250,t:0}]}],undone:[],smooth:true,phase:'capture',sheet:1,orders:E.shuffleSet(E.plan.orders,0,()=>.3),plan_id:E.plan.id};
+ await n.window.recovery.restore(draft);n.flush();
+ assert.equal(e['writer-name'].textContent,'Restored writer');assert.equal(e['writer-change'].disabled,true);assert.match(e['capture-step'].textContent,/sheet 2 of 6/);assert.equal(e.save.disabled,false);
+ e['writing-focus'].onclick();n.flush();assert.equal(vm.runInContext('JSON.stringify(strokes)',n.context),JSON.stringify(draft.strokes));
 });
