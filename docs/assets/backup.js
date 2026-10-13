@@ -7,7 +7,7 @@
     try{
       const [files,receipt]=await Promise.all([StudioStorage.snapshot(),S.receipt()]),manifest=await S.manifest(files);if(turn!==ticket)return;
       const count=S.changed(manifest,receipt?.manifest),due=files.length>0&&(!receipt||count>0);
-      $('backup-open').classList.toggle('backup-due',due);$('backup-open').textContent=due?(document.getElementById('capture-storage')?'Backup needed':'Backup needed / Import'):'Backup / Import';
+      $('backup-open').classList.toggle('backup-due',due);$('backup-open').textContent=due?((document.getElementById('capture-storage')||document.body?.dataset?.studioPage)?'Backup needed':'Backup needed / Import'):'Backup / Import';
       $('backup-reminder').textContent=!files.length?'No saved writing to back up yet.':!receipt?'Your saved work needs a confirmed backup.':count?count+' saved item'+(count===1?' has':'s have')+' changed since your confirmed backup.':'All saved work matches your last confirmed backup.';
       $('backup-history').textContent=receipt?'Last confirmed backup: '+new Date(receipt.confirmed_at).toLocaleString()+'.':'No backup has been confirmed in this browser. Earlier downloads may still be in your files.';
     }catch(e){if(turn===ticket){$('backup-reminder').textContent='Backup status unavailable. You can still download a backup.';$('backup-history').textContent='Could not read backup history: '+e.message;}}

@@ -15,9 +15,9 @@ Capture your handwriting, blend individual characters, and compose A4 pages for 
 5. Open **Alphabet proof sheet** to test pangrams, Sonnet 18, the original sonnet *The Hand in Ink*, or your own text. **Compare versions** puts originals, blends and preferred choices side by side.
 6. **Compose** lays out your text across A4 pages. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
 
-**Capture** has a compact iPad layout: **Writing focus** enlarges the sheet, **Guides** holds its settings, and **More** holds extra tools and Drafts. Undo, Redo and Save stay at the bottom.
+The iPad layout uses compact navigation and **More** for extra pages and tools. **Writing focus** enlarges Capture and Free writing; **Preview focus** gives other handwriting previews more room. Settings fold into labelled sections, with choices beside the preview on wider screens. Main save and download actions stay within reach.
 
-**Help guide** opens instructions for the current screen. Hover or use Tab for tooltips. On Capture, use **Help → Control tips**; elsewhere, tap **Control tips**, then a control to read its explanation; tap **Done with tips** to resume using it.
+**Help → Help guide** opens full instructions. Hover or use Tab for tooltips, or tap **Help → Control tips**, then a control to read its explanation. Tap **Done with tips** to resume using it.
 
 ## Sizes and variations
 

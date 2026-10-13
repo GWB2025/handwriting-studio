@@ -28,17 +28,19 @@ style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius
 style+='\n'+(ROOT/'web/compose-layout.css').read_text()+'\n'+(ROOT/'web/recovery.css').read_text()
 style+='\n'+(ROOT/'web/tooltips.css').read_text()
 style+='\n'+(ROOT/'web/capture-layout.css').read_text()
+style+='\n'+(ROOT/'web/studio-layout.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
+for name in ['studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
     html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
-    if source not in ['capture.html','alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
-    if source not in ['capture.html','blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
-    if source=='capture.html':pass
+    if target=='notebook.html':html=adapt((ROOT/'web/notebook.html').read_text())
+    if source not in ['capture.html','index.html','alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
+    if source not in ['capture.html','index.html','blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
+    if source in ['capture.html','index.html']:pass
     elif '</nav>' in html:html=html.replace('</nav>','<a class="button" href="plotting.html">Plotter</a></nav>',1)
     else:html=html.replace('<div class="header-actions">','<div class="header-actions"><a class="button" href="plotting.html">Plotter</a>',1)
-    if source not in ['capture.html','help.html']:
+    if source not in ['capture.html','index.html','help.html']:
         topic={'capture.html':'capture','index.html':'notebook'}.get(source,source.removesuffix('.html'))
         help_link=f'<a class="button" href="help.html#{topic}" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a>'
         if '</nav>' in html:html=html.replace('</nav>',help_link+'</nav>',1)
@@ -95,7 +97,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('</head>','<script src="assets/recovery.js"></script></head>')
         html=re.sub(r'(<body[^>]*>)',lambda m:m.group(1)+(ROOT/'web/recovery.html').read_text(),html,count=1)
         if source!='compose.html':html=html.replace('</body>','<script src="assets/writing-recovery.js"></script></body>')
-    if source=='capture.html':
+    if source in ['capture.html','index.html']:
         # Keep the backup warning visible, with its detail and draft status in panels.
         banner='<aside class="browser-storage"><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>'
         modal=modal.replace('<p>Writing stays', '<p id="backup-reminder" role="status">Checking backup status…</p><p>Writing stays')
@@ -103,12 +105,16 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<div id="capture-drafts"></div>','<div id="capture-drafts"><button id="recovery-open" type="button">Drafts</button><p id="draft-status" role="status">Checking draft recovery…</p></div>')
     else:html=html.replace('<header>',banner+'<header>',1)
     html=html.replace('</body>','<dialog'+modal+'\n<script src="assets/backup.js"></script>\n</body>')
+    if source not in ['capture.html','index.html']:
+        html=html.replace('<body', '<body data-studio-page="'+target.removesuffix('.html')+'"',1)
+        html=html.replace('<script src="assets/backup.js">','<script src="assets/studio-layout.js"></script><script src="assets/backup.js">')
     html=html.replace('</body>','<script src="assets/tooltips-content.js"></script><script src="assets/tooltips.js"></script>\n</body>')
     # Changed assets get fresh URLs when a tablet reloads the page.
     html=re.sub(r'assets/([a-z.-]+)', lambda m: m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12], html)
     (DEST/target).write_text(html)
 (assets/'plotting.css').write_text((ROOT/'web/plotting.css').read_text())
 plotting=(ROOT/'web/plotting.html').read_text()
+plotting=plotting.replace('<body','<body data-studio-page="plotting"',1).replace('<script src="assets/plotting.js">','<script src="assets/studio-layout.js"></script><script src="assets/plotting.js">')
 plotting=re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],plotting)
 (DEST/'plotting.html').write_text(plotting)
 (DEST/'.nojekyll').write_text('')

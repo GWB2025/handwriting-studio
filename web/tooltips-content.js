@@ -6,6 +6,11 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'studio-more':'Open Review samples, proof sheets, Free writing, Calibration, Plotter and extra tools for this page.',
+  'studio-more-close':'Close the extra tools and return to this page.',
+  'studio-help':'Open instructions for this page, the full help guide and tap-to-explain Control tips.',
+  'studio-help-close':'Close the instructions and return to your work.',
+  'studio-focus':'Give the handwriting more room by hiding navigation and sample choices. Show controls restores them. Saved writing and physical sizes stay unchanged.',
   'backup-open':'Open backup and import tools for the writing saved in this browser.',
   'backup-download':'Download saved captures, blends, Review adjustments, preferred choices, spacing, compositions and free-writing pages. Save unfinished drafts first; recovery copies are not included.',
   'backup-confirm':'Confirm that you have kept the downloaded backup file. This updates the backup reminder.',
@@ -171,6 +176,11 @@
  function describe(control,doc){
   const capture=!!doc.getElementById('capture-kind'),id=control.id,text=(control.textContent||'').trim();let tip=ids[id]||'';
   if(id==='writer'&&!capture)tip='Enter the writer name to keep with this free-writing page.';
+  if(id==='writer-change'&&!capture)tip='Edit the writer name for this free-writing page. Previously saved pages are kept.';
+  if(id==='capture-more'&&!capture)tip='Open other Studio pages, unfinished drafts and the SVG download for this free-writing page.';
+  if(id==='capture-guides'&&!capture)tip='Choose whether to show writing lines and use gentle smoothing.';
+  if(id==='capture-help'&&!capture)tip='Open free-writing instructions, the full help guide and tap-to-explain Control tips.';
+  if(control.matches('summary'))tip='Show or hide '+text.toLowerCase()+'. Current settings are kept when this section is closed.';
   if(id==='save')tip=capture?(text.startsWith('Start')?'Start capturing a shuffled set of labelled characters. Practice strokes are cleared; they are not saved as samples.':text.startsWith('Compose')?'Open Compose using the character samples you have saved.':'Save this capture sheet in your browser and move to the next sheet. Use Backup / Import to keep an external copy.'):'Save this free-writing page in your browser. Editing an opened page creates a new copy; download a backup to keep it elsewhere.';
   if(id==='clear')tip=capture?'Clear the current unsaved sheet. Previously saved samples are kept.':'Clear the current working page. Previously saved pages are kept.';
   if(id==='export')tip=capture?'Download the current capture sheet as an SVG drawing. This does not save its characters into your alphabet.':'Download the current free-writing page as an SVG drawing.';

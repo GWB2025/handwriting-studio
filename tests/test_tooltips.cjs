@@ -69,9 +69,9 @@ test('turning on tips waits for an active pen or drag to finish and never swallo
  emit(tips.toggles[0],'click');assert.equal(tips.toggles[0].getAttribute('aria-pressed'),'true');
 });
 
-test('capture Help starts Control tips on the sheet and returns focus to its visible Help button',()=>{
+for(const prefix of ['capture','studio'])test(prefix+' Help starts Control tips on the workspace and returns focus to its visible Help button',()=>{
  const w=environment(),{add,doc,win,emit}=w;
- const launcher=add('button','capture-help'),help=add('dialog','capture-help-dialog'),host=add('div','capture-tips',help),guide=add('button','capture-guides');
+ const launcher=add('button',prefix+'-help'),help=add('dialog',prefix+'-help-dialog'),host=add('div',prefix+'-tips',help),guide=add('button','capture-guides');
  help.open=true;help.close=()=>{help.open=false;launcher.focus();};
  const tips=init(doc,win,C);assert.equal(host.querySelectorAll('button').length,1);assert.equal(help.querySelectorAll('button').length,1);
  emit(tips.toggles[0],'click');assert.equal(help.open,false);assert.equal(tips.panel.parentNode,doc.body);assert.match(tips.message.textContent,/Control tips are on/);

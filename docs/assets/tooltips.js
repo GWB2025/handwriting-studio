@@ -1,7 +1,7 @@
 'use strict';
 (function(root){
  function init(doc,win,content){
-  const selector='button,input:not([type="hidden"]),select,textarea,a[href],canvas,[tabindex]:not([tabindex="-1"])';
+  const selector='button,input:not([type="hidden"]),select,textarea,a[href],canvas,summary,[tabindex]:not([tabindex="-1"])';
   const entries=new Map(),hosts=new Map(),toggles=[];
   const pointers=new Set();
   let sequence=0,active=null,anchor=null,inspect=false,origin=null,showTimer,hideTimer;
@@ -63,9 +63,9 @@
   }
   function addToggle(parent){
    const button=doc.createElement('button');button.type='button';button.className='studio-tip-toggle studio-tip-ui';button.textContent='Control tips';button.setAttribute('aria-pressed','false');button.setAttribute('aria-label','Control tips: tap controls for explanations without activating them');button.title='Turn on tap-to-explain mode. Turn it off to use controls normally.';
-   button.addEventListener('click',()=>{const help=button.closest('#capture-help-dialog');if(help){help.close();setInspect(!inspect,doc.getElementById('capture-help'));}else setInspect(!inspect,button);});parent.append(button);toggles.push(button);
+   button.addEventListener('click',()=>{const help=button.closest('#capture-help-dialog')||button.closest('#studio-help-dialog');if(help){help.close();setInspect(!inspect,doc.getElementById(help.id.replace('-dialog','')));}else setInspect(!inspect,button);});parent.append(button);toggles.push(button);
   }
-  const captureTips=doc.querySelector('#capture-tips');
+  const captureTips=doc.querySelector('#capture-tips')||doc.querySelector('#studio-tips');
   addToggle(captureTips||doc.querySelector('.storage-buttons')||doc.querySelector('header')||doc.body);
   for(const dialog of doc.querySelectorAll('dialog'))if(!captureTips||!dialog.contains(captureTips))addToggle(dialog);
   done.addEventListener('click',()=>setInspect(false));scan(doc.body);

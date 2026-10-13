@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting notebook</title>
-<link rel="stylesheet" href="assets/style.css?v=81a4c8f600dd">
+<link rel="stylesheet" href="assets/style.css?v=e84bc840d923">
 <script src="assets/engine.js?v=3300f081397d"></script><script src="assets/browser-api.js?v=75644e4f8115"></script><script src="assets/recovery-store.js?v=c191efb3376b"></script>
 <script src="assets/recovery.js?v=daf3be38dd97"></script></head>
 <body><dialog id="recovery-dialog" aria-labelledby="recovery-title">
@@ -17,27 +17,18 @@
 <p>Recovery copies stay on this device and are not included in backups. Save restored work normally before downloading a backup.</p>
 </dialog>
 
-<main id="notebook">
+<main id="notebook" class="capture-workspace free-writing-workspace">
   <section class="controls" aria-label="Page settings">
-    <aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small><small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons"><button id="recovery-open" type="button">Drafts</button><button id="backup-open" type="button">Backup / Import</button></div></aside>
-<header>
-      <div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Enter a name for this page" autocomplete="off" enterkeyhint="done"></label><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div>
-      <div class="header-actions"><a class="button" href="help.html#notebook" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a><a class="button" href="plotting.html">Plotter</a><a class="button" href="index.html">Letter capture</a><a class="button" href="compose.html">Compose</a><button id="saved-pages">Saved pages</button><button id="focus" aria-expanded="false" aria-controls="guidance">Show help</button></div>
+    <header class="capture-topbar">
+      <nav class="capture-navigation" aria-label="Studio"><a class="button" href="index.html">Capture</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend</a><a class="button" id="compose-link" href="compose.html">Compose</a><button id="capture-more" type="button" aria-haspopup="dialog" aria-controls="capture-more-dialog">More</button></nav>
+      <div class="capture-account"><div class="writer-entry"><label class="writer-label">Writer <input id="writer" type="text" inputmode="text" maxlength="80" placeholder="Whose handwriting?" autocomplete="off" enterkeyhint="done"></label><button id="writer-done" disabled aria-label="Finish entering writer name">Done</button></div><div id="writer-summary" hidden><span>Writer: <strong id="writer-name"></strong></span><button id="writer-change" type="button">Change</button></div><div id="capture-storage"><aside class="browser-storage"><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside></div></div>
     </header>
-    <div id="guidance" hidden>
-      <p>Write a short word or sentence at your usual writing size. Pencil draws; fingers can use the buttons. Scrolling, pinching and text selection are blocked across this writing screen; the Writer box remains editable when the Pencil is lifted.</p>
-      <p>Save page keeps your original strokes in this browser. Download SVG exports a drawing. Smoothing changes the display and SVG only. Saved pages reopens earlier writing; saving edits creates a new copy. These pages are separate from character samples used by Compose. Drafts offers recovery of unfinished writing. Use Save page before Backup / Import; recovery copies are not backed up.</p>
-    </div>
-    <div class="toolbar">
-      <label><input id="smooth" type="checkbox" checked> Gentle smoothing</label>
-      <label><input id="guides" type="checkbox" checked> Writing lines</label>
-      <span id="input">Ready for Pencil</span>
-    </div>
+    <div class="capture-workbar"><strong>Free writing</strong><button id="saved-pages">Saved pages</button><button id="capture-guides" type="button" aria-haspopup="dialog" aria-controls="capture-guides-dialog">Guides</button><button id="capture-help" type="button" aria-haspopup="dialog" aria-controls="capture-help-dialog">Help</button><button id="writing-focus" type="button" aria-pressed="false">Writing focus</button></div>
   </section>
   <div class="paper"><canvas id="paper" aria-label="Free handwriting area" width="1000" height="500"></canvas></div>
   <div class="actions">
-    <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="clear">Clear page</button>
-    <button id="save" class="primary">Save page</button><button id="export">Download SVG</button>
+    <div class="capture-history"><button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button></div><button id="clear">Clear page</button>
+    <button id="save" class="primary">Save page</button>
   </div>
   <p id="status" role="status" aria-live="polite">Nothing saved yet. Enter a writer name, then write on the page.</p>
 </main>
@@ -60,10 +51,18 @@
     </section>
   </div>
 </dialog>
+<dialog id="capture-more-dialog" class="capture-dialog" aria-labelledby="capture-more-title"><div class="capture-panel-heading"><h2 id="capture-more-title">More from Studio</h2><button id="capture-more-close" type="button">Close</button></div><nav class="capture-panel-links" aria-label="More Studio pages"><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" href="proof.html">Proof sheets</a><a class="button" href="notebook.html" aria-current="page">Free writing</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="plotting.html">Plotter</a></nav><div id="capture-drafts"><button id="recovery-open" type="button">Drafts</button><p id="draft-status" role="status">Checking draft recovery…</p></div><button id="export">Download SVG</button></dialog>
+<dialog id="capture-guides-dialog" class="capture-dialog" aria-labelledby="capture-guides-title"><div class="capture-panel-heading"><h2 id="capture-guides-title">Writing guides</h2><button id="capture-guides-close" type="button">Done</button></div><div class="toolbar"><label><input id="smooth" type="checkbox" checked> Gentle smoothing</label><label><input id="guides" type="checkbox" checked> Writing lines</label></div></dialog>
+<dialog id="capture-help-dialog" class="capture-dialog" aria-labelledby="capture-help-title"><div class="capture-panel-heading"><h2 id="capture-help-title">Free writing help</h2><button id="capture-help-close" type="button">Close</button></div><div class="capture-help-links"><div id="capture-tips"></div><a class="button" href="help.html#notebook" target="_blank" rel="noopener">Help guide</a></div><p id="input">Ready for Pencil</p><p>Writing focus enlarges the sheet. Show controls brings back the toolbar. Undo, Redo and Save stay at the bottom. More contains Drafts and Download SVG.</p>    <div id="guidance">
+      <p>Write a short word or sentence at your usual writing size. Pencil draws; fingers can use the buttons. Scrolling, pinching and text selection are blocked across this writing screen; the Writer box remains editable when the Pencil is lifted.</p>
+      <p>Save page keeps your original strokes in this browser. Download SVG exports a drawing. Smoothing changes the display and SVG only. Saved pages reopens earlier writing; saving edits creates a new copy. These pages are separate from character samples used by Compose. Drafts offers recovery of unfinished writing. Use Save page before Backup / Import; recovery copies are not backed up.</p>
+    </div>
+</dialog>
 <script src="assets/app.js?v=c6828b566e2c"></script>
 <script src="assets/library.js?v=e2a08e42f674"></script>
-<script src="assets/writing-recovery.js?v=4d364a2d27a3"></script><dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
-<script src="assets/backup.js?v=2795a23ff9b5"></script>
-<script src="assets/tooltips-content.js?v=c1b9c837e135"></script><script src="assets/tooltips.js?v=1058612d6e04"></script>
+<script src="assets/capture-layout.js?v=96ca545d0355"></script>
+<script src="assets/writing-recovery.js?v=4d364a2d27a3"></script><dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p id="backup-reminder" role="status">Checking backup status…</p><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/backup.js?v=7ed494b93875"></script>
+<script src="assets/tooltips-content.js?v=687ecbdfabd0"></script><script src="assets/tooltips.js?v=7946182b56b4"></script>
 </body>
 </html>

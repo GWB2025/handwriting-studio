@@ -51,3 +51,5 @@
 
 .capture-help-links {display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;}
 .capture-help-links .studio-tip-toggle {margin:0;}
+.free-writing-workspace canvas {background:#fffdf8;outline:1px solid #bccbc1;}
+.free-writing-workspace.writing-focused #saved-pages {display:none;}

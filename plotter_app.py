@@ -48,7 +48,7 @@ def create_plotter_app(manager=None, port=8767):
 
     @app.get('/assets/<name>')
     def assets(name):
-        if name not in {'style.css', 'plotting.css', 'plotting.js', 'tooltips.js', 'tooltips-content.js'}:
+        if name not in {'style.css', 'plotting.css', 'plotting.js', 'studio-layout.js', 'tooltips.js', 'tooltips-content.js'}:
             return '', 404
         return send_from_directory(ROOT/'docs/assets', name)
 
