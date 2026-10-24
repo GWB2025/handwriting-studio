@@ -22,7 +22,7 @@ for(const page of pages)test(page+': all existing controls survive layout with t
  const ids=Array.from(doc.querySelectorAll('[id]')).map(el=>el.id);
  assert.equal(new Set(ids).size,ids.length,'IDs must remain unique');
  assert.equal(doc.querySelectorAll('.studio-navigation a').length,4);
- assert.equal(doc.querySelectorAll('#studio-more-dialog a').length,5);
+ assert.equal(doc.querySelectorAll('#studio-more-dialog a').length,6);
  assert.ok(doc.querySelector('#studio-help-dialog #studio-tips'));
  for(const control of doc.querySelectorAll('.studio-navigation button,.studio-heading button,.studio-dialog button,summary'))assert.ok(tips.describe(control,doc).length>20,control.textContent+' needs a tooltip');
  assert.equal(init(doc),undefined,'initialisation is idempotent');

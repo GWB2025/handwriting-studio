@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import uuid
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort, send_file, url_for
 from letters import register_letters
 
 ROOT = Path(__file__).resolve().parent
@@ -87,6 +87,37 @@ def create_app(data_dir=None):
     @app.get('/compose')
     def composer():
         return app.send_static_file('compose.html')
+
+    @app.get('/fonts')
+    def fonts():
+        return app.send_static_file('fonts.html')
+
+    def font_path(filename):
+        directory = folder / 'fonts'
+        path = directory / filename
+        if (directory.is_symlink() or Path(filename).name != filename
+                or path.suffix.lower() != '.ttf' or path.is_symlink()
+                or not path.is_file() or not 12 <= path.stat().st_size <= 2 * 1024 * 1024):
+            abort(404)
+        return path
+
+    @app.get('/api/fonts')
+    def font_catalog():
+        directory = folder / 'fonts'
+        records = []
+        if directory.is_dir() and not directory.is_symlink():
+            for path in sorted(directory.iterdir()):
+                if (path.suffix.lower() == '.ttf' and not path.is_symlink()
+                        and path.is_file() and 12 <= path.stat().st_size <= 2 * 1024 * 1024):
+                    records.append(dict(name=path.name, size=path.stat().st_size,
+                                        url=url_for('font_file', filename=path.name)))
+                if len(records) == 20:
+                    break
+        return jsonify(fonts=records)
+
+    @app.get('/api/fonts/<filename>')
+    def font_file(filename):
+        return send_file(font_path(filename), mimetype='font/ttf')
 
     @app.get('/calibration')
     def calibration():

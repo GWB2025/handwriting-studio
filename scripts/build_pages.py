@@ -10,6 +10,7 @@ assets.mkdir(exist_ok=True)
 notice = '''<aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small></div><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
 route = {'/proof':'proof.html','/help':'help.html','/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
+route['/fonts'] = 'fonts.html'
 def adapt(text):
     text = text.replace('fetch(', 'window.studioFetch(')
     for old,new in sorted(route.items(), key=lambda pair: -len(pair[0])):
@@ -118,4 +119,14 @@ plotting=plotting.replace('<body','<body data-studio-page="plotting"',1).replace
 plotting=re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],plotting)
 (DEST/'plotting.html').write_text(plotting)
 (DEST/'.nojekyll').write_text('')
-print('Built nine Pages screens, the help guide and browser-only assets in docs/. No handwriting data was copied.')
+# Font files stay private. Only the parser, controls and drawing engine ship.
+# These scripts use ordinary fetch for the optional legacy Mac catalog.
+for name in ['fonts.css','fonts.js','font-engine.js','font-storage.js','opentype.min.js','opentype-LICENSE.txt']:
+    (assets/name).write_bytes((ROOT/'static'/name).read_bytes())
+fonts = adapt((ROOT/'static/fonts.html').read_text()).replace(' data-font-catalog="/api/fonts"','')
+fonts = fonts.replace('</nav>', '<a class="button" href="help.html#fonts">Help guide</a></nav>', 1)
+fonts = re.sub(r'/static/([a-z.-]+)\?v=\d+', r'assets/\1', fonts)
+fonts = fonts.replace('</body>','<script src="assets/tooltips-content.js"></script><script src="assets/tooltips.js"></script></body>')
+fonts = re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],fonts)
+(DEST/'fonts.html').write_text(fonts)
+print('Built ten Pages screens, the help guide and browser-only assets in docs/. No handwriting or font data was copied.')

@@ -29,6 +29,12 @@ The iPad layout uses compact navigation and **More** for extra pages and tools. 
 
 Proof sheets and Compose support up to 20 A4 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
 
+## Imported fonts
+
+Open **More → Fonts** to compose with a TrueType (`.ttf`) font. Add a font, enter text, choose its lowercase x height and generate the A4 preview. Download each page as SVG or outline G-code. The supplied QERuthStafford and QESamRoberts2 fonts are available on this Mac through the local app’s **Fonts** link; on the public website, import the original files once per browser/device.
+
+These are **outline fonts**: the plotter traces the edges of each letter. They do not become Dan’s single-line SVG fonts or captured pen strokes. Font imports stay in a separate browser library and are not included in handwriting backups. Keep the original files; neither the supplied fonts nor their drawings are published with the app.
+
 ## Keep your writing
 
 **Backup / Import → Download backup** saves captures, blends, reviews, preferences, spacing, compositions and free-writing pages. Check that the file is saved, then tap **I have saved the backup file**. Import adds records; conflicting versions are reported without overwriting existing work.
@@ -61,3 +67,5 @@ Edit sources in `static/` and `web/`, then run `npm run build` and `npm test`. T
 [MIT License](LICENSE) · Copyright © 2026 Gordon Brindle. Reuse and modification, including commercial use, are permitted under its terms.
 
 Inspired by [Dan Catt’s handwriting workflow](https://www.youtube.com/watch?v=nD3XlqFhcEI), including the two- and four-source blending demonstration around 22–24 minutes. Handwriting Studio is an independent implementation.
+
+TrueType parsing uses [OpenType.js](https://opentype.js.org/), distributed under its [MIT license](static/opentype-LICENSE.txt). Imported fonts retain their own copyrights and terms.

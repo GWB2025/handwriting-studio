@@ -35,7 +35,7 @@
   for(const [file,label] of [['index.html','Capture'],['alphabet.html','My alphabet'],['blending.html','Blend'],['compose.html','Compose']])nav.append(link(file,label));
   nav.append(more.button);
   const extra=make('nav','studio-panel-links');extra.setAttribute('aria-label','More Studio pages');
-  for(const [file,label] of [['review.html','Review samples'],['proof.html','Proof sheets'],['notebook.html','Free writing'],['calibration.html','Calibration'],['plotting.html','Plotter']])extra.append(link(file,label));
+  for(const [file,label] of [['review.html','Review samples'],['proof.html','Proof sheets'],['notebook.html','Free writing'],['fonts.html','Fonts'],['calibration.html','Calibration'],['plotting.html','Plotter']])extra.append(link(file,label));
   more.dialog.append(extra);
   const helpLinks=make('div','studio-help-links'),tips=make('div');tips.id='studio-tips';
   const guide=make('a','button','Help guide');guide.href=base+'help.html#'+(page==='help'?'start':page);guide.target='_blank';guide.rel='noopener';

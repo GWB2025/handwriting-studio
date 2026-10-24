@@ -160,8 +160,10 @@
   'plot-cancel':'Stop the drawing and clear queued movement. The cancelled job cannot be continued; use Home before a deliberate new run.',
   'plot-travel':'Show dashed pen-up travel in the A4 preview. This changes only the display, not the G-code or plotter movement.',
  };
+ Object.assign(ids,{"font-choice": "Choose an imported TrueType font. These fonts trace letter outlines, not single pen strokes.", "font-files": "Import .ttf files into this browser only. Keep the original files; handwriting backups do not include fonts.", "font-size": "Set the physical height of the font’s lowercase x. Tall letters and tails retain their proportions.", "font-phrase": "Enter up to 1,000 characters. Missing characters are reported when you generate the preview.", "font-generate": "Lay out the current text and font across A4 pages. Regenerate after changing settings.", "font-page": "Choose which A4 page to preview and download.", "font-svg": "Download the displayed page as outline paths. No font installation is needed to open the SVG.", "font-gcode": "Download the displayed outlines for the calibrated T-A4 plotter. This does not move the machine."});
  for(const side of ['top','bottom','left','right'])ids['compose-margin-'+side]='Set the '+side+' page margin from 20 to 60 mm. Larger margins leave less room for writing.';
  const routes={
+  'fonts.html':'Compose with imported TrueType fonts and export their letter outlines.',
   'index.html':'Open character capture to add handwriting samples.',
   'notebook.html':'Open free writing to draw and save whole pages.',
   'review.html':'Review saved originals and blends, adjust their position and size, or correct stroke order.',
