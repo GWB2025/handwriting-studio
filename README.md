@@ -69,3 +69,10 @@ Edit sources in `static/` and `web/`, then run `npm run build` and `npm test`. T
 Inspired by [Dan Catt’s handwriting workflow](https://www.youtube.com/watch?v=nD3XlqFhcEI), including the two- and four-source blending demonstration around 22–24 minutes. Handwriting Studio is an independent implementation.
 
 TrueType parsing uses [OpenType.js](https://opentype.js.org/), distributed under its [MIT license](static/opentype-LICENSE.txt). Imported fonts retain their own copyrights and terms.
+
+## AI assistance
+
+This project includes contributions developed by Gordon Brindle with assistance
+from OpenAI's ChatGPT, particularly with software implementation and
+documentation. Gordon directs the project and makes the final design and
+development decisions.
