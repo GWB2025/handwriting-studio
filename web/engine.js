@@ -6,7 +6,7 @@
   for(let repeat=0;repeat<3;repeat++)for(const group of groups){const shift=(group.length===5?repeat*2:repeat)%group.length;plan.orders.push(group.slice(shift)+group.slice(0,shift));}
   const oldSymbols=".,!?;:'\"-()[]{}@£$€%&+=/#_“”‘’–—";
   const characters=alphabet+'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'+oldSymbols+'^';
-  const pairs=['th','he','in','er','an','re','on','at','en','nd','oo','fi','of','tt'];
+  const pairs=['th','he','in','er','an','re','on','at','en','nd','to','it','is','of','st','ng','ll','ou','oo','fi','tt','ch','sh','ee'];
   const plans={lowercase:plan};
   for(const [name,tokens] of Object.entries({uppercase:[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],numbers:[...'0123456789'],symbols:[...characters.slice(62)],pairs})){
     const orders=[];for(let i=0;i<tokens.length;i+=4)orders.push(tokens.slice(i,i+4));
