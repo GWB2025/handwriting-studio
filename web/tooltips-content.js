@@ -159,6 +159,12 @@
   'plot-continue':'Continue the paused drawing from its current point. This does not restart the file.',
   'plot-cancel':'Stop the drawing and clear queued movement. The cancelled job cannot be continued; use Home before a deliberate new run.',
   'plot-travel':'Show dashed pen-up travel in the A4 preview. This changes only the display, not the G-code or plotter movement.',
+  'cursive-writer':'Choose the handwriting collection whose cursive joins and individual letters you want to inspect.',
+  'capture-cursive':'Open Capture directly on the 24 common cursive joined pairs for this writer.',
+  'cursive-refresh':'Reload cursive join coverage and the selected sample from saved handwriting.',
+  'cursive-text':'Enter lowercase proof text. Captured joined pairs are used where available; other positions fall back to individual letters.',
+  'cursive-size':'Choose the physical small-letter height for the cursive proof.',
+  'cursive-generate':'Generate a proof using captured joined pairs where available and individual letters elsewhere.',
  };
  Object.assign(ids,{"font-choice": "Choose an imported TrueType font. These fonts trace letter outlines, not single pen strokes.", "font-files": "Import .ttf files into this browser only. Keep the original files; handwriting backups do not include fonts.", "font-size": "Set the physical height of the font’s lowercase x. Tall letters and tails retain their proportions.", "font-phrase": "Enter up to 1,000 characters. Missing characters are reported when you generate the preview.", "font-generate": "Lay out the current text and font across A4 pages. Regenerate after changing settings.", "font-page": "Choose which A4 page to preview and download.", "font-svg": "Download the displayed page as outline paths. No font installation is needed to open the SVG.", "font-gcode": "Download the displayed outlines for the calibrated T-A4 plotter. This does not move the machine."});
  for(const side of ['top','bottom','left','right'])ids['compose-margin-'+side]='Set the '+side+' page margin from 20 to 60 mm. Larger margins leave less room for writing.';
@@ -173,6 +179,7 @@
   'proof.html':'Create handwriting proof sheets, passages or comparisons.',
   'calibration.html':'Download the verified A4 calibration checks for the plotter.',
   'plotting.html':'Open instructions for the USB-connected Mac plotting window.',
+  'cursive.html':'Inspect cursive join coverage, entry and exit geometry, and generate a joined-handwriting proof.',
   'help.html':'Open the help guide with instructions for the current screen.'
  };
  function describe(control,doc){
