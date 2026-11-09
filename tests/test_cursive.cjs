@@ -21,11 +21,11 @@ test('connection metrics preserve captured entry and exit directions',()=>{
 
 test('joined composition prefers captured cursive pairs and falls back to letters',()=>{
   const files=[...extendedFiles('lowercase'),...extendedFiles('pairs')];
-  const joined=E.compose(files,{writer:'Writer',phrase:'th in cat',height:5,smooth:true,joined:true});
+  const joined=E.compose(files,{writer:'Writer',phrase:'th in xyz',height:5,smooth:true,joined:true});
   assert.ok(joined.used_samples.some(s=>s.letter==='th'));
   assert.ok(joined.used_samples.some(s=>s.letter==='in'));
-  assert.ok(joined.used_samples.some(s=>s.letter==='a'));
-  const plain=E.compose(files,{writer:'Writer',phrase:'th in cat',height:5,smooth:true,joined:false});
+  assert.ok(joined.used_samples.some(s=>s.letter==='x'));
+  const plain=E.compose(files,{writer:'Writer',phrase:'th in xyz',height:5,smooth:true,joined:false});
   assert.equal(plain.used_samples.some(s=>s.letter.length>1),false);
 });
 
