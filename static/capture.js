@@ -2,7 +2,7 @@
 // The notebook's Pencil handling, viewport fitting and undo/redo are shared.
 // This layer supplies guides and explicit labels, not handwriting recognition.
 (()=>{
-  const captureQuery=new URLSearchParams(window.location.search);
+  const captureQuery=typeof URLSearchParams==='function'?new URLSearchParams(window.location.search):{get:()=>null};
   const requestedKind=captureQuery.get('kind');
   let plan=(window.StudioEngine?.plans?.[requestedKind]||window.capturePlan),setSize=plan.sheets_per_set;
   let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan):plan.orders;
