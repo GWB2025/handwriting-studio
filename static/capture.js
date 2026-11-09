@@ -2,7 +2,9 @@
 // The notebook's Pencil handling, viewport fitting and undo/redo are shared.
 // This layer supplies guides and explicit labels, not handwriting recognition.
 (()=>{
-  let plan=window.capturePlan,setSize=plan.sheets_per_set;
+  const captureQuery=new URLSearchParams(window.location.search);
+  const requestedKind=captureQuery.get('kind');
+  let plan=(window.StudioEngine?.plans?.[requestedKind]||window.capturePlan),setSize=plan.sheets_per_set;
   let orders=window.StudioEngine?window.StudioEngine.shuffleSet(plan.orders,0,Math.random,plan):plan.orders;
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
@@ -174,9 +176,10 @@
   $('writer').addEventListener('change',writerChanged);
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};
   for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'])$(id).onchange=()=>{redraw();window.StudioRecovery?.changed();};
-  try{if(!$('writer').value)$('writer').value=localStorage.getItem('handwriting-writer')||'';}catch{}
+  try{if(!$('writer').value)$('writer').value=captureQuery.get('writer')||localStorage.getItem('handwriting-writer')||'';}catch{if(!$('writer').value)$('writer').value=captureQuery.get('writer')||'';}
   practiceMessage();
   if($('capture-kind') && window.StudioEngine){
+    if(requestedKind&&window.StudioEngine.plans[requestedKind])$('capture-kind').value=requestedKind;
     $('capture-kind').onchange=()=>{
       if(saving || active || phase==='capture')return;
       if(hasUnsavedWriting() && !window.confirm('Changing the capture type clears unsaved practice. Continue?')){$('capture-kind').value=planKind();return;}
