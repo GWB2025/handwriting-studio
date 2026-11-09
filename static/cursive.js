@@ -4,16 +4,12 @@
   const $=id=>document.getElementById(id);
   let profiles=[],selectedPair='th',proofURL='',joinURL='';
 
-  const tangent=(a,b)=>({dx:b.x-a.x,dy:b.y-a.y,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI});
   function metrics(sample){
-    const strokes=sample?.processed_strokes||[];
-    const first=strokes.find(s=>s.points?.length)?.points;
-    const last=[...strokes].reverse().find(s=>s.points?.length)?.points;
+    const m=window.StudioEngine?.connectionMetrics?.(sample);if(m)return {entry:m.entry,exit:m.exit,entryT:m.entry_tangent,exitT:m.exit_tangent,strokeCount:m.stroke_count};
+    const strokes=sample?.processed_strokes||[],first=strokes.find(s=>s.points?.length)?.points,last=[...strokes].reverse().find(s=>s.points?.length)?.points;
     if(!first||!last)return null;
-    const entry=first[0],exit=last.at(-1);
-    const entryT=first.length>1?tangent(first[0],first[1]):{dx:0,dy:0,angle:0};
-    const exitT=last.length>1?tangent(last.at(-2),last.at(-1)):{dx:0,dy:0,angle:0};
-    return {entry,exit,entryT,exitT,strokeCount:strokes.length};
+    const tangent=(a,b)=>({dx:b.x-a.x,dy:b.y-a.y,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI});
+    return {entry:first[0],exit:last.at(-1),entryT:first.length>1?tangent(first[0],first[1]):{dx:0,dy:0,angle:0},exitT:last.length>1?tangent(last.at(-2),last.at(-1)):{dx:0,dy:0,angle:0},strokeCount:strokes.length};
   }
   function revoke(which){if(which==='proof'&&proofURL){URL.revokeObjectURL(proofURL);proofURL='';}if(which==='join'&&joinURL){URL.revokeObjectURL(joinURL);joinURL='';}}
   function imageFromSVG(img,svg,which){
