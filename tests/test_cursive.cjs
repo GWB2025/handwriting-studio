@@ -51,3 +51,30 @@ test('ink-width advance leaves ordinary samples unchanged when bounds match stro
   const a={letter:'a',bounds:{left:0,right:70},processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:35,y:-40},{x:70,y:0}]}]};
   assert.equal(E.sampleInkWidth(a),a.bounds.right-a.bounds.left);
 });
+
+
+test('primary joining stroke ignores a short dot or crossbar stroke',()=>{
+  const sample={processed_strokes:[
+    {pointerType:'pen',points:[{x:0,y:0},{x:20,y:-40},{x:45,y:-10},{x:60,y:0}]},
+    {pointerType:'pen',points:[{x:25,y:-55},{x:27,y:-55}]}
+  ]};
+  assert.equal(E.primaryStrokeIndex(sample),0);
+  assert.ok(E.strokeLength(sample.processed_strokes[0])>E.strokeLength(sample.processed_strokes[1]));
+  const metric=E.connectionMetrics(sample);
+  assert.equal(metric.join_stroke_index,0);
+  assert.equal(metric.auxiliary_stroke_count,1);
+  assert.deepEqual(metric.entry,{x:0,y:0});
+  assert.deepEqual(metric.exit,{x:60,y:0});
+});
+
+test('primary joining stroke can be later in captured stroke order',()=>{
+  const sample={processed_strokes:[
+    {pointerType:'pen',points:[{x:10,y:-30},{x:18,y:-30}]},
+    {pointerType:'pen',points:[{x:0,y:0},{x:20,y:-45},{x:50,y:-15},{x:70,y:0}]}
+  ]};
+  assert.equal(E.primaryStrokeIndex(sample),1);
+  const metric=E.connectionMetrics(sample);
+  assert.equal(metric.join_stroke_index,1);
+  assert.deepEqual(metric.entry,{x:0,y:0});
+  assert.deepEqual(metric.exit,{x:70,y:0});
+});
