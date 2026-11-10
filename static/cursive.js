@@ -55,12 +55,12 @@
     $('proof-status').textContent='Generating cursive proof…';$('proof-image').hidden=true;revoke('proof');
     const response=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       writer:writer(),phrase:$('cursive-text').value,height:Number($('cursive-size').value),smooth:true,samples:'latest_three',source:'both',use_preferred:true,joined:true,
-      letter_spacing:1,word_spacing:1,line_spacing:1,page_layout:{}
+      auto_join_preview:$('cursive-auto-join').checked,letter_spacing:1,word_spacing:1,line_spacing:1,page_layout:{}
     })});
     const data=await response.json();if(!response.ok)throw Error(data.error||'Could not generate cursive proof.');
     const page=data.pages?.[0]||data;imageFromSVG($('proof-image'),page.svg,'proof');
-    const used=page.used_samples||data.used_samples||[],joins=used.filter(s=>pairs.includes(s.letter));
-    $('proof-status').textContent='Ready · '+joins.length+' captured join'+(joins.length===1?'':'s')+' used in this proof; other positions use individual captured letters.';
+    const used=page.used_samples||data.used_samples||[],joins=used.filter(s=>pairs.includes(s.letter)),generated=page.generated_joins||0,skipped=page.skipped_joins||0;
+    $('proof-status').textContent='Ready · '+joins.length+' captured join'+(joins.length===1?'':'s')+' used'+($('cursive-auto-join').checked?' · '+generated+' generated connector'+(generated===1?'':'s')+(skipped?' · '+skipped+' unsafe connector'+(skipped===1?'':'s')+' skipped':''):'')+'. Generated connectors are preview-only for Milestone 2.';
   }
   async function refresh(){
     try{await loadWriters();$('proof-status').textContent='Ready to generate a proof.';}catch(error){$('cursive-coverage').textContent=error.message;$('join-status').textContent=error.message;}
