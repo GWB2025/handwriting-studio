@@ -36,3 +36,18 @@ test('pair proof reports all captured cursive joins',()=>{
   assert.equal(proof.missing.length,0);
   assert.match(proof.svg,/Handwriting/);
 });
+
+
+test('joined-pair advance uses drawn ink rather than stale capture bounds',()=>{
+  const pair={letter:'th',capture_id:'00000000-0000-4000-8000-000000000001',baseline_shift_mm:0,bounds:{left:0,right:240},processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:80,y:-20},{x:96,y:0}]}]};
+  const e={letter:'e',capture_id:'00000000-0000-4000-8000-000000000002',baseline_shift_mm:0,bounds:{left:0,right:52},processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:26,y:-12},{x:52,y:0}]}]};
+  assert.equal(E.sampleInkWidth(pair),96);
+  assert.equal(E.sampleInkWidth(e),52);
+  const layout=E.layoutWriting(['th','e'],[pair,e],{height:8,smooth:false,letter_spacing:1,word_spacing:1,line_spacing:1},{x:20,y:20,width:170,bottom:277});
+  assert.ok(layout.width<30,'short cursive word should not inherit the obsolete 240-unit pair bound');
+});
+
+test('ink-width advance leaves ordinary samples unchanged when bounds match strokes',()=>{
+  const a={letter:'a',bounds:{left:0,right:70},processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:35,y:-40},{x:70,y:0}]}]};
+  assert.equal(E.sampleInkWidth(a),a.bounds.right-a.bounds.left);
+});
