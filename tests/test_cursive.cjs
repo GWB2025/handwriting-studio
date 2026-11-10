@@ -78,3 +78,30 @@ test('primary joining stroke can be later in captured stroke order',()=>{
   assert.deepEqual(metric.entry,{x:0,y:0});
   assert.deepEqual(metric.exit,{x:70,y:0});
 });
+
+
+test('connector geometry follows primary exit and entry tangents within a safe gap',()=>{
+  const left={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:30,y:-15},{x:60,y:0}]}]};
+  const right={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:25,y:-12},{x:50,y:0}]}]};
+  const join=E.connectorGeometry(left,right,20,28,30,.1,8);
+  assert.ok(join);
+  assert.deepEqual(join.start,{x:26,y:30});
+  assert.deepEqual(join.end,{x:28,y:30});
+  assert.ok(Number.isFinite(join.control.x)&&Number.isFinite(join.control.y));
+  assert.match(E.connectorPath(join),/^M26\.0000 30\.0000 Q/);
+});
+
+test('connector geometry rejects implausibly distant joins',()=>{
+  const sample={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:40,y:0}]}]};
+  assert.equal(E.connectorGeometry(sample,sample,0,100,20,.1,5),null);
+});
+
+test('cursive proof can add preview-only connectors between uncaptured neighbours',()=>{
+  const files=extendedFiles('lowercase');
+  const result=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:true,page_layout:{}});
+  assert.equal(result.pages.length,1);
+  assert.equal(result.pages[0].generated_joins,2);
+  assert.match(result.pages[0].svg,/ Q/);
+  const plain=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:false,page_layout:{}});
+  assert.equal(plain.pages[0].generated_joins,undefined);
+});
