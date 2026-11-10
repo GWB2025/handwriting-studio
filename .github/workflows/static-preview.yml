@@ -26,6 +26,7 @@ jobs:
           cp -R docs /tmp/handwriting-preview
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git reset --hard HEAD
           git switch --orphan "$PREVIEW_BRANCH"
           git rm -rf .
           cp -R /tmp/handwriting-preview/. .
