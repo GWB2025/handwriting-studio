@@ -400,7 +400,7 @@
     return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
       line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation},adjustments={},settings={}){
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false},adjustments={},settings={}){
     const layout=pageLayout(settings),width=210-layout.margin_left-layout.margin_right,bottom=297-layout.margin_bottom,scale=height/80;
     const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
     // Vary whole glyphs around their reviewed baselines, never the stored samples.
@@ -416,7 +416,7 @@
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j]});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
@@ -428,14 +428,19 @@
       if(baseline+below>bottom+.00001){if(page.paths.length){pages.push(page);if(pages.length>=20)fail('This document needs more than 20 pages. Split the text into smaller documents.');page={paths:[],chosen:[],lines:[]};}baseline=layout.margin_top+above;}
       const offset=layout.margin_left+(layout.alignment==='centre'?(width-line.right-line.left)/2:layout.alignment==='right'?width-line.right:0);
       const shape=natural.line(lineIndex++);
-      for(const {s,x,letter} of line.glyphs){for(const stroke of s.processed_strokes){
-        if(natural.on){
-          // Apply a continuous baseline drift to the complete line. The reserved
-          // envelope also contains quadratic control points after smoothing.
-          const points=stroke.points.map(p=>{const px=offset+x+p.x*scale,t=(px-layout.margin_left)/width;return {x:px,y:baseline+s.baseline_shift_mm+p.y*scale+shape.slope*(px-layout.margin_left-width/2)+shape.bend*Math.sin(Math.PI*t)};});
-          page.paths.push(pathData(points,smooth,0,0,1));
-        }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
-      }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      for(let glyphIndex=0;glyphIndex<line.glyphs.length;glyphIndex++){const {s,x,letter,joinPrevious}=line.glyphs[glyphIndex];
+        if(auto_join_preview&&!natural.on&&joinPrevious&&glyphIndex>0){
+          const previous=line.glyphs[glyphIndex-1],geometry=connectorGeometry(previous.s,s,offset+previous.x,offset+x,baseline,scale,height);
+          if(geometry){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
+        }
+        for(const stroke of s.processed_strokes){
+          if(natural.on){
+            // Apply a continuous baseline drift to the complete line. The reserved
+            // envelope also contains quadratic control points after smoothing.
+            const points=stroke.points.map(p=>{const px=offset+x+p.x*scale,t=(px-layout.margin_left)/width;return {x:px,y:baseline+s.baseline_shift_mm+p.y*scale+shape.slope*(px-layout.margin_left-width/2)+shape.bend*Math.sin(Math.PI*t)};});
+            page.paths.push(pathData(points,smooth,0,0,1));
+          }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
+        }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
       page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join(''),...(natural.on?{natural_line:shape}: {})});baseline+=advance;
     }
     if(page.paths.length)pages.push(page);return pages;
@@ -455,7 +460,7 @@
   }
   function compose(files,data){return composeWriting(files,data);}
   function composeWriting(files,data,reviewSample=null){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=false,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=false,auto_join_preview=false,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
     const natural=naturalSettings(data.natural_variation);
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
@@ -465,7 +470,7 @@
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
     if(typeof phrase!=='string'||phrase.length>(data.page_layout!==undefined?10000:2000)||![...phrase].some(c=>characters.includes(c)))fail(data.page_layout!==undefined?'Type a document (up to 10,000 characters).':'Type a phrase (up to 2000 characters).');
     if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
-    if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
+    if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean'||typeof auto_join_preview!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
     const previews=[];
@@ -490,7 +495,7 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural};
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview};
     if(reviewSample){
       // Reserve the full review range once: 50–400% size and ±10 mm position.
       // The baseline and display scale must not follow the changing ink bounds.
@@ -526,6 +531,21 @@
     const entry=points[0],exit=points.at(-1),entry_tangent=points.length>1?tangent(points[0],points[1]):{dx:0,dy:0,angle:0},exit_tangent=points.length>1?tangent(points.at(-2),points.at(-1)):{dx:0,dy:0,angle:0};
     return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length,join_stroke_index,join_stroke_length:strokeLength(strokes[join_stroke_index]),auxiliary_stroke_count:Math.max(0,strokes.length-1)};
   }
+  function connectorGeometry(left,right,leftX,rightX,baseline,scale,height){
+    const a=connectionMetrics(left),b=connectionMetrics(right);if(!a||!b)return null;
+    const start={x:leftX+a.exit.x*scale,y:baseline+(left.baseline_shift_mm||0)+a.exit.y*scale};
+    const end={x:rightX+b.entry.x*scale,y:baseline+(right.baseline_shift_mm||0)+b.entry.y*scale};
+    const dx=end.x-start.x,dy=end.y-start.y,distance=Math.hypot(dx,dy);
+    if(distance<.15)return null;
+    if(dx<-height*.35||dx>height*1.8||Math.abs(dy)>height*1.25)return null;
+    const slope=t=>Math.abs(t.dx)<1e-6?0:Math.max(-2,Math.min(2,t.dy/t.dx));
+    const cx=(start.x+end.x)/2,fromStart=start.y+slope(a.exit_tangent)*(cx-start.x),fromEnd=end.y-slope(b.entry_tangent)*(end.x-cx);
+    const middle=(start.y+end.y)/2,limit=height*.65,cy=Math.max(middle-limit,Math.min(middle+limit,(fromStart+fromEnd)/2));
+    return {start,control:{x:cx,y:cy},end,distance};
+  }
+  function connectorPath(geometry){
+    const f=n=>Number(n).toFixed(4);return 'M'+f(geometry.start.x)+' '+f(geometry.start.y)+' Q'+f(geometry.control.x)+' '+f(geometry.control.y)+' '+f(geometry.end.x)+' '+f(geometry.end.y);
+  }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
     const left=Math.min(...boxes.map(b=>b[0])),top=Math.min(...boxes.map(b=>b[1])),right=Math.max(...boxes.map(b=>b[0]+b[2])),bottom=Math.max(...boxes.map(b=>b[1]+b[3]));
@@ -541,6 +561,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
