@@ -14,6 +14,9 @@
 .cursive-preview img{width:100%;max-height:360px;object-fit:contain;background:#fbfcfb;border:1px solid #d8e0da;border-radius:8px}
 .cursive-proof img{width:min(100%,700px);background:#fff;border:1px solid #d8e0da}
 .cursive-metrics{font-variant-numeric:tabular-nums}
+.cursive-storage{border:2px solid #93ad9b;background:#f4f8f4}
+.cursive-storage .toolbar{align-items:center}
+.cursive-storage strong{color:#203832}
 @media(max-width:820px){.cursive-layout{grid-template-columns:1fr}}
 </style>
 </head>
@@ -31,6 +34,16 @@
     <a class="button" href="/compose">Compose</a>
   </nav>
 </header>
+
+<section id="cursive-storage-panel" class="cursive-card cursive-storage" aria-labelledby="cursive-storage-title">
+  <h2 id="cursive-storage-title">Handwriting data for this page</h2>
+  <p id="cursive-storage-status" role="status">Checking this browser’s handwriting store…</p>
+  <div class="toolbar">
+    <button id="cursive-import-backup" type="button">Import handwriting backup</button>
+    <a id="cursive-live-app" class="button" href="https://gwb2025.github.io/handwriting-studio/">Open live Handwriting Studio</a>
+  </div>
+  <p class="subtle">Preview builds use separate browser storage from the live site. To copy your latest captures here, download a backup on the live site and import that JSON file into this preview.</p>
+</section>
 
 <section class="cursive-card">
   <div class="toolbar">
