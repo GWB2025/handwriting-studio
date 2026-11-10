@@ -508,12 +508,23 @@
     return {svg:pages[0].svg,pages,used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
       sample_selection:{mode,source,use_preferred,sample_order,sample_seed,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
+  function strokeLength(stroke){
+    const points=stroke?.points||[];let length=0;
+    for(let i=1;i<points.length;i++)length+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);
+    return length;
+  }
+  function primaryStrokeIndex(sample){
+    const strokes=sample?.processed_strokes||[];let best=-1,bestLength=-1;
+    for(let i=0;i<strokes.length;i++){const length=strokeLength(strokes[i]);if(length>bestLength){best=i;bestLength=length;}}
+    return best;
+  }
   function connectionMetrics(sample){
-    const strokes=sample?.processed_strokes||[],first=strokes.find(s=>s.points?.length)?.points,last=[...strokes].reverse().find(s=>s.points?.length)?.points;
-    if(!first||!last)return null;
+    const strokes=sample?.processed_strokes||[],join_stroke_index=primaryStrokeIndex(sample);
+    if(join_stroke_index<0)return null;
+    const points=strokes[join_stroke_index]?.points||[];if(!points.length)return null;
     const tangent=(a,b)=>({dx:b.x-a.x,dy:b.y-a.y,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI});
-    const entry=first[0],exit=last.at(-1),entry_tangent=first.length>1?tangent(first[0],first[1]):{dx:0,dy:0,angle:0},exit_tangent=last.length>1?tangent(last.at(-2),last.at(-1)):{dx:0,dy:0,angle:0};
-    return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length};
+    const entry=points[0],exit=points.at(-1),entry_tangent=points.length>1?tangent(points[0],points[1]):{dx:0,dy:0,angle:0},exit_tangent=points.length>1?tangent(points.at(-2),points.at(-1)):{dx:0,dy:0,angle:0};
+    return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length,join_stroke_index,join_stroke_length:strokeLength(strokes[join_stroke_index]),auxiliary_stroke_count:Math.max(0,strokes.length-1)};
   }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
@@ -530,6 +541,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={sampleInkWidth,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
