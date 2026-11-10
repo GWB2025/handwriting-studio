@@ -121,6 +121,8 @@
   'compose-writer':'Choose the handwriting collection to use for this composition.',
   'compose-size':size,'compose-smooth':smooth,
   'compose-samples':'Choose how many recent included samples per character to use. Eligible preferred choices take priority when enabled.',
+  'compose-phrase-example':'Choose a ready-made pangram, cursive test sentence or alphabet coverage line. Nothing changes until you tap Use phrase.',
+  'compose-use-phrase':'Replace the composition text with the selected standard phrase. Your handwriting samples are not changed.',
   'phrase':'Enter text using captured characters. Line breaks are kept, words wrap, and longer writing continues onto more A4 pages.',
   'compose-natural':natural+' After Generate preview, the amount updates live on every page.','compose-natural-new':'Try a different natural-variation pattern without changing the selected letter samples.',
   'compose-order':'Cycle through eligible samples in sequence, or shuffle them for a varied but repeatable result.',
