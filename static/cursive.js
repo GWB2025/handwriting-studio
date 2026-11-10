@@ -17,6 +17,17 @@
     if(which==='proof')proofURL=url;else joinURL=url;img.src=url;img.hidden=false;
   }
   function writer(){return $('cursive-writer').value;}
+  function storageIsPreview(){
+    const host=window.location?.hostname||'';
+    return host.includes('raw.githack.com')||host.includes('rawgit')||host.includes('preview');
+  }
+  function storageSummary(){
+    const samples=profiles.reduce((sum,profile)=>sum+Object.values(profile.total_counts||profile.counts||{}).reduce((a,b)=>a+(Number(b)||0),0),0);
+    const where=storageIsPreview()?'Milestone 2 preview storage':'live Handwriting Studio storage';
+    $('cursive-storage-status').textContent=profiles.length
+      ? where+': '+profiles.length+' writer'+(profiles.length===1?'':'s')+' · '+samples+' saved sample'+(samples===1?'':'s')+'.'
+      : where+' is empty. Import your latest Handwriting Studio backup to use captured handwriting here.';
+  }
   function updateCaptureLink(){$('capture-cursive').href='/?kind=pairs&writer='+encodeURIComponent(writer());}
 
   async function loadWriters(){
@@ -25,7 +36,7 @@
     const prior=writer();$('cursive-writer').replaceChildren();
     for(const profile of profiles){const o=document.createElement('option');o.value=profile.writer;o.textContent=profile.writer;$('cursive-writer').append(o);}
     if(profiles.some(p=>p.writer===prior))$('cursive-writer').value=prior;
-    updateCaptureLink();renderCoverage();await loadPair(selectedPair);
+    storageSummary();updateCaptureLink();renderCoverage();await loadPair(selectedPair);
   }
   function renderCoverage(){
     const profile=profiles.find(p=>p.writer===writer()),counts=profile?.counts||{};
@@ -67,7 +78,13 @@
   }
   $('cursive-writer').onchange=()=>{updateCaptureLink();renderCoverage();loadPair(selectedPair).catch(e=>$('join-status').textContent=e.message);};
   $('cursive-refresh').onclick=refresh;
+  $('cursive-import-backup').onclick=()=>{
+    const open=$('backup-open');
+    if(open)open.click();
+    else $('cursive-storage-status').textContent='Backup / Import is available in the published browser build. Open the live app or reload this preview.';
+  };
   $('cursive-generate').onclick=()=>generate().catch(error=>$('proof-status').textContent=error.message);
+  window.addEventListener('studio-saved-change',()=>refresh());
   window.addEventListener('beforeunload',()=>{revoke('proof');revoke('join');});
   refresh();
 })();
