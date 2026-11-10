@@ -13,7 +13,7 @@ Capture your handwriting, blend individual characters, and compose A4 pages for 
 3. **Blend a character** from two or four different originals of the same character. Drag the transparent result towards its sources, then **Save blended sample**.
 4. **My alphabet** shows coverage, lets you choose preferred versions, and adjusts spacing before and after each character.
 5. Open **Alphabet proof sheet** to test pangrams, Sonnet 18, the original sonnet *The Hand in Ink*, or your own text. **Compare versions** puts originals, blends and preferred choices side by side.
-6. **Compose** lays out your text across A4 pages. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
+7. **Compose** lays out your text across A4 pages. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
 
 The iPad layout uses compact navigation and **More** for extra pages and tools. **Writing focus** enlarges Capture and Free writing; **Preview focus** gives other handwriting previews more room. Settings fold into labelled sections, with choices beside the preview on wider screens. Main save and download actions stay within reach.
 
@@ -25,7 +25,8 @@ The iPad layout uses compact navigation and **More** for extra pages and tools. 
 - Review’s **Letter size** scales one sample from **50% to 400%**. **Save changes** applies it to future writing and blends; original strokes are kept.
 - **Writing size** sets the physical small-letter guide height: **3, 5, 8, 10, 12, 16 or 20 mm**. Tall letters and tails keep their proportions.
 - **Sample order** in Compose can shuffle saved versions. **Natural variation**, off by default, adds subtle changes to word gaps, letter sizes and line slope/curve in Compose and ordinary proof sheets.
-- **Joined pairs are experimental and off for new compositions.** Their sizing and joins can differ from individual letters. Existing captures remain available; saved compositions and recovered drafts keep their previous choice. Full cursive joining is not implemented.
+- **Cursive Milestone 1** captures 24 common joined pairs and preserves their actual pen strokes. The Cursive workspace reports join coverage, displays entry/exit points and directions, and can proof ordinary text using exact captured joins with individual-letter fallback.
+- **Generated joins between arbitrary neighbouring letters are not implemented yet.** Compose keeps joined-pair use off for new compositions unless explicitly enabled; saved compositions and recovered drafts keep their previous choice.
 
 Proof sheets and Compose support up to 20 A4 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
 

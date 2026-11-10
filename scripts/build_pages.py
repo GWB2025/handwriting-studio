@@ -11,6 +11,7 @@ notice = '''<aside class="browser-storage"><div class="storage-info"><span>Saved
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
 route = {'/proof':'proof.html','/help':'help.html','/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
 route['/fonts'] = 'fonts.html'
+route['/cursive'] = 'cursive.html'
 def adapt(text):
     text = text.replace('fetch(', 'window.studioFetch(')
     for old,new in sorted(route.items(), key=lambda pair: -len(pair[0])):
@@ -22,7 +23,7 @@ def adapt(text):
     text = text.replace('Check that the Mac is running the app, then tap Refresh list.','Try reopening this page in a regular browser window, then tap Refresh list.')
     text = text.replace('The Mac took too long', 'Browser storage took too long').replace('The Mac could not read this page.', 'Browser storage could not read this page.')
     return text
-for name in ['app.js','symbol-guides.js','capture.js','compose.js','review.js','library.js','calibration.js','plotter.js']:
+for name in ['app.js','symbol-guides.js','capture.js','compose.js','review.js','library.js','calibration.js','plotter.js','cursive.js']:
     (assets/name).write_text(adapt((ROOT/'static'/name).read_text()))
 style=(ROOT/'static/style.css').read_text()
 style+='\n.compose-spacing {margin:16px 0;border:1px solid #b9c9bf;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:12px 24px;} .compose-spacing label {display:block;flex:1 1 180px;} .compose-spacing input {display:block;width:100%;} .compose-spacing p {width:100%;margin:0;line-height:1.5;}\n.browser-storage { padding: .6rem 1rem; background: #edf3ed; color: #203832; font-size: .85rem; display: flex; align-items: center; gap: 1rem; justify-content: space-between; }\n#backup-dialog { max-width: 36rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid #93ad9b; border-radius: 12px; }\n#backup-dialog::backdrop { background: #10231c66; }\n#backup-dialog[open] { display: block; height: auto; max-height: 90svh; overflow: auto; inset: 0; margin: auto; touch-action: auto; }\n#backup-dialog p { line-height: 1.5; }\n#backup-file { max-width: 100%; }\n'
@@ -33,11 +34,11 @@ style+='\n'+(ROOT/'web/studio-layout.css').read_text()
 (assets/'style.css').write_text(style)
 for name in ['studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
-for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html')]:
+for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html'),('cursive.html','cursive.html')]:
     html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
     if target=='notebook.html':html=adapt((ROOT/'web/notebook.html').read_text())
-    if source not in ['capture.html','index.html','alphabet.html','help.html','proof.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
-    if source not in ['capture.html','index.html','blending.html','alphabet.html','help.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
+    if source not in ['capture.html','index.html','alphabet.html','help.html','proof.html','cursive.html']:html=html.replace('</nav>','<a class="button" href="alphabet.html">My alphabet</a></nav>',1)
+    if source not in ['capture.html','index.html','blending.html','alphabet.html','help.html','cursive.html']:html=html.replace('</nav>','<a class="button" href="blending.html">Blend a character</a></nav>',1)
     if source in ['capture.html','index.html']:pass
     elif '</nav>' in html:html=html.replace('</nav>','<a class="button" href="plotting.html">Plotter</a></nav>',1)
     else:html=html.replace('<div class="header-actions">','<div class="header-actions"><a class="button" href="plotting.html">Plotter</a>',1)
