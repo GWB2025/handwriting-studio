@@ -345,9 +345,14 @@
     result.processed_strokes=samples[0].processed_strokes.map((stroke,i)=>{const normalized=samples.map(s=>resample(s.processed_strokes[i].points));return {pointerType:stroke.pointerType,points:normalized[0].map((_,j)=>({x:normalized.reduce((v,p,k)=>v+p[j].x*weights[k],0),y:normalized.reduce((v,p,k)=>v+p[j].y*weights[k],0)}))};});
     const points=result.processed_strokes.flatMap(s=>s.points),left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));for(const p of points)p.x-=left;result.bounds={left:0,right:right-left};result.baseline_shift_mm=samples.reduce((v,s,i)=>v+s.baseline_shift_mm*weights[i],0);return result;
   }
+  function sampleInkWidth(sample){
+    let left=Infinity,right=-Infinity;
+    for(const stroke of sample.processed_strokes||[])for(const p of stroke.points||[]){left=Math.min(left,p.x);right=Math.max(right,p.x);}
+    return Number.isFinite(left)&&Number.isFinite(right)?Math.max(0,right-left):Math.max(0,(sample.bounds?.right||0)-(sample.bounds?.left||0));
+  }
   function spacing(a,b,scale,height){
     function envelope(sample){const rows=new Map();for(const stroke of sample.processed_strokes){const points=resample(stroke.points,128);for(const p of points){const row=Math.floor((p.y*scale+sample.baseline_shift_mm)/.5),x=p.x*scale;for(const key of [row-1,row,row+1]){const r=rows.get(key)||[Infinity,-Infinity];r[0]=Math.min(r[0],x);r[1]=Math.max(r[1],x);rows.set(key,r);}}}return rows;}
-    const ar=envelope(a),br=envelope(b),width=(a.bounds.right-a.bounds.left)*scale;let advance=height*.25;
+    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*.25;
     for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*.18);
     return Math.max(width*.45,Math.min(width+height*.22,advance));
   }
@@ -355,8 +360,8 @@
   function wordLayout(letters,used,height,letter_spacing,adjustments){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height)*letter_spacing:(used[j].bounds.right-used[j].bounds.left)*scale)+a.after_mm*height/5;}
-    const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+(used[j].bounds.right-used[j].bounds.left)*scale))-left;
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height)*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
   function layoutWriting(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1},frame={x:20,y:20,width:170,bottom:277},adjustments={},extents=writingExtents(used,height)){
@@ -411,7 +416,7 @@
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j]});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+(s.bounds.right-s.bounds.left)*scale);}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j]});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
@@ -525,6 +530,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={sampleInkWidth,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
