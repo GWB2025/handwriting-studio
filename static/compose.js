@@ -1,6 +1,14 @@
 'use strict';
 (()=>{
   const byID=id=>document.getElementById(id);
+  const standardPhrases={
+    'quick-fox':'the quick brown fox jumps over the lazy dog',
+    'pack-box':'pack my box with five dozen liquor jugs',
+    'black-quartz':'sphinx of black quartz judge my vow',
+    'cursive-rain':'the thing in the rain',
+    'cursive-common':'the other thing is in the rain and on the street',
+    'lowercase-alphabet':'abcdefghijklmnopqrstuvwxyz'
+  };
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
@@ -138,6 +146,12 @@
   byID('blend-mix')?.addEventListener('input',()=>{byID('blend-mix-value').textContent=byID('blend-mix').value+'% right source';liveBlend();});
   byID('blend-vertical')?.addEventListener('input',()=>{byID('blend-vertical-value').textContent=byID('blend-vertical').value+'% bottom row';liveBlend();});
   byID('blend-count')?.addEventListener('change',()=>{if(byID('blend-count').value==='4'&&byID('compose-samples').value==='latest_three')byID('compose-samples').value='latest_four';liveBlend();});
+  byID('compose-use-phrase')?.addEventListener('click',()=>{
+    const key=byID('compose-phrase-example')?.value,text=standardPhrases[key];
+    if(!text)return;
+    byID('phrase').value=text;phraseEdited=true;invalidate();
+    byID('phrase').focus({preventScroll:true});
+  });
   byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
   function spacingData(){return Object.fromEntries(['letter','word','line'].map(name=>[name+'_spacing',Number(byID('compose-'+name+'-spacing')?.value||100)/100]));}
   function liveSpacing(){
