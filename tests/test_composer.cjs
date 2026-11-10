@@ -279,12 +279,12 @@ test('standard phrase chooser loads useful test text without generating automati
   const c = await composer(), e = c.elements;
   const beforeRequests = c.requests.length;
   e['compose-phrase-example'].value = 'cursive-common';
-  e['compose-use-phrase'].onclick();
+  e['compose-use-phrase'].emit('click');
   assert.equal(e.phrase.value, 'the other thing is in the rain and on the street');
   assert.equal(e.phrase.focused, true);
   assert.equal(c.requests.length, beforeRequests);
   assert.match(e['compose-status'].textContent, /Settings changed/);
   e['compose-phrase-example'].value = 'quick-fox';
-  e['compose-use-phrase'].onclick();
+  e['compose-use-phrase'].emit('click');
   assert.equal(e.phrase.value, 'the quick brown fox jumps over the lazy dog');
 });
