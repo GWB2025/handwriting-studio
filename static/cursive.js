@@ -47,8 +47,8 @@
     if(!data.samples?.length){$('join-status').textContent='No included '+pair+' sample yet. Use Capture cursive joins to add one.';return;}
     const sample=data.samples[0];$('join-status').textContent=data.samples.length+' saved sample'+(data.samples.length===1?'':'s')+' · showing newest.';
     imageFromSVG($('join-image'),sample.svg,'join');
-    const m=metrics(sample.stroke_sample);
-    $('join-metrics').textContent=m?'Entry ('+m.entry.x.toFixed(1)+', '+m.entry.y.toFixed(1)+') at '+m.entryT.angle.toFixed(1)+'° · Exit ('+m.exit.x.toFixed(1)+', '+m.exit.y.toFixed(1)+') at '+m.exitT.angle.toFixed(1)+'° · '+m.strokeCount+' stroke'+(m.strokeCount===1?'':'s')+'.':'Entry/exit geometry is available after reloading the current browser build.';
+    const m=metrics(sample.stroke_sample),engineMetric=window.StudioEngine?.connectionMetrics?.(sample.stroke_sample);
+    $('join-metrics').textContent=m?'Entry ('+m.entry.x.toFixed(1)+', '+m.entry.y.toFixed(1)+') at '+m.entryT.angle.toFixed(1)+'° · Exit ('+m.exit.x.toFixed(1)+', '+m.exit.y.toFixed(1)+') at '+m.exitT.angle.toFixed(1)+'° · '+m.strokeCount+' stroke'+(m.strokeCount===1?'':'s')+(engineMetric?' · primary join stroke '+(engineMetric.join_stroke_index+1)+' of '+engineMetric.stroke_count+(engineMetric.auxiliary_stroke_count?' · '+engineMetric.auxiliary_stroke_count+' auxiliary stroke'+(engineMetric.auxiliary_stroke_count===1?'':'s'):''):'')+'.':'Entry/exit geometry is available after reloading the current browser build.';
   }
   async function generate(){
     if(!writer()){$('proof-status').textContent='Choose a writer first.';return;}
