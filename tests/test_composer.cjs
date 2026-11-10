@@ -14,11 +14,12 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   }
   const elements = {};
   for (const id of ['compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
-    'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
+    'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
-      removeAttribute(name) { delete this[name]; }});
+      removeAttribute(name) { delete this[name]; },
+      focus() { this.focused = true; }});
   }
   if(layout)for(const name of ['margin-top','margin-right','margin-bottom','margin-left','alignment','paragraph-gap','layout-reset','page-previous','page-next','page-select','page-status'])elements['compose-'+name]=events({value:name.startsWith('margin-')?'20':name==='alignment'?'left':'0',disabled:false,replaceChildren(){this.value='';},append(option){if(!this.value)this.value=option.value;}});
   if(natural){elements['compose-natural']=events({value:'off',disabled:false});elements['compose-natural-new']=events({disabled:true});}
@@ -271,4 +272,19 @@ test('natural controls update live, retain independent pattern seeds and survive
  await next.window.compositions.restore(saved);assert.deepEqual(JSON.parse(JSON.stringify(next.window.compositions.read().natural_variation)),saved.natural_variation);
  const legacy={...saved};delete legacy.natural_variation;await next.window.compositions.restore(legacy);assert.equal(next.elements['compose-natural'].value,'off');assert.equal(next.elements['compose-natural-new'].disabled,true);
  c.server.error='A word is too wide';e['compose-natural-new'].onclick();await new Promise(r=>setTimeout(r,230));await settle();assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.match(e['compose-status'].textContent,/Previous preview shown/);
+});
+
+
+test('standard phrase chooser loads useful test text without generating automatically', async () => {
+  const c = await composer(), e = c.elements;
+  const beforeRequests = c.requests.length;
+  e['compose-phrase-example'].value = 'cursive-common';
+  e['compose-use-phrase'].emit('click');
+  assert.equal(e.phrase.value, 'the other thing is in the rain and on the street');
+  assert.equal(e.phrase.focused, true);
+  assert.equal(c.requests.length, beforeRequests);
+  assert.match(e['compose-status'].textContent, /Settings changed/);
+  e['compose-phrase-example'].value = 'quick-fox';
+  e['compose-use-phrase'].emit('click');
+  assert.equal(e.phrase.value, 'the quick brown fox jumps over the lazy dog');
 });

@@ -14,6 +14,26 @@
     <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
     <div class="compose-settings sample-settings"><label>Samples <select id="compose-samples"><option value="latest_three">Latest three per letter</option><option value="latest_only">Latest only — check new writing</option><option value="all">All saved — newest first</option></select></label></div>
     <p id="compose-counts" class="subtle"></p>
+    <div class="compose-settings">
+      <label>Standard phrase
+        <select id="compose-phrase-example">
+          <option value="">Choose a phrase…</option>
+          <optgroup label="Pangrams">
+            <option value="quick-fox">The quick brown fox</option>
+            <option value="pack-box">Pack my box</option>
+            <option value="black-quartz">Sphinx of black quartz</option>
+          </optgroup>
+          <optgroup label="Cursive tests">
+            <option value="cursive-rain">The thing in the rain</option>
+            <option value="cursive-common">Common joins sentence</option>
+          </optgroup>
+          <optgroup label="Coverage">
+            <option value="lowercase-alphabet">Lowercase alphabet</option>
+          </optgroup>
+        </select>
+      </label>
+      <button id="compose-use-phrase" type="button">Use phrase</button>
+    </div>
     <label for="phrase">Your phrase</label>
     <textarea id="phrase" maxlength="200" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
 abcdefghijklmnopqrstuvwxyz</textarea>

@@ -13,7 +13,7 @@ Capture your handwriting, blend individual characters, and compose A4 pages for 
 3. **Blend a character** from two or four different originals of the same character. Drag the transparent result towards its sources, then **Save blended sample**.
 4. **My alphabet** shows coverage, lets you choose preferred versions, and adjusts spacing before and after each character.
 5. Open **Alphabet proof sheet** to test pangrams, Sonnet 18, the original sonnet *The Hand in Ink*, or your own text. **Compare versions** puts originals, blends and preferred choices side by side.
-7. **Compose** lays out your text across A4 pages. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
+7. **Compose** lays out your text across A4 pages. A **Standard phrase** chooser can load pangrams, cursive-test sentences or the lowercase alphabet before you edit the text. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
 
 The iPad layout uses compact navigation and **More** for extra pages and tools. **Writing focus** enlarges Capture and Free writing; **Preview focus** gives other handwriting previews more room. Settings fold into labelled sections, with choices beside the preview on wider screens. Main save and download actions stay within reach.
 
