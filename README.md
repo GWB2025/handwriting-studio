@@ -26,7 +26,7 @@ The iPad layout uses compact navigation and **More** for extra pages and tools. 
 - **Writing size** sets the physical small-letter guide height: **3, 5, 8, 10, 12, 16 or 20 mm**. Tall letters and tails keep their proportions.
 - **Sample order** in Compose can shuffle saved versions. **Natural variation**, off by default, adds subtle changes to word gaps, letter sizes and line slope/curve in Compose and ordinary proof sheets.
 - **Cursive Milestone 1** captures 24 common joined pairs and preserves their actual pen strokes. The Cursive workspace reports join coverage, displays entry/exit points and directions, and can proof ordinary text using exact captured joins with individual-letter fallback.
-- **Generated joins between arbitrary neighbouring letters are not implemented yet.** Compose keeps joined-pair use off for new compositions unless explicitly enabled; saved compositions and recovered drafts keep their previous choice.
+- **Milestone 2 experimental preview:** the Cursive workspace identifies the primary joining stroke of a glyph separately from dots/crossbars and can draw preview-only connector curves between neighbouring glyphs. These generated connectors are deliberately not yet treated as plotter-ready output.\n- Compose keeps joined-pair use off for new compositions unless explicitly enabled; saved compositions and recovered drafts keep their previous choice.
 
 Proof sheets and Compose support up to 20 A4 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
 
