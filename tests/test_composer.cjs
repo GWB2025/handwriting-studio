@@ -13,9 +13,10 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     return target;
   }
   const elements = {};
-  for (const id of ['compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-compare-zoom','compose-compare-fit','compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
+      style:{setProperty(name,value){this[name]=value;}},
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; },
@@ -320,3 +321,21 @@ test('side-by-side comparison uses identical selection and keeps normal download
  assert.equal(e['compose-comparison'].hidden,false);assert.equal(e['composed-image'].src,preview);assert.equal(e['compose-download'].disabled,false);
  e.phrase.emit('input');assert.equal(e['compose-comparison'].hidden,true);assert.ok(c.revoked.length>=4);
 });
+
+ test('comparison zoom shares scale without rerendering or changing exports',async()=>{
+ const c=await composer(true),e=c.elements;
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ await e['compose-compare'].onclick();
+ const src=e['composed-image'].src,requests=c.requests.length;
+ for(const zoom of ['150','200','300','400']){
+   e['compose-compare-zoom'].value=zoom;e['compose-compare-zoom'].emit('change');
+   assert.equal(e['compose-comparison'].style['--comparison-width'],zoom+'%');
+   assert.equal(e['compose-comparison'].hidden,false);
+ }
+ e['compose-compare-off'].scrollLeft=120;e['compose-compare-on'].scrollTop=200;
+ e['compose-compare-fit'].onclick();
+ assert.equal(e['compose-compare-zoom'].value,'100');
+ assert.equal(e['compose-comparison'].style['--comparison-width'],'100%');
+ assert.equal(e['compose-compare-off'].scrollLeft,0);assert.equal(e['compose-compare-on'].scrollTop,0);
+ assert.equal(c.requests.length,requests);assert.equal(e['composed-image'].src,src);assert.equal(e['compose-download'].disabled,false);
+ });

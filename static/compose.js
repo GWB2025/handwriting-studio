@@ -100,6 +100,18 @@
   }
   function composeRequest(){return {writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})};}
   let comparisonTicket=0,comparisonController=null,comparisonURLs=[];
+  function comparisonZoom(){
+    const value=Number(byID('compose-compare-zoom')?.value)||100;
+    const zoom=[100,150,200,300,400].includes(value)?value:100;
+    byID('compose-comparison')?.style.setProperty('--comparison-width',zoom+'%');
+    if(zoom===100)for(const id of ['compose-compare-off','compose-compare-on']){
+      const pane=byID(id);if(pane){pane.scrollLeft=0;pane.scrollTop=0;}
+    }
+  }
+  byID('compose-compare-zoom')?.addEventListener('change',comparisonZoom);
+  if(byID('compose-compare-fit'))byID('compose-compare-fit').onclick=()=>{
+    byID('compose-compare-zoom').value='100';comparisonZoom();
+  };
   function clearComparison(){
     comparisonTicket++;comparisonController?.abort();comparisonController=null;
     comparisonURLs.forEach(url=>URL.revokeObjectURL(url));comparisonURLs=[];

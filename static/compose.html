@@ -9,7 +9,8 @@
 .compose-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px}
 #compose-comparison{overflow:auto;margin:16px 0}#compose-comparison[hidden]{display:none}
 .compose-compare-paper{max-height:65vh;overflow:auto;background:#e5e8e1;padding:8px}
-.compose-compare-paper img{display:block;width:100%;height:auto;background:white;margin-bottom:12px}
+.compose-compare-grid>section{min-width:0}
+.compose-compare-paper img{display:block;width:var(--comparison-width,100%);max-width:none;height:auto;background:white;margin-bottom:12px}
 </style></head>
 <body class="compose-page">
 <div class="compose-shell">
@@ -52,7 +53,12 @@ abcdefghijklmnopqrstuvwxyz</textarea>
   <section id="compose-compare-panel">
     <button id="compose-compare" type="button">Compare smooth joins off / on</button>
     <p id="compose-compare-status" role="status">Compare the current writer and text with smooth joins off and on.</p>
-    <div id="compose-comparison" hidden><div class="compose-compare-grid">
+    <div id="compose-comparison" hidden>
+      <label for="compose-compare-zoom">Comparison zoom</label>
+      <select id="compose-compare-zoom"><option value="100">Fit width (100%)</option><option value="150">150%</option><option value="200">200%</option><option value="300">300%</option><option value="400">400%</option></select>
+      <button id="compose-compare-fit" type="button">Fit width</button>
+      <p>Zoom enlarges both sides equally. Scroll each pane in either direction to inspect the writing. Exported writing size stays unchanged.</p>
+      <div class="compose-compare-grid">
       <section><h3>Unticked · joins off</h3><div id="compose-compare-off" class="compose-compare-paper"></div></section>
       <section><h3>Ticked · joins on</h3><div id="compose-compare-on" class="compose-compare-paper"></div></section>
     </div></div>
