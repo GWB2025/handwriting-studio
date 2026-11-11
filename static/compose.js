@@ -57,6 +57,7 @@
     byID('compose-download').disabled=true;
   }
   function invalidate(options){
+    if(byID('compose-source-summary'))byID('compose-source-summary').textContent='Selection changed. Generate a preview to see the characters used.';
     clearTimeout(liveTimer);requestNumber++;controller?.abort();controller=null;loading=false;clearPreview(options?.keepImage===true);
     byID('generate').disabled=!byID('compose-writer').value;
     byID('generate').textContent='Generate preview';
@@ -111,6 +112,11 @@
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
       if(profile){profile.counts=data.sample_selection.all_counts||data.sample_selection.available_counts;for(const key of ['original_counts','blend_counts','preferred'])if(data.sample_selection[key])profile[key]=data.sample_selection[key];profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
       showCounts(data.sample_selection.counts);
+      if(byID('compose-source-summary')){
+        const groups=new Map();
+        for(const item of data.source_usage||[]){if(!groups.has(item.label))groups.set(item.label,[]);groups.get(item.label).push(item.letter);}
+        byID('compose-source-summary').textContent=groups.size?'Characters used across this preview — '+[...groups].map(([label,letters])=>label+': '+letters.join(', ')).join(' · ')+'.':'Character source details are unavailable for this preview.';
+      }
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. '+previewPages.length+' page'+(previewPages.length===1?'':'s')+'. Downloads export the selected page exactly.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
@@ -210,7 +216,7 @@
       if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
       if(byID('compose-natural'))byID('compose-natural').value=settings.natural_variation?.level??'off';naturalSeed=settings.natural_variation?.seed??'0';
       setLayout(settings.page_layout);pageIndex=0;hasPreview=false;invalidate();
-      if(savedPages.length){previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
+      if(savedPages.length){if(byID('compose-source-summary'))byID('compose-source-summary').textContent='Exact saved drawing restored. Character source details were not saved; generate a new preview to inspect current choices.';previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
     }});
     if(window.StudioRecovery){
       const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-order','compose-natural',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
