@@ -163,6 +163,7 @@
   'plot-travel':'Show dashed pen-up travel in the A4 preview. This changes only the display, not the G-code or plotter movement.',
   'cursive-storage-status':'Shows whether this page can see handwriting in its own browser storage and how many writers and saved samples are available.',
   'cursive-import-backup':'Choose a Handwriting Studio JSON backup and import it directly into this preview browser storage. Preview and live sites have separate stores.',
+  'cursive-backup-file':'Select a Handwriting Studio JSON backup file for direct import into this preview. The file is read locally by the browser.',
   'cursive-writer':'Choose the handwriting collection whose cursive joins and individual letters you want to inspect.',
   'capture-cursive':'Open Capture directly on the 24 common cursive joined pairs for this writer.',
   'cursive-refresh':'Reload cursive join coverage and the selected sample from saved handwriting.',
