@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
 <link rel="stylesheet" href="/static/style.css?v=16">
-</head>
+<style>
+.compose-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px}
+#compose-comparison{overflow:auto;margin:16px 0}#compose-comparison[hidden]{display:none}
+.compose-compare-paper{max-height:65vh;overflow:auto;background:#e5e8e1;padding:8px}
+.compose-compare-paper img{display:block;width:100%;height:auto;background:white;margin-bottom:12px}
+</style></head>
 <body class="compose-page">
 <div class="compose-shell">
   <header><div><p class="eyebrow">Handwriting Studio</p><h1>Compose your handwriting</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="/">Capture letters</a><a class="button" id="review-link" href="/review">Review samples</a><a class="button" href="/fonts">Fonts</a><a class="button" href="/calibration">Calibration</a></nav></header>
@@ -44,6 +49,14 @@ abcdefghijklmnopqrstuvwxyz</textarea>
     <div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="compose-gcode" disabled>Download plotter G-code</button><button type="button" id="refresh-writers">Refresh samples</button></div>
   </form>
   <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
+  <section id="compose-compare-panel">
+    <button id="compose-compare" type="button">Compare smooth joins off / on</button>
+    <p id="compose-compare-status" role="status">Compare the current writer and text with smooth joins off and on.</p>
+    <div id="compose-comparison" hidden><div class="compose-compare-grid">
+      <section><h3>Unticked · joins off</h3><div id="compose-compare-off" class="compose-compare-paper"></div></section>
+      <section><h3>Ticked · joins on</h3><div id="compose-compare-on" class="compose-compare-paper"></div></section>
+    </div></div>
+  </section>
   <div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
   <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capitals, punctuation and cursive joins come later.</p>
 </div>

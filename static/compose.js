@@ -52,6 +52,7 @@
     byID('phrase').value=automaticPhrase;
   }
   function clearPreview(keepImage=false){
+    clearComparison();
     frozenPreview=false;previewSVG='';previewPages=[];pageControls();window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(!keepImage){if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');byID('compose-empty').hidden=false;}
     byID('compose-download').disabled=true;
@@ -97,6 +98,41 @@
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
     finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-natural','compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
+  function composeRequest(){return {writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})};}
+  let comparisonTicket=0,comparisonController=null,comparisonURLs=[];
+  function clearComparison(){
+    comparisonTicket++;comparisonController?.abort();comparisonController=null;
+    comparisonURLs.forEach(url=>URL.revokeObjectURL(url));comparisonURLs=[];
+    if(byID('compose-comparison'))byID('compose-comparison').hidden=true;
+    if(byID('compose-compare'))byID('compose-compare').disabled=false;
+    if(byID('compose-compare-status'))byID('compose-compare-status').textContent='Compare the current writer and text with smooth joins off and on.';
+  }
+  if(byID('compose-compare'))byID('compose-compare').onclick=async()=>{
+    clearComparison();const ticket=comparisonTicket;
+    const status=byID('compose-compare-status');
+    if(!window.StudioEngine){status.textContent='Side-by-side comparison is available in the browser edition.';return;}
+    if(!byID('compose-writer').value){status.textContent='Choose a writer first.';return;}
+    const settings=composeRequest();settings.natural_variation={level:'off',seed:naturalSeed};
+    const abort=new AbortController();comparisonController=abort;
+    const timeout=setTimeout(()=>abort.abort(),15000);
+    byID('compose-compare').disabled=true;status.textContent='Building both versions…';
+    try{
+      const results=await Promise.all([false,true].map(async enabled=>{
+        const response=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:abort.signal,body:JSON.stringify({...settings,auto_join_preview:enabled})});
+        const data=await response.json();if(!response.ok)throw Error(data.error||'Could not build comparison.');return data;
+      }));
+      if(ticket!==comparisonTicket)return;
+      results.forEach((data,index)=>{
+        const pages=data.pages?.length?data.pages:[{svg:data.svg}];
+        const images=pages.map((page,i)=>{const img=document.createElement('img'),url=URL.createObjectURL(new Blob([page.svg],{type:'image/svg+xml'}));comparisonURLs.push(url);img.src=url;img.alt='Smooth joins '+(index?'on':'off')+' · page '+(i+1)+' of '+pages.length;return img;});
+        byID(index?'compose-compare-on':'compose-compare-off').replaceChildren(...images);
+      });
+      byID('compose-comparison').hidden=false;
+      status.textContent=settings.writer+' · '+settings.height+' mm · same text, samples and scale. Natural variation is Off in both comparisons. Downloads still use the main preview.';
+    }catch(error){if(ticket===comparisonTicket)status.textContent=error.name==='AbortError'?'Comparison timed out. Try again.':error.message;}
+    finally{clearTimeout(timeout);if(ticket===comparisonTicket){byID('compose-compare').disabled=false;comparisonController=null;}}
+  };
+  window.addEventListener('beforeunload',clearComparison);
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
     if(!event.live)blendSeed=crypto.randomUUID();
@@ -107,7 +143,7 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify(composeRequest())});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewPages=data.pages?.length?data.pages.map(page=>page.svg):[data.svg];showPage(pageIndex);window.StudioBlendPreview?.show(data.variation);
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);

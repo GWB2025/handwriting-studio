@@ -128,6 +128,7 @@
   'compose-natural':natural+' After Generate preview, the amount updates live on every page.','compose-natural-new':'Try a different natural-variation pattern without changing the selected letter samples.',
   'compose-order':'Cycle through eligible samples in sequence, or shuffle them for a varied but repeatable result.',
   'compose-shuffle':'Shuffle the sample choices again. The new selection stays fixed through spacing and layout edits.',
+  'compose-compare':'Render the selected writer and text side by side at the same scale, with smooth joins off and on. Both use Natural variation Off. Main preview downloads are unchanged.',
   'compose-connect':'Add smooth connecting strokes between letters and pairs, with closer spacing. Changing this option regenerates the preview; enabling it sets Natural variation to Off. Included in SVG and G-code; unsafe joins remain open.',
   'compose-source':'Choose original samples, saved blends, or both. Missing characters are reported before export.',
   'compose-preferred':'Use the preferred versions chosen in My alphabet when they match the selected source type.',

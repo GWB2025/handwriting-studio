@@ -13,7 +13,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     return target;
   }
   const elements = {};
-  for (const id of ['compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
@@ -301,4 +301,22 @@ test('smooth joins checkbox immediately regenerates on and off and disables natu
  const count=c.requests.length;e['compose-connect'].checked=false;e['compose-connect'].emit('change');await settle();
  assert.equal(c.requests.length,count+1);assert.equal(JSON.parse(c.requests.at(-1).options.body).auto_join_preview,false);
  assert.equal(e['compose-download'].disabled,false);
+});
+
+
+test('side-by-side comparison uses identical selection and keeps normal downloads intact',async()=>{
+ const c=await composer(true,false,true,true,false,true),e=c.elements;
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ const preview=e['composed-image'].src;
+ for(const id of ['compose-compare-off','compose-compare-on'])e[id].replaceChildren=(...images)=>e[id].images=images;
+ c.server.pages=['<svg id="one"/>','<svg id="two"/>'];
+ e['compose-natural'].value='subtle';
+ await e['compose-compare'].onclick();
+ const requests=c.requests.slice(-2).map(r=>JSON.parse(r.options.body));
+ assert.equal(requests[0].auto_join_preview,false);assert.equal(requests[1].auto_join_preview,true);
+ delete requests[0].auto_join_preview;delete requests[1].auto_join_preview;assert.deepEqual(requests[0],requests[1]);
+ assert.equal(requests[0].natural_variation.level,'off');assert.equal(e['compose-natural'].value,'subtle');
+ assert.equal(e['compose-compare-off'].images.length,2);assert.equal(e['compose-compare-on'].images.length,2);
+ assert.equal(e['compose-comparison'].hidden,false);assert.equal(e['composed-image'].src,preview);assert.equal(e['compose-download'].disabled,false);
+ e.phrase.emit('input');assert.equal(e['compose-comparison'].hidden,true);assert.ok(c.revoked.length>=4);
 });
