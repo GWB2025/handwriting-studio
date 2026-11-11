@@ -9,7 +9,7 @@
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
   const symbols=()=>plan.id.startsWith('symbols-');
-  const planKind=()=>symbols()?'symbols':Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);
+  const planKind=()=>symbols()?'symbols':plan.id.startsWith('pairs-')?'pairs':Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);
   const symbolPlacement=letter=>symbols()?window.StudioSymbolGuides?.placement(letter,plan.guides):null;
   const composeURL=()=>'/compose?writer='+encodeURIComponent($('writer').value.trim());
   function updateCounts(){
@@ -91,8 +91,8 @@
     }
     $('writer').removeAttribute('aria-invalid');
     const profile=profiles.find(p=>p.writer===$('writer').value.trim());
-    const E=window.StudioEngine,upgrade=E&&phase==='complete'&&plan.id==='symbols-v3';
-    if(upgrade){plan=E.plans.symbols;setSize=plan.sheets_per_set;orders=plan.orders;}
+    const E=window.StudioEngine,upgradeSymbols=E&&phase==='complete'&&plan.id==='symbols-v3',upgradePairs=E&&phase==='complete'&&plan.id==='pairs-v3',upgrade=upgradeSymbols||upgradePairs;
+    if(upgrade){plan=upgradeSymbols?E.plans.symbols:E.plans.pairs;setSize=plan.sheets_per_set;orders=plan.orders;}
     // Finish an earlier shuffled set under its original plan before adding the caret.
     if(E&&phase!=='complete'&&symbols()&&!profile?.capture_progress?.[E.plans.symbols.id]&&profile?.capture_progress?.['symbols-v3']?.next_order_index>0){
       plan=E.getPlan('symbols-v3');setSize=plan.sheets_per_set;
@@ -153,7 +153,7 @@
     writer:$('writer').value,strokes,undone,smooth:$('smooth').checked,phase,sheet,orders,plan_id:plan.id,
     request_id:sheetBody()===lastBody?lastID:'',guides:Object.fromEntries(['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'].map(id=>[id,$(id).checked]))
   }:null,restore:async data=>{
-    const E=window.StudioEngine;release();plan=E.getPlan(data.plan_id);setSize=plan.sheets_per_set;orders=E.clone(data.orders);sheet=data.sheet;phase=data.phase;
+    const E=window.StudioEngine;release();plan=E.resolvePlan(data.plan_id,data.orders,data.sheet,data.orders?.[data.sheet])||E.getPlan(data.plan_id);setSize=plan.sheets_per_set;orders=E.clone(data.orders);sheet=data.sheet;phase=data.phase;
     strokes=E.clone(data.strokes);undone=E.clone(data.undone);origin=null;dirty=true;saved=false;lastID=data.request_id||'';
     $('writer').value=data.writer;finishedWriter=data.writer.trim();$('smooth').checked=data.smooth;lastBody=lastID?sheetBody():'';
     for(const id of ['guides','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols'])if(typeof data.guides?.[id]==='boolean')$(id).checked=data.guides[id];
