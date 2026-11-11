@@ -4,6 +4,9 @@ on:
     branches: [feature/cursive-milestone-2]
 permissions:
   contents: write
+concurrency:
+  group: cursive-milestone-2-preview
+  cancel-in-progress: true
 jobs:
   preview:
     runs-on: ubuntu-latest
