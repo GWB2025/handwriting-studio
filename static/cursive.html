@@ -6,13 +6,23 @@
 <title>Handwriting Studio · Cursive</title>
 <link rel="stylesheet" href="/static/style.css?v=16">
 <style>
+html{height:auto;overflow:auto}
+body{height:auto;overflow:visible}
+main.studio-page{position:static;display:block;height:auto;max-width:1400px;margin:auto;overflow:visible;touch-action:auto}
+main.studio-page>section,main.studio-page>.cursive-layout{margin-top:1rem}
+.cursive-card{min-width:0}
+#proof-viewport{overflow:auto;max-height:70vh;min-height:220px;background:#e5e8e1;padding:16px;margin-top:12px;border-radius:10px;touch-action:pan-x pan-y;overscroll-behavior:contain}
+#proof-image{display:block;max-width:none;width:min(100%,650px);height:auto;margin:0 auto;background:white}
+#proof-image[hidden]{display:none}
+.cursive-proof select{font:inherit;min-height:44px}
+
 .cursive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:.55rem;margin:1rem 0}
 .cursive-grid button{min-height:48px}
 .cursive-grid button[aria-pressed="true"]{outline:3px solid #93ad9b}
 .cursive-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:1rem}
 .cursive-card{border:1px solid #b9c9bf;border-radius:12px;padding:1rem;background:#fff}
 .cursive-preview img{width:100%;max-height:360px;object-fit:contain;background:#fbfcfb;border:1px solid #d8e0da;border-radius:8px}
-.cursive-proof img{width:min(100%,700px);background:#fff;border:1px solid #d8e0da}
+
 .cursive-metrics{font-variant-numeric:tabular-nums}
 .cursive-storage{border:2px solid #93ad9b;background:#f4f8f4}
 .cursive-storage .toolbar{align-items:center}
@@ -87,7 +97,20 @@
 
 <section class="cursive-card cursive-proof">
   <h2>Proof preview</h2>
-  <img id="proof-image" alt="Cursive handwriting proof" hidden>
+  <div class="toolbar">
+    <label for="cursive-zoom">Preview zoom</label>
+    <select id="cursive-zoom" title="Enlarge the preview only; physical writing size stays unchanged." aria-describedby="proof-view-help">
+      <option value="100">Fit width (100%)</option>
+      <option value="150">150%</option><option value="200">200%</option>
+      <option value="300">300%</option><option value="400">400%</option>
+    </select>
+    <button id="cursive-zoom-reset" title="Fit the proof to the viewport width and return to the top." type="button">Fit width</button>
+  </div>
+  <p id="proof-view-help" class="subtle">Zoom changes only the preview, not the SVG or physical writing size. Scroll in either direction or swipe to inspect the page. 100% fits the page width.</p>
+  <p id="proof-view-status" role="status">Preview zoom: fit width (100%).</p>
+  <div id="proof-viewport" tabindex="0" role="region" aria-label="Scrollable cursive proof preview" aria-describedby="proof-view-help">
+    <img id="proof-image" alt="Cursive handwriting proof" hidden>
+  </div>
 </section>
 </main>
 <script src="/static/cursive.js?v=1"></script>

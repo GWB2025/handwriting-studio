@@ -16,6 +16,18 @@
     revoke(which);const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
     if(which==='proof')proofURL=url;else joinURL=url;img.src=url;img.hidden=false;
   }
+  // Match proof sheets: percentages enlarge the fitted page, never its SVG geometry.
+  function previewZoom(){
+    const zoom=Number($('cursive-zoom').value);
+    $('proof-image').style.width='min('+zoom+'%, '+650*zoom/100+'px)';
+    $('proof-view-status').textContent='Preview zoom: '+(zoom===100?'fit width (100%)':zoom+'%')+'.';
+  }
+  function resetProofScroll(){
+    $('proof-viewport').scrollTop=0;$('proof-viewport').scrollLeft=0;
+  }
+  $('cursive-zoom').addEventListener('change',previewZoom);
+  $('cursive-zoom-reset').onclick=()=>{$('cursive-zoom').value='100';previewZoom();resetProofScroll();};
+  $('proof-image').addEventListener('load',resetProofScroll);
   function writer(){return $('cursive-writer').value;}
   function storageIsPreview(){
     const host=window.location?.hostname||'';
@@ -69,7 +81,7 @@
       auto_join_preview:$('cursive-auto-join').checked,letter_spacing:1,word_spacing:1,line_spacing:1,page_layout:{}
     })});
     const data=await response.json();if(!response.ok)throw Error(data.error||'Could not generate cursive proof.');
-    const page=data.pages?.[0]||data;imageFromSVG($('proof-image'),page.svg,'proof');
+    const page=data.pages?.[0]||data;resetProofScroll();imageFromSVG($('proof-image'),page.svg,'proof');
     const used=page.used_samples||data.used_samples||[],joins=used.filter(s=>pairs.includes(s.letter)),generated=page.generated_joins||0,skipped=page.skipped_joins||0;
     $('proof-status').textContent='Ready · '+joins.length+' captured join'+(joins.length===1?'':'s')+' used'+($('cursive-auto-join').checked?' · '+generated+' generated connector'+(generated===1?'':'s')+(skipped?' · '+skipped+' unsafe connector'+(skipped===1?'':'s')+' skipped':''):'')+'. Generated connectors are preview-only for Milestone 2.';
   }
