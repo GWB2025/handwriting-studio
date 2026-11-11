@@ -13,7 +13,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     return target;
   }
   const elements = {};
-  for (const id of ['compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       replaceChildren() { this.value = ''; },
@@ -25,6 +25,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   if(natural){elements['compose-natural']=events({value:'off',disabled:false});elements['compose-natural-new']=events({disabled:true});}
   if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
   for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=/<input[^>]*id="compose-joined"[^>]*\bchecked\b/.test(fs.readFileSync('docs/compose.html','utf8'));
+  elements['compose-connect'].checked=false;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -287,4 +288,17 @@ test('standard phrase chooser loads useful test text without generating automati
   e['compose-phrase-example'].value = 'quick-fox';
   e['compose-use-phrase'].emit('click');
   assert.equal(e.phrase.value, 'the quick brown fox jumps over the lazy dog');
+});
+
+
+test('smooth joins checkbox immediately regenerates on and off and disables natural variation',async()=>{
+ const c=await composer(true,false,false,true,false,true),e=c.elements;
+ e['compose-natural'].value='subtle';e['compose-connect'].checked=true;e['compose-connect'].emit('change');
+ assert.equal(e['compose-download'].disabled,true);await settle();
+ assert.equal(e['compose-natural'].value,'off');
+ assert.equal(JSON.parse(c.requests.at(-1).options.body).auto_join_preview,true);
+ assert.equal(e['compose-download'].disabled,false);
+ const count=c.requests.length;e['compose-connect'].checked=false;e['compose-connect'].emit('change');await settle();
+ assert.equal(c.requests.length,count+1);assert.equal(JSON.parse(c.requests.at(-1).options.body).auto_join_preview,false);
+ assert.equal(e['compose-download'].disabled,false);
 });

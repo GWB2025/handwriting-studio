@@ -144,7 +144,11 @@
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
   for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
   byID('compose-source')?.addEventListener('change',()=>{updateExample();invalidate();});
-  byID('compose-connect')?.addEventListener('change',invalidate);
+  byID('compose-connect')?.addEventListener('change',()=>{
+    if(byID('compose-connect').checked&&byID('compose-natural'))byID('compose-natural').value='off';
+    invalidate({keepImage:hasPreview});
+    return byID('compose-form').onsubmit({preventDefault(){},live:true});
+  });
   byID('compose-preferred')?.addEventListener('change',invalidate);
   byID('compose-order')?.addEventListener('change',invalidate);
   if(byID('compose-shuffle'))byID('compose-shuffle').onclick=()=>{if(byID('compose-shuffle').disabled)return;sampleSeed=crypto.randomUUID();invalidate({keepImage:hasPreview});return byID('compose-form').onsubmit({preventDefault(){},live:true});};
