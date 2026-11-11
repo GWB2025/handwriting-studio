@@ -168,3 +168,28 @@ test('joined-pair preview is temporary, and saving its adjustment survives backu
  const fresh=browser();await fresh.StudioStorage.importBackup(await b.StudioStorage.backup());const reopened=(await call(fresh,'/api/letters/samples?writer=Writer&letter=th')).data.samples[0];assert.equal(reopened.scale_factor,data.scale_factor);assert.equal(reopened.baseline_shift_mm,data.baseline_shift_mm);assert.equal((await call(fresh,'/api/review-preview',data)).data.svg,preview.data.svg);
  assert.deepEqual((await fresh.StudioStorage.snapshot()).filter(f=>f.key.startsWith('letters/')),before.filter(f=>f.key.startsWith('letters/')));
 });
+
+
+function pairCaptureFor(plan,index=0,planId=plan.id){
+  const order=plan.orders[index];
+  const strokes=Array.from(order,(token,i)=>({pointerType:'pen',points:[
+    {x:i*1000/order.length+20,y:330,t:i*10,pressure:.4,tiltX:0,tiltY:0},
+    {x:i*1000/order.length+50,y:270,t:i*10+1,pressure:.4,tiltX:0,tiltY:0},
+    {x:i*1000/order.length+80,y:330,t:i*10+2,pressure:.4,tiltX:0,tiltY:0}
+  ]}));
+  return E.capture({writer:'Pair Writer',plan_id:planId,order_index:index,request_id:webcrypto.randomUUID(),smooth:true,strokes,capture_orders:E.clone(plan.orders)});
+}
+
+test('backups accept legacy, transitional and current joined-pair capture plans',async()=>{
+  assert.equal(E.plans.pairs.id,'pairs-v4');
+  const legacy=pairCaptureFor(E.legacyPairsPlan,0,'pairs-v3');
+  const transitional=pairCaptureFor(E.transitionalPairsPlan,0,'pairs-v3');
+  const current=pairCaptureFor(E.plans.pairs,0);
+  for(const record of [legacy,transitional,current])E.validateRecord('letters/'+record.id+'.json',E.clone(record));
+  const backup={format:'handwriting-studio-backup',version:1,files:[legacy,transitional,current].map(value=>({key:'letters/'+value.id+'.json',value}))};
+  const b=browser();assert.equal(await b.StudioStorage.importBackup(backup),3);
+  const profile=(await call(b,'/api/letters/writers')).data.writers.find(p=>p.writer==='Pair Writer');
+  assert.equal(profile.counts.th,3);
+  const fresh=browser();assert.equal(await fresh.StudioStorage.importBackup(await b.StudioStorage.backup()),3);
+  assert.equal((await call(fresh,'/api/letters/writers')).data.writers.find(p=>p.writer==='Pair Writer').counts.th,3);
+});
