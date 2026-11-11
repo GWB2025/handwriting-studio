@@ -35,3 +35,17 @@ test('backwards and vertical pen finishes produce short forward connectors witho
   for(const p of [join.control1,join.control2])assert.ok(p.y>=Math.min(join.start.y,join.end.y)-.16&&p.y<=Math.max(join.start.y,join.end.y)+.16);
  }
 });
+
+ test('punctuation and digits break cursive runs while letters and saved pairs still connect',()=>{
+ const glyph={...sample([[0,0],[30,-10],[60,0]]),bounds:{min_x:0,max_x:60,min_y:-10,max_y:0,width:60,height:10}};
+ const render=(letters,join)=>E.layoutDocument(letters,letters.map(()=>glyph),{height:5,smooth:true,auto_join_preview:join})[0];
+ for(const mark of ['.',',',';',':','!','?','\"',"'",'’','-','(',')','1']){
+   const letters=['a',mark,'b'],before=JSON.stringify(glyph),on=render(letters,true),off=render(letters,false);
+   assert.equal(on.generated_joins||0,0,mark);
+   assert.deepEqual(on.paths,off.paths,'punctuation must keep original spacing and strokes: '+mark);
+   assert.equal(JSON.stringify(glyph),before);
+ }
+ assert.equal(render(['a','b'],true).generated_joins,1);
+ assert.equal(render(['th','e'],true).generated_joins,1);
+ assert.equal(render(['a','b',',','c','d'],true).generated_joins,2);
+ });

@@ -416,10 +416,12 @@
     return normal;
   }
   function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
+  // Punctuation and digits break cursive runs, including inside a word.
+  function cursiveNeighbours(left,right){return /^[a-z]+$/i.test(left)&&/^[a-z]+$/i.test(right);}
   function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected)*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1]))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
     const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
@@ -475,7 +477,7 @@
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j])});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
