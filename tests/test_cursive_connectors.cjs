@@ -26,12 +26,12 @@ test('stationary endpoint samples do not erase the joining direction or change s
  assert.ok(E.connectorGeometry(s,s,20,28,30,.1,8));assert.equal(JSON.stringify(s),before);
 });
 
-test('backwards and vertical pen finishes keep their direction without a tall control point',()=>{
+test('backwards and vertical pen finishes produce short forward connectors without modifying letters',()=>{
  const normal=sample([[0,0],[30,-10],[60,0]]);
  for(const left of [sample([[0,0],[60,0],[55,-5]]),sample([[0,0],[55,0],[55,-5]])]){
   const join=E.connectorGeometry(left,normal,20,28,30,.1,8);assert.ok(join);
-  const t=E.connectionMetrics(left).exit_tangent;
-  assert.ok(Math.abs(cross(delta(join.start,join.control1),{x:t.dx,y:t.dy}))<1e-9);
-  for(const p of [join.control1,join.control2])assert.ok(p.y>=Math.min(join.start.y,join.end.y)-.64&&p.y<=Math.max(join.start.y,join.end.y)+.64);
+  const xs=[join.start,join.control1,join.middle,join.control2,join.end].map(p=>p.x);
+  assert.ok(xs.every((x,i)=>!i||x>=xs[i-1]));
+  for(const p of [join.control1,join.control2])assert.ok(p.y>=Math.min(join.start.y,join.end.y)-.16&&p.y<=Math.max(join.start.y,join.end.y)+.16);
  }
 });

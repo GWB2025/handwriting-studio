@@ -617,18 +617,23 @@
     if([start.y,end.y].some(y=>y<baseline-height*.75||y>baseline+height*.4))return null;
     function direction(t){const length=Math.hypot(t.dx,t.dy);return length>1e-6?{x:t.dx/length,y:t.dy/length}:null;}
     const outgoing=direction(a.exit_tangent),incoming=direction(b.entry_tangent);
-    // Preserve directed tangents, including a short backwards terminal flourish.
-    // Small bounded handles let it turn gently instead of flipping its slope.
     if(!outgoing||!incoming)return null;
-    const handle=Math.min(distance/4,dx/4,height*.08);
-    const control1={x:start.x+outgoing.x*handle,y:start.y+outgoing.y*handle};
-    const control2={x:end.x-incoming.x*handle,y:end.y-incoming.y*handle};
+    // Keep the connector progressing towards its neighbour. Following a
+    // backwards pen-lift flourish creates a second loop over the saved ink.
+    // Only the new connector changes; endpoints and letter strokes stay fixed.
+    const chord={x:dx/distance,y:dy/distance};
+    const exitDirection=outgoing.x>0?outgoing:chord;
+    const entryDirection=incoming.x>0?incoming:chord;
+    const handle=Math.min(distance/6,dx/6,height*.035);
+    const low=Math.min(start.y,end.y)-height*.02,high=Math.max(start.y,end.y)+height*.02;
+    const clamp=y=>Math.max(low,Math.min(high,y));
+    const control1={x:start.x+exitDirection.x*handle,y:clamp(start.y+exitDirection.y*handle)};
+    const control2={x:end.x-entryDirection.x*handle,y:clamp(end.y-entryDirection.y*handle)};
     const middle={x:(control1.x+control2.x)/2,y:(control1.y+control2.y)/2};
     return {start,control1,middle,control2,end,distance};
   }
   function connectorPath(geometry){
-    // Two quadratics meet with identical tangents, and follow each glyph at
-    // their outer ends. Keep the existing path-only SVG and plotter format.
+    // Two quadratics meet with identical tangents, and use restrained entry and exit curves. Keep the existing path-only SVG and plotter format.
     const f=n=>Number(n).toFixed(4),point=p=>f(p.x)+' '+f(p.y);
     return 'M'+point(geometry.start)+' Q'+point(geometry.control1)+' '+point(geometry.middle)+' Q'+point(geometry.control2)+' '+point(geometry.end);
   }
