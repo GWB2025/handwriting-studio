@@ -6,15 +6,19 @@
   for(let repeat=0;repeat<3;repeat++)for(const group of groups){const shift=(group.length===5?repeat*2:repeat)%group.length;plan.orders.push(group.slice(shift)+group.slice(0,shift));}
   const oldSymbols=".,!?;:'\"-()[]{}@£$€%&+=/#_“”‘’–—";
   const characters=alphabet+'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'+oldSymbols+'^';
+  const legacyPairs=['th','he','in','er','an','re','on','at','en','nd','oo','fi','of','tt'];
   const pairs=['th','he','in','er','an','re','on','at','en','nd','to','it','is','of','st','ng','ll','ou','oo','fi','tt','ch','sh','ee'];
   const plans={lowercase:plan};
   for(const [name,tokens] of Object.entries({uppercase:[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],numbers:[...'0123456789'],symbols:[...characters.slice(62)],pairs})){
     const orders=[];for(let i=0;i<tokens.length;i+=4)orders.push(tokens.slice(i,i+4));
-    plans[name]={...plan,id:name+(name==='symbols'?'-v4':'-v3'),alphabet:tokens,orders,sheets_per_set:orders.length,tall_letters:name==='uppercase'?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':plan.tall_letters};
+    const version=(name==='symbols'||name==='pairs')?'-v4':'-v3';
+    plans[name]={...plan,id:name+version,alphabet:tokens,orders,sheets_per_set:orders.length,tall_letters:name==='uppercase'?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':plan.tall_letters};
   }
-  // Keep the original symbol plan available for saved captures and unfinished drafts.
+  // Keep historical plans available so old backups and unfinished drafts remain valid.
   const legacySymbols={...plans.symbols,id:'symbols-v3',alphabet:[...oldSymbols],orders:Array.from({length:8},(_,i)=>[...oldSymbols].slice(i*4,i*4+4)),sheets_per_set:8};
-  const getPlan=id=>id===legacySymbols.id?legacySymbols:Object.values(plans).find(p=>p.id===id);
+  const legacyPairsPlan={...plan,id:'pairs-v3',alphabet:legacyPairs,orders:Array.from({length:4},(_,i)=>legacyPairs.slice(i*4,i*4+4)),sheets_per_set:4};
+  const transitionalPairsPlan={...plans.pairs,id:'pairs-v3'};
+  const getPlan=id=>id===legacySymbols.id?legacySymbols:id===legacyPairsPlan.id?legacyPairsPlan:Object.values(plans).find(p=>p.id===id);
   const tokens=order=>Array.from(order);
   const legacy=['acebd','ebdac','daceb'],clone=value=>JSON.parse(JSON.stringify(value));
   const fail=message=>{throw Error(message);};
@@ -29,6 +33,21 @@
       if(JSON.stringify(orders.slice(i,i+p.sheets_per_set).flatMap(tokens).sort())!==JSON.stringify(tokens(p.alphabet).sort()))fail('Each shuffled set must contain every letter exactly once.');
     }
     return orders;
+  }
+  function ordersFitPlan(orders,p){
+    try{validateOrders(orders,p);return true;}catch{return false;}
+  }
+  function resolvePlan(id,captureOrders=null,orderIndex=null,order=null){
+    if(id==='pairs-v3'){
+      const candidates=[legacyPairsPlan,transitionalPairsPlan];
+      if(captureOrders!=null)return candidates.find(p=>ordersFitPlan(captureOrders,p));
+      if(Number.isInteger(orderIndex)&&order!=null)return candidates.find(p=>same(order,p.orders[orderIndex]));
+      return legacyPairsPlan;
+    }
+    return getPlan(id);
+  }
+  function recordPlan(record){
+    return resolvePlan(record?.plan_id,record?.capture_orders,record?.order_index,record?.order);
   }
   function shuffleSet(orders,index,random=Math.random,p=plan){
     const result=clone(validateOrders(orders,p)),end=(Math.floor(index/p.sheets_per_set)+1)*p.sheets_per_set;
@@ -79,7 +98,7 @@
   function capture(data){
     validateContent(data.writer,data.strokes,data.smooth);
     if(!uuid(data.request_id))fail('Invalid save identifier.');
-    const p=data.plan_id==null?plan:getPlan(data.plan_id);if(!p)fail('Unknown capture plan.');
+    const p=data.plan_id==null?plan:resolvePlan(data.plan_id,data.capture_orders,data.order_index);if(!p)fail('Unknown capture plan.');
     const version=data.plan_id==null?1:p.id===plan.id?2:3,orders=version===1?legacy:(data.capture_orders==null?p.orders:validateOrders(data.capture_orders,p));
     if(!Number.isInteger(data.order_index)||!orders[data.order_index])fail('Invalid letter order.');
     const record={schema_version:version,id:data.request_id,writer:data.writer.trim(),saved_at:new Date().toISOString(),order_index:data.order_index,order:orders[data.order_index],display_smoothing:data.smooth,
@@ -255,7 +274,7 @@
     if(r.coordinates?.width!==1000||r.coordinates?.height!==500||r.coordinates?.y!=='down')fail('Unsupported coordinates.');
     if(key===r.id+'.json'){if(r.schema_version!==2)fail('Unsupported notebook format.');return;}
     if(key!=='letters/'+r.id+'.json'||![1,2,3].includes(r.schema_version))fail('Unsupported backup path or format.');
-    const p=r.schema_version===3?getPlan(r.plan_id):plan;if(!p)fail('Unsupported capture plan.');
+    const p=r.schema_version===3?recordPlan(r):plan;if(!p)fail('Unsupported capture plan.');
     const orders=r.schema_version===1?legacy:(r.capture_orders==null?p.orders:validateOrders(r.capture_orders,p));
     if(!Number.isInteger(r.order_index)||!same(r.order,orders[r.order_index])||(r.schema_version===2&&r.plan_id!==plan.id))fail('Unsupported capture plan.');
     if(!same(r.samples,extract(r.raw_strokes,r.order,r.schema_version)))fail('Processed samples do not match the original writing.');
@@ -268,7 +287,7 @@
       if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
       profile.capture_progress??={};
-      if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id])profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%getPlan(r.plan_id).orders.length,capture_orders:clone(r.capture_orders||getPlan(r.plan_id).orders)};
+      if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id]){const historicalPlan=r.schema_version===3?recordPlan(r):plan;if(historicalPlan)profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%historicalPlan.orders.length,capture_orders:clone(r.capture_orders||historicalPlan.orders)};}
       if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
@@ -530,6 +549,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={sampleInkWidth,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
