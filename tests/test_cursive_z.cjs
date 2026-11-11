@@ -33,5 +33,10 @@ test('new z blends and historical blends both validate against untouched origina
  E.validateRecord(file.key,file.value);E.validateBlendReferences([...originals,file]);
  const historical=structuredClone(blend),raw=originals.map(f=>({...f.value.samples.find(s=>s.letter==='z'),baseline_shift_mm:0})),result=E.blendMany(raw,[.5,.5]);
  historical.samples=[{letter:'z',processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:0}];
- E.validateBlendReferences([...originals,{key:file.key,value:historical}]);
+ const historicalFiles=[...originals,{key:file.key,value:historical}];
+ E.validateBlendReferences(historicalFiles);
+ const corrected=E.catalog(historicalFiles).byWriter.get('Writer').find(s=>s.capture_id===historical.id);
+ ys(corrected).forEach((y,i)=>assert.ok(Math.abs(y-ys(blend.samples[0])[i])<1e-9));
+ const current=E.catalog([...originals,file]).byWriter.get('Writer').find(s=>s.capture_id===blend.id);
+ assert.deepEqual(ys(current),ys(blend.samples[0]));
 });

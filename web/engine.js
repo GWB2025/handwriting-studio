@@ -125,7 +125,7 @@
     for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
     result.bounds={...result.bounds,left:0,right:(sample.bounds.right-sample.bounds.left)*factor};return result;
   }
-  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const record=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value,original=record?.samples.find(p=>p.letter===s.letter),raw=original&&baselineSample(original,record,s.baseline_shift_mm);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
+  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const record=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value,original=record?.samples.find(p=>p.letter===s.letter),raw=original&&baselineSample(original,record,s.baseline_shift_mm,files);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
   const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
   const characterSpacingKey=writer=>'character_spacing/'+encodeURIComponent(writer)+'.json';
   function validateCharacterSpacing(setting){if(!setting||!finite(setting.before_mm,-2,3)||!finite(setting.after_mm,-2,3))fail('Character spacing must be between −2 and +3 mm at Medium size.');}
@@ -286,7 +286,28 @@
   }
   // Keep stored extraction and backup validation stable. Recover optional z tails
   // from the original guide coordinates only when no manual shift was chosen.
-  function baselineSample(sample,record,shift=0){
+  function baselineSample(sample,record,shift=0,files=[]){
+    if(record?.derived&&sample.letter==='z'&&shift===0){
+      const sources=record.source_ids.map((id,i)=>{
+        const capture=files.find(f=>f.key==='letters/'+id+'.json')?.value;
+        const raw=capture?.samples.find(s=>s.letter==='z');
+        if(!raw)return null;
+        return {capture,raw,scale:record.source_scales?.[i]??1,shift:record.source_shifts[i],edit:record.source_edits?.[i]};
+      });
+      if(sources.some(s=>!s))return sample;
+      const legacy=blendMany(sources.map(s=>({...scaleSample(editStrokes(s.raw,s.edit),s.scale),baseline_shift_mm:s.shift})),record.weights);
+      // Only migrate the display of old blends; newly corrected blends already
+      // contain this translation and must never receive it twice.
+      if(!legacy||!same(legacy.processed_strokes,sample.processed_strokes))return sample;
+      const correction=sources.reduce((sum,s,i)=>{
+        const aligned=baselineSample(s.raw,s.capture,s.shift);
+        return sum+(aligned.processed_strokes[0].points[0].y-s.raw.processed_strokes[0].points[0].y)*s.scale*record.weights[i];
+      },0);
+      if(!correction)return sample;
+      const result=clone(sample);
+      for(const stroke of result.processed_strokes)for(const point of stroke.points)point.y+=correction;
+      return result;
+    }
     if(record?.schema_version!==2||record.derived||sample.letter!=='z'||shift!==0)return sample;
     const baseline=record.guides?.baseline??330,bottom=sample.bounds?.bottom,top=sample.bounds?.top;
     if(!(bottom>baseline+16&&top<baseline))return sample;
@@ -308,7 +329,7 @@
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
     for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
