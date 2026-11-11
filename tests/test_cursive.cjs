@@ -87,7 +87,7 @@ test('connector geometry follows primary exit and entry tangents within a safe g
   assert.ok(join);
   assert.deepEqual(join.start,{x:26,y:30});
   assert.deepEqual(join.end,{x:28,y:30});
-  assert.ok(Number.isFinite(join.control.x)&&Number.isFinite(join.control.y));
+  assert.ok(Number.isFinite(join.control1.x)&&Number.isFinite(join.control2.y));
   assert.match(E.connectorPath(join),/^M26\.0000 30\.0000 Q/);
 });
 
@@ -98,6 +98,7 @@ test('connector geometry rejects implausibly distant joins',()=>{
 
 test('cursive proof can add preview-only connectors between uncaptured neighbours',()=>{
   const files=extendedFiles('lowercase');
+  for(const {value:r} of files){for(const stroke of r.raw_strokes)stroke.points[1].y=318;r.samples=E.extract(r.raw_strokes,r.order,r.schema_version);}
   const result=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:true,page_layout:{}});
   assert.equal(result.pages.length,1);
   assert.equal(result.pages[0].generated_joins,2);

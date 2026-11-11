@@ -29,6 +29,8 @@ for(const pages of [false,true])test(`cursive preview zoom and scrolling preserv
  image.dispatchEvent(new w.Event('load'));assert.equal(viewport.scrollTop,0);assert.equal(viewport.scrollLeft,0);
  d.getElementById('cursive-generate').click();await settle();
  assert.equal(JSON.stringify(requests[1]),request);assert.equal(requests[1].height,8);
+ d.getElementById('cursive-use-pairs').checked=true;d.getElementById('cursive-generate').click();await settle();
+ assert.equal(requests[0].joined,false);assert.equal(requests[2].joined,true);assert.equal(requests[2].height,8);
  assert.match(html,/#proof-viewport\{[^}]*overflow:auto;[^}]*max-height:70vh/);
  assert.match(html,/touch-action:pan-x pan-y/);
  assert.match(html,/main\.studio-page\{[^}]*position:static;[^}]*height:auto/);

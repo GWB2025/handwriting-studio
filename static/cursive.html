@@ -63,7 +63,7 @@ main.studio-page>section,main.studio-page>.cursive-layout{margin-top:1rem}
     <button id="cursive-refresh" type="button">Refresh</button>
   </div>
   <p id="cursive-coverage">Checking captured handwriting…</p>
-  <p class="subtle">Milestone 2 groundwork identifies each glyph’s primary joining stroke separately from dots, crossbars and other auxiliary strokes. Exact captured pairs are still preferred; arbitrary generated joins are not plotted yet.</p>
+  <p class="subtle">Milestone 2 groundwork identifies each glyph’s primary joining stroke separately from dots, crossbars and other auxiliary strokes. Proofs start from individual letters. Enable Use captured joined pairs to compare saved pair shapes; generated joins are not plotted yet.</p>
   <div id="cursive-pairs" class="cursive-grid" aria-label="Cursive join coverage"></div>
 </section>
 
@@ -88,9 +88,11 @@ main.studio-page>section,main.studio-page>.cursive-layout{margin-top:1rem}
         <option value="12">12 mm</option>
       </select>
     </label>
+    <label><input id="cursive-use-pairs" type="checkbox"> Use captured joined pairs</label>
     <label><input id="cursive-auto-join" type="checkbox" checked> Preview generated joins</label>
     <button id="cursive-generate" class="primary" type="button">Generate proof</button>
   </div>
+  <p class="subtle">If a spike is visible in a Join sample, it is part of that saved pair. Untick Use captured joined pairs to build the proof from individual letters instead. Saved captures are kept intact.</p>
   <p id="proof-status" role="status" aria-live="polite">Choose a writer and generate a proof.</p>
 </section>
 </div>

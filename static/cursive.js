@@ -77,7 +77,7 @@
     if(!writer()){$('proof-status').textContent='Choose a writer first.';return;}
     $('proof-status').textContent='Generating cursive proof…';$('proof-image').hidden=true;revoke('proof');
     const response=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      writer:writer(),phrase:$('cursive-text').value,height:Number($('cursive-size').value),smooth:true,samples:'latest_three',source:'both',use_preferred:true,joined:true,
+      writer:writer(),phrase:$('cursive-text').value,height:Number($('cursive-size').value),smooth:true,samples:'latest_three',source:'both',use_preferred:true,joined:$('cursive-use-pairs').checked,
       auto_join_preview:$('cursive-auto-join').checked,letter_spacing:1,word_spacing:1,line_spacing:1,page_layout:{}
     })});
     const data=await response.json();if(!response.ok)throw Error(data.error||'Could not generate cursive proof.');

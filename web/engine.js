@@ -561,8 +561,16 @@
     const strokes=sample?.processed_strokes||[],join_stroke_index=primaryStrokeIndex(sample);
     if(join_stroke_index<0)return null;
     const points=strokes[join_stroke_index]?.points||[];if(!points.length)return null;
-    const tangent=(a,b)=>({dx:b.x-a.x,dy:b.y-a.y,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI});
-    const entry=points[0],exit=points.at(-1),entry_tangent=points.length>1?tangent(points[0],points[1]):{dx:0,dy:0,angle:0},exit_tangent=points.length>1?tangent(points.at(-2),points.at(-1)):{dx:0,dy:0,angle:0};
+    // Ignore stationary pen-up samples; they otherwise erase the end direction.
+    function endpointTangent(fromEnd){
+      const endpoint=fromEnd?points.at(-1):points[0];
+      for(let i=fromEnd?points.length-2:1;fromEnd?i>=0:i<points.length;fromEnd?i--:i++){
+        const other=points[i],dx=fromEnd?endpoint.x-other.x:other.x-endpoint.x,dy=fromEnd?endpoint.y-other.y:other.y-endpoint.y;
+        if(Math.hypot(dx,dy)>1e-6)return {dx,dy,angle:Math.atan2(dy,dx)*180/Math.PI};
+      }
+      return {dx:0,dy:0,angle:0};
+    }
+    const entry=points[0],exit=points.at(-1),entry_tangent=endpointTangent(false),exit_tangent=endpointTangent(true);
     return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length,join_stroke_index,join_stroke_length:strokeLength(strokes[join_stroke_index]),auxiliary_stroke_count:Math.max(0,strokes.length-1)};
   }
   function connectorGeometry(left,right,leftX,rightX,baseline,scale,height){
@@ -570,15 +578,26 @@
     const start={x:leftX+a.exit.x*scale,y:baseline+(left.baseline_shift_mm||0)+a.exit.y*scale};
     const end={x:rightX+b.entry.x*scale,y:baseline+(right.baseline_shift_mm||0)+b.entry.y*scale};
     const dx=end.x-start.x,dy=end.y-start.y,distance=Math.hypot(dx,dy);
-    if(distance<.15)return null;
-    if(dx<-height*.35||dx>height*1.8||Math.abs(dy)>height*1.25)return null;
-    const slope=t=>Math.abs(t.dx)<1e-6?0:Math.max(-2,Math.min(2,t.dy/t.dx));
-    const cx=(start.x+end.x)/2,fromStart=start.y+slope(a.exit_tangent)*(cx-start.x),fromEnd=end.y-slope(b.entry_tangent)*(end.x-cx);
-    const middle=(start.y+end.y)/2,limit=height*.65,cy=Math.max(middle-limit,Math.min(middle+limit,(fromStart+fromEnd)/2));
-    return {start,control:{x:cx,y:cy},end,distance};
+    // A negative horizontal gap or a high stem/low tail endpoint cannot be
+    // joined safely without retracing or inventing a long stroke.
+    if(distance<.15||dx<=0||dx>height*1.8||Math.abs(dy)>height*.6)return null;
+    if([start.y,end.y].some(y=>y<baseline-height*.75||y>baseline+height*.4))return null;
+    function direction(t){const length=Math.hypot(t.dx,t.dy);return length>1e-6?{x:t.dx/length,y:t.dy/length}:null;}
+    const outgoing=direction(a.exit_tangent),incoming=direction(b.entry_tangent);
+    // Preserve directed tangents, including a short backwards terminal flourish.
+    // Small bounded handles let it turn gently instead of flipping its slope.
+    if(!outgoing||!incoming)return null;
+    const handle=Math.min(distance/4,dx/4,height*.08);
+    const control1={x:start.x+outgoing.x*handle,y:start.y+outgoing.y*handle};
+    const control2={x:end.x-incoming.x*handle,y:end.y-incoming.y*handle};
+    const middle={x:(control1.x+control2.x)/2,y:(control1.y+control2.y)/2};
+    return {start,control1,middle,control2,end,distance};
   }
   function connectorPath(geometry){
-    const f=n=>Number(n).toFixed(4);return 'M'+f(geometry.start.x)+' '+f(geometry.start.y)+' Q'+f(geometry.control.x)+' '+f(geometry.control.y)+' '+f(geometry.end.x)+' '+f(geometry.end.y);
+    // Two quadratics meet with identical tangents, and follow each glyph at
+    // their outer ends. Keep the existing path-only SVG and plotter format.
+    const f=n=>Number(n).toFixed(4),point=p=>f(p.x)+' '+f(p.y);
+    return 'M'+point(geometry.start)+' Q'+point(geometry.control1)+' '+point(geometry.middle)+' Q'+point(geometry.control2)+' '+point(geometry.end);
   }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
