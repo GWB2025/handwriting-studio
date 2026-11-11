@@ -239,7 +239,7 @@ def register_letters(app, data_folder, validate_content):
                 unavailable += 1
                 continue  # Never silently re-enable samples with unreadable reviews.
             writer = record['writer']
-            profile = profiles.setdefault(writer, {'writer': writer, 'counts': {}, 'total_counts': {},
+            profile = profiles.setdefault(writer, {'writer': writer, 'counts': {}, 'total_counts': {}, 'capture_counts': {},
                                                    'latest_saved_at': record['saved_at'], 'next_order_index': 0})
             if record['schema_version'] == 2 and writer not in next_found:
                 profile['next_order_index'] = (record['order_index'] + 1) % len(LOWERCASE_ORDERS)
@@ -248,6 +248,7 @@ def register_letters(app, data_folder, validate_content):
             for sample in record['samples']:
                 letter = sample['letter']
                 review = reviews.get(letter, {'included': True, 'baseline_shift_mm': 0})
+                profile['capture_counts'][letter] = profile['capture_counts'].get(letter, 0) + 1
                 profile['total_counts'][letter] = profile['total_counts'].get(letter, 0) + 1
                 profile['counts'][letter] = profile['counts'].get(letter, 0) + int(review['included'])
                 all_samples.setdefault(writer, []).append(baseline_sample(sample, record, review['baseline_shift_mm']) | review | {'capture_id': record['id'], 'saved_at': record['saved_at']})

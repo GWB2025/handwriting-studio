@@ -24,6 +24,7 @@
   'recovery-later':'Close this window and keep the recovery draft for later.',
   'writer':'Enter or choose a writer name. Use the same name for samples that belong to the same handwriting collection.',
   'writer-done':'Finish entering the writer name and dismiss the keyboard.',
+  'writer-new':'Start a new named handwriting collection. Enter a new name; it is saved with your first captured sheet. Finish the current capture set before switching names.',
   'writer-change':'Edit the writer name before starting capture. Saved samples keep their original writer names.',
   'capture-more':'Open Review samples, proof sheets, free writing, calibration, Plotter, recovery drafts and sheet download.',
   'capture-more-close':'Close the extra tools and return to your writing sheet.',

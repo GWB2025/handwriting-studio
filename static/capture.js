@@ -9,7 +9,7 @@
   let phase='practice',sheet=0,profiles=[],lastBody='',lastID='';
   const order=()=>orders[sheet];
   const symbols=()=>plan.id.startsWith('symbols-');
-  const planKind=()=>symbols()?'symbols':plan.id.startsWith('pairs-')?'pairs':Object.keys(window.StudioEngine.plans).find(k=>window.StudioEngine.plans[k].id===plan.id);
+  const planKind=()=>symbols()?'symbols':plan.id.startsWith('pairs-')?'pairs':Object.keys(window.StudioEngine?.plans||{}).find(k=>window.StudioEngine.plans[k].id===plan.id);
   const symbolPlacement=letter=>symbols()?window.StudioSymbolGuides?.placement(letter,plan.guides):null;
   const composeURL=()=>'/compose?writer='+encodeURIComponent($('writer').value.trim());
   function updateCounts(){
@@ -17,6 +17,10 @@
     const counts=profile?.total_counts || profile?.counts;
     const expected=Array.from(plan.alphabet || 'abcdefghijklmnopqrstuvwxyz');
     $('sample-counts').textContent=profile?'Captured '+expected.filter(c=>counts[c]>0).length+' of '+expected.length+' characters · '+expected.reduce((sum,c)=>sum+(counts[c]||0),0)+' samples saved':'No letter samples saved for this name yet';
+    if($('capture-set-count')){
+      const captured=profile?.capture_counts||{},numbers=expected.map(c=>captured[c]||0),complete=Math.min(...numbers),extra=numbers.filter(n=>n>complete).length;
+      $('capture-set-count').textContent=(writer?writer+' · ':'')+(planKind()||'lowercase')+': '+complete+' complete set'+(complete===1?'':'s')+' · '+extra+'/'+expected.length+' characters towards another set. Counts include saved original captures, including excluded samples; blends do not count.';
+    }
     $('compose-link').href=composeURL();
     $('review-link').href='/review?writer='+encodeURIComponent(writer);
   }
@@ -34,6 +38,7 @@
     const complete=phase==='complete';
     $('guide-symbols-option').hidden=!symbols();
     if($('capture-kind'))$('capture-kind').disabled=saving || !!active || phase==='capture';
+    if($('writer-new'))$('writer-new').disabled=saving||!!active||phase==='capture'||(phase==='practice'&&!!strokes.length);
     $('writer').disabled=saving || !!active || phase!=='practice';
     $('writer-done').disabled=$('writer').disabled || !$('writer').value.trim() || $('writer').value.trim()===finishedWriter;
     $('save').textContent=saving?'Saving…':complete?'Compose handwriting':phase==='practice'?'Start capture':'Save sheet '+(sheet%setSize+1)+' of '+setSize;
@@ -172,6 +177,13 @@
   function practiceMessage(){
     $('status').textContent=$('writer').value.trim()?'Practice is optional. Start capture opens your next sheet; practice strokes are cleared.':'Enter a writer name, then tap Start capture. Practice is optional.';
   }
+  if($('writer-new'))$('writer-new').onclick=()=>{
+    if(saving||active||phase==='capture'||(phase==='practice'&&strokes.length))return;
+    phase='practice';sheet=0;orders=plan.orders;lastBody='';lastID='';
+    $('writer').value='';finishedWriter='';blankSheet();writerChanged();
+    window.StudioCaptureUI?.editWriter();requestWriterKeyboard();
+    message('Enter a new writer or capture collection name, then tap Done and Start capture. Existing captures keep their names.');
+  };
   $('writer').addEventListener('input',writerChanged);
   $('writer').addEventListener('change',writerChanged);
   $('smooth').onchange=()=>{if(phase!=='complete')dirty=true;updateSave();redraw();};

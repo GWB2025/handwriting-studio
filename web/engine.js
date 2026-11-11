@@ -320,13 +320,14 @@
     const reviews=new Map(files.filter(f=>f.key.startsWith('letter_reviews/')).map(f=>[f.value.capture_id,f.value.reviews]));
     const profiles=new Map(),byWriter=new Map(),states=new Map(),next=new Set();
     for(const r of records){
-      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
+      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},capture_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
       profile.capture_progress??={};
       if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id]){const historicalPlan=r.schema_version===3?recordPlan(r):plan;if(historicalPlan)profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%historicalPlan.orders.length,capture_orders:clone(r.capture_orders||historicalPlan.orders)};}
       if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
+        if(!r.derived)profile.capture_counts[s.letter]=(profile.capture_counts[s.letter]||0)+1;
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
         byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
