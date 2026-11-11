@@ -105,3 +105,15 @@ test('cursive proof can add preview-only connectors between uncaptured neighbour
   const plain=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:false,page_layout:{}});
   assert.equal(plain.pages[0].generated_joins,undefined);
 });
+
+
+test('cursive preview import button is wired and preview publishing cancels stale runs',()=>{
+  const fs=require('node:fs');
+  const ui=fs.readFileSync('static/cursive.js','utf8');
+  const workflow=fs.readFileSync('.github/workflows/static-preview.yml','utf8');
+  assert.match(ui,/cursive-import-backup/);
+  assert.match(ui,/backup-dialog/);
+  assert.match(ui,/showModal/);
+  assert.match(workflow,/group: cursive-milestone-2-preview/);
+  assert.match(workflow,/cancel-in-progress: true/);
+});
