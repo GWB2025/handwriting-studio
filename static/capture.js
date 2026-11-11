@@ -57,7 +57,7 @@
     const labelScale=1000/Math.max(1,canvas.getBoundingClientRect().width);
     const width=1000/order().length;
     for(let i=0;i<order().length;i++){
-      const x=i*width,letter=order()[i],tall=plan.tall_letters.includes(letter),tail=plan.descenders.includes(letter),placement=symbolPlacement(letter);
+      const x=i*width,letter=order()[i],tall=plan.tall_letters.includes(letter),tail=plan.descenders.includes(letter)||letter==='z',placement=symbolPlacement(letter);
       context.fillStyle='#203832';context.font='bold '+(26*labelScale)+'px -apple-system, sans-serif';context.fillText(letter,x+18,45);
       if(placement){context.font=(12*Math.min(labelScale,2))+'px -apple-system, sans-serif';context.fillText(placement.name,x+18,85,width-36);}
       if($('guide-shading').checked){
@@ -110,7 +110,7 @@
     message('Sheet '+(sheet%setSize+1)+' of '+setSize+' · Write '+Array.from(order()).join(', ')+'. Saved sheets stay on this Mac if you stop here.');
   }
   function instructions(){
-    const tails=[...order()].filter(letter=>plan.descenders.includes(letter));
+    const tails=[...order()].filter(letter=>plan.descenders.includes(letter)||letter==='z');
     $('capture-instruction').textContent=symbols()?'Write only the labelled symbol in each box. The pale a letters show its position in text; do not copy them. Use your own shape at the suggested height. Symbol placement hides or shows the examples.':'Write one '+Array.from(order()).join(', ')+' in the labelled boxes. '+(tails.length?'For '+tails.join(', ')+', place the body on the baseline and any tail below it.':'Use your usual letter proportions; tall letters reach above the small-letter line.');
   }
   function labelSheet(){

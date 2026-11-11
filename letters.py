@@ -56,6 +56,21 @@ def extract_samples(strokes, order, version=1):
     return samples
 
 
+def baseline_sample(sample, record, shift=0):
+    """Recover optional z tails at read time, preserving captures and reviews."""
+    if record['schema_version'] != 2 or sample['letter'] != 'z' or shift != 0:
+        return sample
+    baseline = record.get('guides', {}).get('baseline', 330)
+    bounds = sample['bounds']
+    if bounds['bottom'] <= baseline + 16 or bounds['top'] >= baseline:
+        return sample
+    result = copy.deepcopy(sample)
+    for stroke in result['processed_strokes']:
+        for point in stroke['points']:
+            point['y'] += bounds['bottom'] - baseline
+    return result
+
+
 def path_data(points, smooth, x, baseline, scale):
     def xy(point):
         return x + point['x'] * scale, baseline + point['y'] * scale
@@ -235,7 +250,7 @@ def register_letters(app, data_folder, validate_content):
                 review = reviews.get(letter, {'included': True, 'baseline_shift_mm': 0})
                 profile['total_counts'][letter] = profile['total_counts'].get(letter, 0) + 1
                 profile['counts'][letter] = profile['counts'].get(letter, 0) + int(review['included'])
-                all_samples.setdefault(writer, []).append(sample | review | {'capture_id': record['id'], 'saved_at': record['saved_at']})
+                all_samples.setdefault(writer, []).append(baseline_sample(sample, record, review['baseline_shift_mm']) | review | {'capture_id': record['id'], 'saved_at': record['saved_at']})
         for writer, profile in profiles.items():
             profile['counts'] = dict(sorted(profile['counts'].items()))
             profile['total_counts'] = dict(sorted(profile['total_counts'].items()))

@@ -125,7 +125,7 @@
     for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
     result.bounds={...result.bounds,left:0,right:(sample.bounds.right-sample.bounds.left)*factor};return result;
   }
-  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
+  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const record=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value,original=record?.samples.find(p=>p.letter===s.letter),raw=original&&baselineSample(original,record,s.baseline_shift_mm);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
   const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
   const characterSpacingKey=writer=>'character_spacing/'+encodeURIComponent(writer)+'.json';
   function validateCharacterSpacing(setting){if(!setting||!finite(setting.before_mm,-2,3)||!finite(setting.after_mm,-2,3))fail('Character spacing must be between −2 and +3 mm at Medium size.');}
@@ -221,7 +221,11 @@
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
     for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...scaleSample(editStrokes(sample,r.source_edits?.[i]),r.source_scales?.[i]??1),capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
-      const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
+      const matches=result=>result&&same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm});
+      if(!matches(blendMany(sources,r.weights))){
+        const aligned=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture.samples.find(s=>s.letter===r.order[0]);return {...scaleSample(editStrokes(baselineSample(sample,capture,r.source_shifts[i]),r.source_edits?.[i]),r.source_scales?.[i]??1),baseline_shift_mm:r.source_shifts[i]};});
+        if(!matches(blendMany(aligned,r.weights)))fail('Saved blend does not match its sources.');
+      }
     }
   }
   const alphabetKey=writer=>'alphabets/'+encodeURIComponent(writer)+'.json';
@@ -280,6 +284,16 @@
     if(!Number.isInteger(r.order_index)||!same(r.order,orders[r.order_index])||(r.schema_version===2&&r.plan_id!==plan.id))fail('Unsupported capture plan.');
     if(!same(r.samples,extract(r.raw_strokes,r.order,r.schema_version)))fail('Processed samples do not match the original writing.');
   }
+  // Keep stored extraction and backup validation stable. Recover optional z tails
+  // from the original guide coordinates only when no manual shift was chosen.
+  function baselineSample(sample,record,shift=0){
+    if(record?.schema_version!==2||record.derived||sample.letter!=='z'||shift!==0)return sample;
+    const baseline=record.guides?.baseline??330,bottom=sample.bounds?.bottom,top=sample.bounds?.top;
+    if(!(bottom>baseline+16&&top<baseline))return sample;
+    const result=clone(sample);
+    for(const stroke of result.processed_strokes)for(const point of stroke.points)point.y+=bottom-baseline;
+    return result;
+  }
   function catalog(files){
     const records=files.filter(f=>f.key.startsWith('letters/')||f.key.startsWith('blends/')).map(f=>f.value).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at)||b.id.localeCompare(a.id));
     const reviews=new Map(files.filter(f=>f.key.startsWith('letter_reviews/')).map(f=>[f.value.capture_id,f.value.reviews]));
@@ -294,7 +308,7 @@
       for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...scaleSample(editStrokes(s,setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
       }
     }
     for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
