@@ -162,6 +162,7 @@
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>(data.page_layout!==undefined?10000:2000))fail('Choose a writer and enter text within the document limit before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??false,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
     if(![3,5,8,10,12,16,20].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    if(data.auto_join_preview!==undefined){if(typeof data.auto_join_preview!=='boolean')fail('Invalid cursive join setting.');result.auto_join_preview=data.auto_join_preview;}
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
     if(data.page_layout!==undefined)result.page_layout=pageLayout(data.page_layout);
     if(data.natural_variation!==undefined)result.natural_variation=naturalSettings(data.natural_variation);
@@ -406,17 +407,19 @@
     for(const stroke of sample.processed_strokes||[])for(const p of stroke.points||[]){left=Math.min(left,p.x);right=Math.max(right,p.x);}
     return Number.isFinite(left)&&Number.isFinite(right)?Math.max(0,right-left):Math.max(0,(sample.bounds?.right||0)-(sample.bounds?.left||0));
   }
-  function spacing(a,b,scale,height){
+  function spacing(a,b,scale,height,connected=false){
     function envelope(sample){const rows=new Map();for(const stroke of sample.processed_strokes){const points=resample(stroke.points,128);for(const p of points){const row=Math.floor((p.y*scale+sample.baseline_shift_mm)/.5),x=p.x*scale;for(const key of [row-1,row,row+1]){const r=rows.get(key)||[Infinity,-Infinity];r[0]=Math.min(r[0],x);r[1]=Math.max(r[1],x);rows.set(key,r);}}}return rows;}
-    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*.25;
-    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*.18);
-    return Math.max(width*.45,Math.min(width+height*.22,advance));
+    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*(connected?.08:.25);
+    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*(connected?.04:.18));
+    const normal=Math.max(width*.45,Math.min(width+height*.22,advance));
+    if(connected){const aJoin=connectionMetrics(a),bJoin=connectionMetrics(b);if(aJoin&&bJoin)return Math.max(normal,(aJoin.exit.x-bJoin.entry.x)*scale+height*.04);}
+    return normal;
   }
   function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
-  function wordLayout(letters,used,height,letter_spacing,adjustments){
+  function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height)*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected)*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
     const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
@@ -467,9 +470,9 @@
     const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){flush();i++;continue;}
-      if(letters[i]===' '){row.cursor+=height*.7*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
+      if(letters[i]===' '){row.cursor+=height*(auto_join_preview?.35:.7)*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
-      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
+      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
       for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
@@ -487,7 +490,7 @@
       for(let glyphIndex=0;glyphIndex<line.glyphs.length;glyphIndex++){const {s,x,letter,joinPrevious}=line.glyphs[glyphIndex];
         if(auto_join_preview&&!natural.on&&joinPrevious&&glyphIndex>0){
           const previous=line.glyphs[glyphIndex-1],geometry=connectorGeometry(previous.s,s,offset+previous.x,offset+x,baseline,scale,height);
-          if(geometry){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
+          if(geometry&&[geometry.start,geometry.control1,geometry.middle,geometry.control2,geometry.end].every(p=>p.x>=layout.margin_left&&p.x<=210-layout.margin_right&&p.y>=layout.margin_top&&p.y<=bottom)){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
         }
         for(const stroke of s.processed_strokes){
           if(natural.on){
@@ -563,7 +566,8 @@
       const svg=drawingSVG(layout.paths,'Review: '+phrase).replace('width="210mm" height="297mm" viewBox="0 0 210 297"','viewBox="'+box.join(' ')+'"');
       return {svg,used_samples:layout.chosen};
     }
-    const layouts=data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    if(auto_join_preview&&natural.level!=='off')fail('Turn Natural variation off to use smooth cursive joins.');
+    const layouts=auto_join_preview||data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
     const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     const source_usage=[];
