@@ -79,12 +79,23 @@
   $('cursive-writer').onchange=()=>{updateCaptureLink();renderCoverage();loadPair(selectedPair).catch(e=>$('join-status').textContent=e.message);};
   $('cursive-refresh').onclick=refresh;
   $('cursive-import-backup').onclick=()=>{
-    const dialog=$('backup-dialog'),status=$('backup-status');
-    if(dialog?.showModal){
-      dialog.showModal();
-      if(status)status.textContent='Choose the latest Handwriting Studio backup JSON file below, then tap Import backup.';
-    }else $('cursive-storage-status').textContent='Backup / Import could not be opened. Reload this preview and try again.';
+    $('cursive-backup-file').value='';
+    $('cursive-backup-file').click();
   };
+  $('cursive-backup-file').addEventListener('change',async()=>{
+    const file=$('cursive-backup-file').files?.[0];if(!file)return;
+    const button=$('cursive-import-backup');button.disabled=true;
+    $('cursive-storage-status').textContent='Importing '+file.name+'…';
+    try{
+      if(file.size>100*1024*1024)throw Error('Backup exceeds 100 MB. Choose a smaller Handwriting Studio backup.');
+      const backup=JSON.parse(await file.text());
+      const added=await window.StudioStorage.importBackup(backup);
+      await refresh();
+      $('cursive-storage-status').textContent+=' Imported '+added+' new record'+(added===1?'':'s')+'.';
+    }catch(error){
+      $('cursive-storage-status').textContent='Nothing imported: '+(error.message||'Could not read this backup file.');
+    }finally{button.disabled=false;$('cursive-backup-file').value='';}
+  });
   $('cursive-generate').onclick=()=>generate().catch(error=>$('proof-status').textContent=error.message);
   window.addEventListener('studio-saved-change',()=>refresh());
   window.addEventListener('beforeunload',()=>{revoke('proof');revoke('join');});
