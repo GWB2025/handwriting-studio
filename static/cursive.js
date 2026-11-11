@@ -79,9 +79,11 @@
   $('cursive-writer').onchange=()=>{updateCaptureLink();renderCoverage();loadPair(selectedPair).catch(e=>$('join-status').textContent=e.message);};
   $('cursive-refresh').onclick=refresh;
   $('cursive-import-backup').onclick=()=>{
-    const open=$('backup-open');
-    if(open)open.click();
-    else $('cursive-storage-status').textContent='Backup / Import is available in the published browser build. Open the live app or reload this preview.';
+    const dialog=$('backup-dialog'),status=$('backup-status');
+    if(dialog?.showModal){
+      dialog.showModal();
+      if(status)status.textContent='Choose the latest Handwriting Studio backup JSON file below, then tap Import backup.';
+    }else $('cursive-storage-status').textContent='Backup / Import could not be opened. Reload this preview and try again.';
   };
   $('cursive-generate').onclick=()=>generate().catch(error=>$('proof-status').textContent=error.message);
   window.addEventListener('studio-saved-change',()=>refresh());
