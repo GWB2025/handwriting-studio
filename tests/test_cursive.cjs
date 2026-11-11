@@ -107,13 +107,15 @@ test('cursive proof can add preview-only connectors between uncaptured neighbour
 });
 
 
-test('cursive preview import button is wired and preview publishing cancels stale runs',()=>{
+test('cursive preview imports backups directly and preview publishing cancels stale runs',()=>{
   const fs=require('node:fs');
   const ui=fs.readFileSync('static/cursive.js','utf8');
+  const html=fs.readFileSync('static/cursive.html','utf8');
   const workflow=fs.readFileSync('.github/workflows/static-preview.yml','utf8');
-  assert.match(ui,/cursive-import-backup/);
-  assert.match(ui,/backup-dialog/);
-  assert.match(ui,/showModal/);
+  assert.match(html,/id="cursive-backup-file"/);
+  assert.match(ui,/cursive-backup-file/);
+  assert.match(ui,/\.click\(\)/);
+  assert.match(ui,/StudioStorage\.importBackup/);
   assert.match(workflow,/group: cursive-milestone-2-preview/);
   assert.match(workflow,/cancel-in-progress: true/);
 });
