@@ -108,7 +108,7 @@
    const phrase=$('phrase'),phraseLabel=q('label[for="phrase"]');
    // Keep writing and live adjustments in the form; only its main action row
    // moves to the preview, with explicit ownership for native validation.
-   form.prepend(phraseLabel,phrase);phrase.rows=5;
+   form.prepend(phraseLabel,...[$('compose-underline-controls')].filter(Boolean),phrase);phrase.rows=5;
    helpText(form);
    const basic=q('.compose-settings',form);basic.classList.add('studio-basic-settings');
    details('Writing samples',[q('.sample-settings'),$('compose-source').closest('.compose-settings'),$('compose-preferred')?.closest('.compose-settings'),$('compose-joined').closest('label'),$('compose-joined-help')].filter((n,i,a)=>a.indexOf(n)===i));
