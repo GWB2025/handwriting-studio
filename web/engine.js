@@ -245,6 +245,9 @@
       }
     }
   }
+  const allUppercase='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  function validateUppercaseJoins(value){if(typeof value!=='string'||!/^[A-Z]*$/.test(value)||new Set(value).size!==value.length)fail('Choose distinct uppercase letters A–Z for cursive joins.');}
+  function setUppercaseJoins(files,data){validateUppercaseJoins(data.letters);if(!catalog(files).writers.some(p=>p.writer===data.writer))fail('Choose an available writer.');const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value;return {key,value:{...(old||{schema_version:2,writer:data.writer,choices:{}}),uppercase_joins:allUppercase.split('').filter(c=>data.letters.includes(c)).join(''),updated_at:new Date().toISOString()}};}
   const alphabetKey=writer=>'alphabets/'+encodeURIComponent(writer)+'.json';
   function validateAlphabetReferences(files){
     const cat=catalog(files);
@@ -261,7 +264,7 @@
     const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value,multi=data.capture_ids!==undefined||old?.schema_version===2;
     const choices=clone(old?.choices||{});if(multi)for(const letter of Object.keys(choices))choices[letter]=preferenceIDs(choices[letter]);
     if(!ids.length)delete choices[data.letter];else choices[data.letter]=multi?ids.slice():ids[0];
-    return {key,value:old&&same(old.choices,choices)?old:{schema_version:multi?2:1,writer:data.writer,choices,updated_at:new Date().toISOString()}};
+    return {key,value:old&&same(old.choices,choices)?old:{schema_version:multi?2:1,writer:data.writer,choices,...(old?.uppercase_joins!==undefined?{uppercase_joins:old.uppercase_joins}:{}),updated_at:new Date().toISOString()}};
   }
   function countsFor(profile,source='both'){
     return profile?(source==='originals'?profile.original_counts||profile.counts:source==='blends'?profile.blend_counts||{}:profile.counts):{};
@@ -278,6 +281,7 @@
     }
     if(key.startsWith('alphabets/')){
       if(!r||![1,2].includes(r.schema_version)||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==alphabetKey(r.writer)||!r.choices||typeof r.choices!=='object'||Array.isArray(r.choices)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid alphabet preferences.');
+      if(r.uppercase_joins!==undefined)validateUppercaseJoins(r.uppercase_joins);
       size(r);for(const [letter,value] of Object.entries(r.choices)){const ids=preferenceIDs(value);if(![...characters,...pairs].includes(letter)||(r.schema_version===1?!uuid(value):!Array.isArray(value))||!ids.length||ids.length>100||new Set(ids).size!==ids.length||!ids.every(uuid))fail('Invalid preferred character.');}return;
     }
     if(!r||!uuid(r.id||r.capture_id))fail('Unsupported backup record.');
@@ -351,7 +355,7 @@
         byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived,suggested:r.schema_version===7});
       }
     }
-    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
+    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.uppercase_joins=files.find(f=>f.key===alphabetKey(writer))?.value.uppercase_joins??allUppercase;p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing],['uppercase_joins',p.uppercase_joins]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
     return {writers:[...profiles.values()].sort((a,b)=>a.writer.toLowerCase().localeCompare(b.writer.toLowerCase())),byWriter};
   }
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -434,11 +438,11 @@
   }
   function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
   // Punctuation and digits break cursive runs, including inside a word.
-  function cursiveNeighbours(left,right){return /^[a-z]+$/i.test(left)&&/^[a-z]+$/i.test(right);}
-  function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false){
+  function cursiveNeighbours(left,right,uppercase=allUppercase){return /^[a-z]+$/i.test(left)&&/^[a-z]+$/i.test(right)&&(!/[A-Z]$/.test(left)||!/^[a-z]/.test(right)||uppercase.includes(left.at(-1)));}
+  function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false,uppercase=allUppercase){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1]))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1],uppercase))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
     const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
@@ -479,7 +483,7 @@
     return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
       line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper,underline=[]},adjustments={},settings={}){
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper,underline=[],uppercase_joins=allUppercase},adjustments={},settings={}){
     const dimensions=paperSize(paper),layout=pageLayout(settings),width=dimensions.width-layout.margin_left-layout.margin_right,bottom=dimensions.height-layout.margin_bottom,scale=height/80;
     const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
     // Vary whole glyphs around their reviewed baselines, never the stored samples.
@@ -494,10 +498,10 @@
       if(letters[i]==='\t'){const stop=height*2.8*word_spacing;row.cursor=(Math.floor((row.cursor+.000001)/stop)+1)*stop;i++;continue;}
       if(letters[i]===' '){row.cursor+=height*(auto_join_preview?.35:.7)*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
-      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview);
+      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview,uppercase_joins);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else fail('A word and its indentation are too wide for the page. Reduce writing size or indentation.');}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,textOffset:tokenOffsets[j],letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j])});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,textOffset:tokenOffsets[j],letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j],uppercase_joins)});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
@@ -593,7 +597,7 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview,underline};
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={uppercase_joins:profile.uppercase_joins,height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview,underline};
     if(reviewSample){
       // Reserve the full review range once: 50–400% size and ±10 mm position.
       // The baseline and display scale must not follow the changing ink bounds.
@@ -691,6 +695,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={validateUnderline,paperSizes,paperSize,fitProofSheet,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={setUppercaseJoins,validateUppercaseJoins,validateUnderline,paperSizes,paperSize,fitProofSheet,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

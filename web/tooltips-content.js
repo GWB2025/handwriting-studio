@@ -7,6 +7,7 @@
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
   'proof-connect':'Connect neighbouring letters and saved pairs using the same smooth joins and closer spacing as Compose. Punctuation stays separate. Turning this on switches Natural variation Off.',
+  'uppercase-joins-save':'Save the checked uppercase letters for this Writer. Only those capitals can join to a following lowercase letter when Smooth cursive joins is on. This preference is included in backups.',
   'compose-underline':'Select a heading, word or passage in Your phrase, then underline it. The rule sits below letter tails and appears in previews, saved compositions, SVG and G-code. Newly typed text is not automatically underlined.',
   'compose-ununderline':'Select text in Your phrase, then remove its underline without changing the text.',
   'proof-ununderline':'Select text in the text box, then remove its underline without changing the text or handwriting.',
