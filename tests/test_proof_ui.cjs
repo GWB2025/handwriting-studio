@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),E=require('../web/engine'),{files}=require('./browser_helpers');
 async function workspace(){
  function element(tag='div'){return {tag,value:'',hidden:false,disabled:false,checked:true,style:{},children:[],listeners:{},append(...nodes){this.children.push(...nodes);if(tag==='select'&&!this.value)this.value=nodes[0]?.value||'';},replaceChildren(){this.children=[];this.value='';},addEventListener(name,fn){this.listeners[name]=fn;},click(){downloads.push(this.download);},remove(){}};}
- const ids={};for(const id of ['proof-connect','proof-tab','proof-fit','proof-paper','proof-orientation','proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-writing-size','proof-compare-size','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
+ const ids={};for(const id of ['proof-underline','proof-ununderline','proof-underline-status','proof-connect','proof-tab','proof-fit','proof-paper','proof-orientation','proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-writing-size','proof-compare-size','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
  ids['proof-paper'].value='a4';ids['proof-orientation'].value='portrait';ids['proof-compare-size'].value='classic';ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
  const doc={getElementById:id=>ids[id],createElement:element,body:element(),addEventListener(){}},context={document:doc,StudioEngine:E,crypto:require('node:crypto').webcrypto,StudioComparison:require('../web/proof-comparison'),StudioStorage:{snapshot:()=>snapshot()},StudioPlotter:{fromSVG(svg){exported.push(svg);return 'G21\n';}},Blob,URLSearchParams,URL:{createObjectURL(blob){urls.push(blob);return 'blob:'+urls.length;},revokeObjectURL(){}},setTimeout,clearTimeout,location:{search:'?writer=Writer'},addEventListener(){}};context.window=context;
  const root=process.env.STUDIO_PAGES_TEST?'docs/assets/':'web/';vm.runInNewContext(fs.readFileSync(root+'proof-texts.js','utf8'),context);
@@ -168,4 +168,22 @@ test('passage fitting preserves verse lines and indented couplets at the largest
   for(const line of page.lines.slice(-2))assert(Math.abs(line.left-page.lines[0].left-result.fitted_height*2.8)<.001);
   const larger=E.proofSheet(records,{...options,height:result.fitted_height+.1});assert(larger.pages.length>1||larger.pages[0].lines.length>lines.length);
  }
+});
+test('underlines preserve letter paths, split at verse breaks, respect indentation and fit/export',()=>{
+ const records=files(),base={writer:'Writer',text_only:true,height:5,auto_join_preview:true,sentence:'ab ab\n\tab ab'};
+ const plain=E.proofSheet(records,base),marked=E.proofSheet(records,{...base,underline:[{start:0,end:base.sentence.length}]});
+ const paths=svg=>[...svg.matchAll(/<path d="([^"]+)"/g)].map(m=>m[1]);
+ const before=paths(plain.svg),after=paths(marked.svg),rules=after.filter(p=>!before.includes(p));
+ // Underlining reserves space beneath each row, so later baselines may move.
+ assert.equal(after.length,before.length+2);assert.equal(rules.filter(p=>/^M [\d.]+ [\d.]+ L [\d.]+ [\d.]+$/.test(p)).length,2);
+ const lastRule=after.at(-1);assert.match(lastRule,/^M 34\.000 /);
+ assert.equal(marked.used_samples.length,plain.used_samples.length);
+ const fitted=E.fitProofSheet(records,{...base,underline:[{start:0,end:base.sentence.length}]});assert.equal(fitted.pages.length,1);assert.equal(fitted.pages[0].lines.length,2);assert(E.validateDrawingSVG(fitted.svg));
+ assert.throws(()=>E.compose(records,{writer:'Writer',phrase:'ab',underline:[{start:-1,end:2}]}),/valid text range/);
+});
+test('selected underline survives edits before it, is removable, resets for examples, and reaches G-code',async()=>{
+ const w=await workspace(),e=w.ids,box=e['proof-sentence'];box.focus=()=>{};e['proof-mode'].value='passage';box.value='ab ab';box.listeners.input();box.selectionStart=3;box.selectionEnd=5;e['proof-underline'].onclick();await e['proof-refresh'].onclick();const marked=await w.urls.at(-1).text();assert.match(e['proof-underline-status'].textContent,/2 characters/);e['proof-gcode'].onclick();assert.equal(w.exported.at(-1),marked);
+ box.value='c ab ab';box.listeners.input();assert.match(e['proof-underline-status'].textContent,/2 characters/);
+ box.selectionStart=5;box.selectionEnd=7;e['proof-ununderline'].onclick();assert.match(e['proof-underline-status'].textContent,/Select text/);
+ box.selectionStart=0;box.selectionEnd=2;e['proof-underline'].onclick();e['proof-example'].value='quick-fox';e['proof-example'].listeners.change();assert.match(e['proof-underline-status'].textContent,/Select text/);
 });

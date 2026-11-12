@@ -7,6 +7,8 @@
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
   'proof-connect':'Connect neighbouring letters and saved pairs using the same smooth joins and closer spacing as Compose. Punctuation stays separate. Turning this on switches Natural variation Off.',
+  'proof-ununderline':'Select text in the text box, then remove its underline without changing the text or handwriting.',
+  'proof-underline':'Select words or lines in the text box, then click Underline selection. The rule sits below the letter tails and is included in SVG and G-code. Remove underline clears it from the selected text. Newly typed text is not underlined automatically.',
   'proof-tab':'Insert a tab at the text cursor to indent a line or move to the next tab stop. Tab stops are four normal word spaces wide and scale with writing size.',
   'proof-paper':'Choose the physical page size used for layout and SVG downloads. Margins remain 20 mm. Plotter G-code is available only for A4 portrait.',
   'proof-orientation':'Choose portrait or landscape for the proof sheet and its SVG download.',

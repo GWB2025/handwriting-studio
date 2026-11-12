@@ -218,7 +218,9 @@
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
     const phrase=text_only?sentence.replace(/^\n+|\n+$/g,''):ready.join(' ')+(sentence.trim()?'\n\n'+sentence.replace(/^\n+|\n+$/g,''):'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:(kind==='pairs'&&!text_only)||!!data.auto_join_preview,auto_join_preview:data.auto_join_preview??false,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
+    const leading=sentence.length-sentence.replace(/^\n+/,'').length,shift=(text_only?0:ready.join(' ').length+2)-leading;
+    const underline=(data.underline||[]).map(r=>({start:r.start+shift,end:r.end+shift})).filter(r=>r.end>0).map(r=>({start:Math.max(0,r.start),end:Math.min(phrase.length,r.end)})).filter(r=>r.end>r.start);
+    const result=compose(files,{underline,writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:(kind==='pairs'&&!text_only)||!!data.auto_join_preview,auto_join_preview:data.auto_join_preview??false,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
   }
   function fitProofSheet(files,data){
@@ -475,13 +477,14 @@
     return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
       line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper},adjustments={},settings={}){
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper,underline=[]},adjustments={},settings={}){
     const dimensions=paperSize(paper),layout=pageLayout(settings),width=dimensions.width-layout.margin_left-layout.margin_right,bottom=dimensions.height-layout.margin_bottom,scale=height/80;
     const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
     // Vary whole glyphs around their reviewed baselines, never the stored samples.
     if(natural.on)used=used.map(s=>{if(!s)return null;const factor=1+natural.size*natural.drift('size',glyphIndex++,6);return {...scaleSample(s,factor),natural_scale:factor};});
-    const extents=writingExtents(used,height),padding=natural.slope*width/2+natural.bend,above=extents.above+padding,below=extents.below+padding,advance=above+below+height*.8*line_spacing;
+    const extents=writingExtents(used,height),padding=natural.slope*width/2+natural.bend,above=extents.above+padding,below=extents.below+padding+(underline.length?height*.2:0),advance=above+below+height*.8*line_spacing;
     if(above+below>bottom-layout.margin_top)fail('The writing is taller than the available page area. Reduce its size or margins.');
+    let textOffset=0;const tokenOffsets=letters.map(letter=>{const start=textOffset;textOffset+=letter.length;return start;});
     const lines=[];let row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};
     const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
     for(let i=0;i<letters.length;){
@@ -492,7 +495,7 @@
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
       if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else fail('A word and its indentation are too wide for the page. Reduce writing size or indentation.');}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j])});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,textOffset:tokenOffsets[j],letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j])});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
@@ -517,6 +520,21 @@
             page.paths.push(pathData(points,smooth,0,0,1));
           }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
         }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      // Keep rules below the descender envelope; split at wraps and unselected text.
+      const underlineY=baseline+extents.below+padding+height*.12;
+      let rule=null;
+      const finishRule=()=>{if(rule&&rule.end>rule.start)page.paths.push('M '+rule.start.toFixed(3)+' '+underlineY.toFixed(3)+' L '+rule.end.toFixed(3)+' '+underlineY.toFixed(3));rule=null;};
+      for(const glyph of line.glyphs){
+        const inkWidth=sampleInkWidth(glyph.s)*scale;
+        for(let k=0;k<glyph.letter.length;k++){
+          const position=glyph.textOffset+k,selected=underline.some(r=>position>=r.start&&position<r.end);
+          if(!selected){finishRule();continue;}
+          const start=offset+glyph.x+inkWidth*k/glyph.letter.length,end=offset+glyph.x+inkWidth*(k+1)/glyph.letter.length;
+          if(rule&&!underline.some(r=>rule.position>=r.start&&position<r.end))finishRule();
+          if(rule){rule.end=end;rule.position=position;}else rule={start,end,position};
+        }
+      }
+      finishRule();
       page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join(''),...(natural.on?{natural_line:shape}: {})});baseline+=advance;
     }
     if(page.paths.length)pages.push(page);return pages;
@@ -549,6 +567,8 @@
     if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean'||typeof auto_join_preview!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
+    const underline=data.underline??[];
+    if(!Array.isArray(underline)||underline.length>10000||underline.some(r=>!r||!Number.isInteger(r.start)||!Number.isInteger(r.end)||r.start<0||r.end<=r.start||r.end>phrase.length))fail('Choose a valid text range to underline.');
     const previews=[];
     const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred_sets||{};
     for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
@@ -571,7 +591,7 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview};
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview,underline};
     if(reviewSample){
       // Reserve the full review range once: 50–400% size and ±10 mm position.
       // The baseline and display scale must not follow the changing ink bounds.
@@ -584,7 +604,7 @@
       return {svg,used_samples:layout.chosen};
     }
     if(auto_join_preview&&natural.level!=='off')fail('Turn Natural variation off to use smooth cursive joins.');
-    const layouts=auto_join_preview||phrase.includes('\t')||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const layouts=underline.length||auto_join_preview||phrase.includes('\t')||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
     const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length,data.paper),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     const source_usage=[];

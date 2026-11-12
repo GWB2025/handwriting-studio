@@ -2,6 +2,10 @@
 (async()=>{
  const E=window.StudioEngine,$=id=>document.getElementById(id),query=new URLSearchParams(window.location.search),examples=window.StudioProofTexts.examples;
  let serial=0,timer=null,svg='',url='',automatic=true,pages=[],pageIndex=0,prefix='',previewState='updating';
+ let underlineFlags=[],previousText='';
+ function underlineRanges(){const ranges=[];underlineFlags.forEach((on,i)=>{if(on){if(ranges.length&&ranges.at(-1).end===i)ranges.at(-1).end++;else ranges.push({start:i,end:i+1});}});return ranges;}
+ function underlineStatus(){const count=underlineFlags.filter(Boolean).length;$('proof-underline-status').textContent=count?count+' characters marked for underlining. Select text to add or remove underlining.':'Select text in the box, then choose Underline selection. Underlines appear in the preview and downloads.';}
+ function resetUnderlines(){underlineFlags=[];previousText=$('proof-sentence').value;underlineStatus();}
  let naturalSeed=crypto.randomUUID();
  if(['comparison','passage'].includes(query.get('mode')))$('proof-mode').value=query.get('mode');
  const paper=()=>({size:$('proof-paper').value,orientation:$('proof-orientation').value}),paperLabel=()=>({a3:'A3',a4:'A4',a5:'A5',letter:'US Letter',legal:'US Legal'}[$('proof-paper').value]),plotterReady=()=>$('proof-paper').value==='a4'&&$('proof-orientation').value==='portrait';
@@ -48,8 +52,8 @@
    }else{
     const source=$('proof-source').value,kind=$('proof-kind').value,counts=E.countsFor(cat.writers.find(p=>p.writer===selected),source),tokens=E.tokens(E.plans[kind].alphabet),ready=tokens.filter(c=>counts[c]>0),missing=tokens.filter(c=>!counts[c]);
     if(!passage())$('proof-missing').textContent=missing.length?'Missing included samples: '+missing.join(' ')+'. These are omitted from the character row.':'All characters in this group have an included sample.';
-    if(automatic)$('proof-sentence').value=kind==='lowercase'&&ready.length===26?examples[0].text:ready.slice(0,8).join(' ');
-    result=(fit?E.fitProofSheet:E.proofSheet)(files,{writer:selected,kind,source,height:Number($('proof-size').value),smooth:$('proof-smooth').checked,sentence:$('proof-sentence').value,text_only:passage(),auto_join_preview:$('proof-connect').checked,natural_variation:{level:$('proof-natural').value,seed:naturalSeed},paper:paper()});
+    if(automatic){$('proof-sentence').value=kind==='lowercase'&&ready.length===26?examples[0].text:ready.slice(0,8).join(' ');resetUnderlines();}
+    result=(fit?E.fitProofSheet:E.proofSheet)(files,{underline:underlineRanges(),writer:selected,kind,source,height:Number($('proof-size').value),smooth:$('proof-smooth').checked,sentence:$('proof-sentence').value,text_only:passage(),auto_join_preview:$('proof-connect').checked,natural_variation:{level:$('proof-natural').value,seed:naturalSeed},paper:paper()});
     if(fit){let option=Array.from($('proof-size').children).find(o=>Number(o.value)===result.fitted_height);if(!option){option=document.createElement('option');option.value=String(result.fitted_height);option.textContent=result.fitted_height+' mm · fitted';$('proof-size').append(option);}$('proof-size').value=String(result.fitted_height);}
    }
    pages=result.pages||[{svg:result.svg}];pageIndex=Math.min(previousPage,pages.length-1);prefix=(comparison()?'comparison-proof-':passage()?'text-proof-':'alphabet-proof-')+$('proof-paper').value+($('proof-orientation').value==='landscape'?'-landscape':'');showPage();
@@ -66,11 +70,13 @@
  $('proof-example').addEventListener('change',()=>{
   const example=examples.find(e=>e.id===$('proof-example').value);automatic=$('proof-example').value==='automatic';
   if(example){$('proof-sentence').value=example.text;if(example.passage)$('proof-mode').value='passage';}
-  exampleNote();modeControls();update();
+  resetUnderlines();exampleNote();modeControls();update();
  });
- function textEdited(){automatic=false;$('proof-example').value='custom';exampleNote();update();}
+ function textEdited(){const text=$('proof-sentence').value;let start=0;while(start<previousText.length&&start<text.length&&previousText[start]===text[start])start++;let oldEnd=previousText.length,newEnd=text.length;while(oldEnd>start&&newEnd>start&&previousText[oldEnd-1]===text[newEnd-1]){oldEnd--;newEnd--;}underlineFlags=Array.from({length:previousText.length},(_,i)=>!!underlineFlags[i]);underlineFlags.splice(start,oldEnd-start,...Array(newEnd-start).fill(false));previousText=text;underlineStatus();automatic=false;$('proof-example').value='custom';exampleNote();update();}
  function insertTab(){const box=$('proof-sentence');if(box.value.length-(box.selectionEnd-box.selectionStart)>=10000)return;box.setRangeText('\t',box.selectionStart,box.selectionEnd,'end');box.focus();textEdited();}
  $('proof-tab').onclick=insertTab;
+ function markUnderline(on){const box=$('proof-sentence'),start=box.selectionStart,end=box.selectionEnd;if(start===end){$('proof-underline-status').textContent='Select the text you want to '+(on?'underline.':'remove underlining from.');box.focus();return;}for(let i=start;i<end;i++)underlineFlags[i]=on;previousText=box.value;automatic=false;underlineStatus();box.focus();update();}
+ $('proof-underline').onclick=()=>markUnderline(true);$('proof-ununderline').onclick=()=>markUnderline(false);
  $('proof-sentence').addEventListener('keydown',event=>{if(event.key==='Tab'&&!event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.altKey){event.preventDefault();insertTab();}});
  $('proof-sentence').addEventListener('input',textEdited);$('proof-refresh').onclick=()=>preview();$('proof-fit').onclick=()=>preview(true);
  $('proof-previous').onclick=()=>{if(pageIndex>0){pageIndex--;showPage();}};$('proof-next').onclick=()=>{if(pageIndex+1<pages.length){pageIndex++;showPage();}};
