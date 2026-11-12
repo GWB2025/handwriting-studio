@@ -66,3 +66,16 @@ test('dynamic blend sources and preferred choices get help without activating th
  action.textContent='Remove from preferred';await new Promise(r=>dom.window.setTimeout(r,0));assert.match(tips.message.textContent,/saved sample is kept/);
  assert.equal(doc.querySelectorAll('.studio-help-marker').length,2);dom.window.close();
 });
+
+test('Review and Proof expose click-only help for editing and physical-size decisions',()=>{
+ for(const [file,ids] of [
+ ['review.html',['review-writer','review-kind','review-letter','review-zoom','sample-size','sample-shift','sample-included','stroke-target','stroke-reverse','stroke-original','review-word','review-save','review-reset']],
+ ['proof.html',['proof-writer','proof-mode','proof-kind','proof-source','proof-size','proof-compare-size','proof-compare-text','proof-example','proof-zoom','proof-natural','proof-svg','proof-gcode']]
+ ]){
+  const dom=new JSDOM(fs.readFileSync('docs/'+file,'utf8')),doc=dom.window.document,tips=init(doc,dom.window,C);
+  for(const id of ids){const control=doc.getElementById(id);assert(control,file+': '+id);const entry=tips.entries.get(control);assert(entry,file+': help for '+id);let actions=0;control.addEventListener('click',()=>actions++);entry.button.click();assert.equal(actions,0);assert.equal(tips.message.textContent,C.describe(control,doc));tips.panel.querySelector('button').click();assert(tips.panel.hidden);}
+  if(file==='review.html'){assert.match(tips.entries.get(doc.getElementById('sample-size')).text,/Save changes/);assert.match(tips.entries.get(doc.getElementById('review-zoom')).text,/display/);}
+  else assert.match(tips.entries.get(doc.getElementById('proof-zoom')).text,/Exported writing/);
+  dom.window.close();
+ }
+});
