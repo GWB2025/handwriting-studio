@@ -79,7 +79,7 @@
  }
  function sourceControls(selectedIDs){
   const selected=selectedIDs||Array.from($('single-sources').querySelectorAll('select')).map(s=>s.value);$('single-sources').replaceChildren();const count=Number($('single-count').value);
-  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived).map(s=>{const factor=recipeScales?.get(s.capture_id)??s.scale_factor??1;return {...E.sampleAtSize(files,s,factor,recipeEdits?.get(s.capture_id)??s.stroke_edit),scale_factor:factor,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm};});
+  samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived&&!s.suggested).map(s=>{const factor=recipeScales?.get(s.capture_id)??s.scale_factor??1;return {...E.sampleAtSize(files,s,factor,recipeEdits?.get(s.capture_id)??s.stroke_edit),scale_factor:factor,baseline_shift_mm:recipeShifts?.get(s.capture_id)??s.baseline_shift_mm};});
   const used=new Set();
   for(let i=0;i<count;i++){
    const label=document.createElement('label'),select=document.createElement('select');label.append('Source '+String.fromCharCode(65+i)+' ',select);
@@ -91,14 +91,14 @@
     const all=Array.from($('single-sources').querySelectorAll('select')),previous=select.dataset.previous;
     const other=select.value&&all.find(s=>s!==select&&s.value===select.value);
     if(other)other.value=previous||'';
-    all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);render();savedChoices();
+    all.forEach(s=>s.dataset.previous=s.value);recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived&&!s.suggested);render();savedChoices();
    });$('single-sources').append(label);
   }
   // Explicit sources belong to a reopened recipe; preserve them exactly.
   if(!selectedIDs)selectCompatible();
   render();savedChoices();
  }
- function letters(){const old=$('single-letter').value||requestedLetter,available=pool().filter(s=>s.included&&!s.derived);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
+ function letters(){const old=$('single-letter').value||requestedLetter,available=pool().filter(s=>s.included&&!s.derived&&!s.suggested);$('single-letter').replaceChildren();for(const letter of [...new Set(available.map(s=>s.letter))].sort()){const originals=available.filter(s=>s.letter===letter),option=document.createElement('option');option.value=letter;option.textContent=letter+' · '+originals.length+' originals';$('single-letter').append(option);}if([...$('single-letter').options].some(o=>o.value===old))$('single-letter').value=old;sourceControls();}
  async function load(){files=await window.StudioStorage.snapshot();const previous=$('single-writer').value||query.get('writer');$('single-writer').replaceChildren();for(const writer of E.catalog(files).writers){const option=document.createElement('option');option.value=writer.writer;option.textContent=writer.writer;$('single-writer').append(option);}if([...$('single-writer').options].some(o=>o.value===previous))$('single-writer').value=previous;letters();}
  function savedChoices(selectedID){
   const select=$('single-saved-choice'),previous=selectedID||select.value;select.replaceChildren();
@@ -128,7 +128,7 @@
  }
  $('single-reopen').onclick=()=>reopen($('single-saved-choice').value);
  $('single-find').onclick=()=>{
-  if(busy)return;stopDrag();recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived);
+  if(busy)return;stopDrag();recipeShifts=null;recipeEdits=null;recipeScales=null;samples=pool().filter(s=>s.letter===$('single-letter').value&&s.included&&!s.derived&&!s.suggested);
   const found=selectCompatible();render();savedChoices();
   status(found?'Compatible sources selected. Drag the result to adjust the mix, then save.':'Could not find '+$('single-count').value+' compatible originals in this source pool. Try two sources, All saved writers / sets, or capture more examples with consistent stroke order and direction.');
  };

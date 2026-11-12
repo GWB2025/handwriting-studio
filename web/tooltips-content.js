@@ -6,6 +6,7 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'symbol-generate':'Create approximate symbols after capturing all lowercase letters, uppercase letters and digits. Each suggestion stays excluded until you accept it. Existing captures are kept.',
   'studio-more':'Open Review samples, proof sheets, Free writing, Calibration, Plotter and extra tools for this page.',
   'studio-more-close':'Close the extra tools and return to this page.',
   'studio-help':'Open instructions for this page, the full help guide.',

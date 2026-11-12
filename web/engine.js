@@ -191,7 +191,7 @@
     if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,4))))fail('Invalid source sizes.');
     if(data.source_edits!==undefined&&(!Array.isArray(data.source_edits)||data.source_edits.length!==data.source_ids.length))fail('Invalid source stroke corrections.');
     if(data.source_edits!==undefined)data.source_edits.forEach(e=>validateStrokeEdit(e));
-    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
+    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived&&!s.suggested),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
     if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
     const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
     if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
@@ -275,6 +275,7 @@
       if(r.schema_version===6){if(!Array.isArray(r.source_edits)||r.source_edits.length!==r.source_ids.length)fail('Invalid saved stroke corrections.');r.source_edits.forEach(e=>validateStrokeEdit(e));}else if(r.source_edits!==undefined)fail('Unexpected saved stroke corrections.');
       const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
+    if(r.schema_version===7){if(r.plan_id!==plans.symbols.id||r.suggestion?.method!=='symbol-sketch-v1'||!Array.isArray(r.suggestion.source_ids)||!r.suggestion.source_ids.length||!r.suggestion.source_ids.every(uuid))fail('Invalid suggested symbols.');const original=clone(r);original.schema_version=3;validateRecord(key,original);return;}
     size(r);validateContent(r.writer,r.raw_strokes,r.display_smoothing);
     if(typeof r.saved_at!=='string'||!/(Z|[+-]\d\d:\d\d)$/.test(r.saved_at)||!Number.isFinite(Date.parse(r.saved_at)))fail('Invalid save time.');
     if(r.coordinates?.width!==1000||r.coordinates?.height!==500||r.coordinates?.y!=='down')fail('Unsupported coordinates.');
@@ -327,11 +328,11 @@
       if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id]){const historicalPlan=r.schema_version===3?recordPlan(r):plan;if(historicalPlan)profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%historicalPlan.orders.length,capture_orders:clone(r.capture_orders||historicalPlan.orders)};}
       if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
-      for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
-        if(!r.derived)profile.capture_counts[s.letter]=(profile.capture_counts[s.letter]||0)+1;
+      for(const s of r.samples){const setting=review[s.letter]||{included:r.schema_version!==7,baseline_shift_mm:s.baseline_shift_mm||0};
+        if(!r.derived&&r.schema_version!==7)profile.capture_counts[s.letter]=(profile.capture_counts[s.letter]||0)+1;
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived,suggested:r.schema_version===7});
       }
     }
     for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
@@ -574,7 +575,7 @@
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     const source_usage=[];
     for(const s of used.filter(Boolean)){
-      const kind=variation==='blend'&&s.sources?'Generated blend':s.derived?'Saved blend':'Original capture';
+      const kind=variation==='blend'&&s.sources?'Generated blend':s.suggested?'Accepted suggested symbol':s.derived?'Saved blend':'Original capture';
       const preferred=use_preferred&&preferenceIDs(preferences[s.letter]).includes(s.capture_id)&&kind!=='Generated blend';
       const label=(preferred?'Preferred ':'')+kind.toLowerCase();
       if(!source_usage.some(item=>item.letter===s.letter&&item.label===label))source_usage.push({letter:s.letter,label});
