@@ -53,6 +53,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     if(source=='blending.html'):
         html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
+        html=html.replace('<div id="alphabet-previews"', '<div id="suggested-symbols"></div><div id="alphabet-previews"')
         html=html.replace('</body>','<script src="assets/symbol-suggestions.js"></script></body>')
         html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
         html=html.replace('<script src="assets/alphabet.js">','<script src="assets/character-spacing.js"></script><script src="assets/alphabet.js">')

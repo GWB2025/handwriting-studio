@@ -19,7 +19,7 @@ function notebook(guided = false, profiles = [], shuffled = false, recovery = fa
     documentElement: {style: {setProperty: (key, value) => styles[key] = value}},
     getElementById: id => elements[id], createElement: () => ({})});
   for (const id of ['notebook','paper','writer','writer-done','saved-pages','save','status','input','smooth','guides','focus','guidance','undo','redo','clear','export',
-    'writer-new','capture-set-count','writer-entry','writer-summary','writer-name','writer-change','writing-focus','capture-more','capture-guides','capture-help','capture-more-dialog','capture-guides-dialog','capture-help-dialog','capture-more-close','capture-guides-close','capture-help-close','capture-guide-labels','label-tall','label-small','label-baseline','label-tail','backup-open','recovery-open','compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols','guide-symbols-option']) {
+    'capture-suggestions','writer-new','capture-set-count','writer-entry','writer-summary','writer-name','writer-change','writing-focus','capture-more','capture-guides','capture-help','capture-more-dialog','capture-guides-dialog','capture-help-dialog','capture-more-close','capture-guides-close','capture-help-close','capture-guide-labels','label-tall','label-small','label-baseline','label-tail','backup-open','recovery-open','compose-link','review-link','sample-counts','known-writers','capture-step','capture-instruction','more-sheets','guide-small','guide-tall','guide-tail','guide-shading','guide-symbols','guide-symbols-option']) {
     elements[id] = listeners({value: '', checked: true, hidden: true, style: {},
       attributes: {}, classes: new Set(), classList: {toggle(name,on) {on?elements[id].classes.add(name):elements[id].classes.delete(name);}},
       querySelectorAll() {return [];},
@@ -426,4 +426,12 @@ test('capture names start a fresh collection and counters show complete original
  e.writer.value='New collection';e.writer.emit('change');assert.match(e['capture-set-count'].textContent,/0 complete sets/);
  await e.save.onclick();assert.equal(e['writer-new'].disabled,true);
  e['writer-new'].onclick();assert.equal(e.writer.value,'New collection');
+});
+
+test('Capture links directly to the current Writer suggested symbols',()=>{
+ const n=notebook(true,[],false,false,true),e=n.elements;
+ e.writer.value='Writer & symbols';n.window.StudioCaptureUI.sync();
+ assert.equal(e['capture-suggestions'].href,'alphabet.html?writer=Writer%20%26%20symbols#suggested-symbols');
+ e.writer.value='Another writer';n.window.StudioCaptureUI.sync();
+ assert.equal(e['capture-suggestions'].href,'alphabet.html?writer=Another%20writer#suggested-symbols');
 });
