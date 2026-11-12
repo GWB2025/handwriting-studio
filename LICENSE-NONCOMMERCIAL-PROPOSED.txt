@@ -1,0 +1,53 @@
+PROPOSAL FOR REVIEW — NOT THE CURRENT LICENCE
+The repository remains under LICENSE until this proposal is approved and adopted.
+
+Handwriting Studio Noncommercial Licence 1.0
+Copyright (c) 2026 Gordon Brindle
+
+1. Permission
+Subject to the conditions below, permission is granted, free of charge, to use,
+copy, study, modify and redistribute Handwriting Studio and its associated
+documentation (the "Software") solely for noncommercial purposes.
+
+2. Noncommercial use
+Noncommercial means use that is not primarily intended for or directed towards
+commercial advantage or monetary compensation. Personal hobby use, unpaid
+teaching and noncommercial research are permitted when they meet this definition.
+The status of the user as an individual, business, charity or educational
+institution does not by itself determine whether a use is noncommercial.
+
+Without separate written permission from Gordon Brindle, you may not sell or
+commercially license the Software, offer it as a paid or commercially funded
+service, incorporate it into a commercial product, or use it to create work for
+sale, paid commissions or other commercial business purposes.
+
+3. Sharing and modifications
+Copies and modified versions may be shared for noncommercial purposes only.
+Include this licence and the copyright notice with all copies or substantial
+portions of the Software. Clearly identify modified versions and retain these
+noncommercial conditions for the Software and modifications to it. You may not
+remove these restrictions or grant permissions beyond those provided here.
+
+4. Your handwriting and output
+This licence does not claim ownership of your handwriting captures, text,
+artwork, generated fonts, SVG files or G-code. Those materials are not required
+to carry this licence merely because they were created with the Software.
+However, using the Software to produce work for commercial purposes requires
+the separate permission described in section 2. Rights in any third-party
+content remain with their respective holders.
+
+5. Third-party components and earlier releases
+Separately licensed libraries, fonts and other third-party components retain
+their own licences. This licence does not replace those terms or revoke rights
+already granted in copies of earlier releases distributed under the MIT License.
+
+6. No warranty or liability
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. TO THE EXTENT PERMITTED BY LAW,
+THE AUTHORS AND COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+7. Commercial permission
+Commercial use requires a separate written agreement with Gordon Brindle.
+No commercial permission is implied by access to the source code.
