@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="52" viewBox="0 0 300 52" role="img" aria-labelledby="title">
+  <title id="title">Open Handwriting Studio on this Mac</title>
+  <rect x="1" y="1" width="298" height="50" rx="10" fill="#205e50" stroke="#17483d" stroke-width="2"/>
+  <path d="M21 17 L21 35 L35 26 Z" fill="#ffffff"/>
+  <text x="48" y="32" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="600">Open Handwriting Studio</text>
+</svg>

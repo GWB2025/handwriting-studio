@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting Studio · Compose</title>
+<link rel="stylesheet" href="assets/style.css?v=4f905271fd23">
+<style>
+.compose-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px}
+#compose-comparison{overflow:auto;margin:16px 0}#compose-comparison[hidden]{display:none}
+.compose-compare-paper{max-height:65vh;overflow:auto;background:#e5e8e1;padding:8px}
+.compose-compare-grid>section{min-width:0}
+.compose-compare-paper img{display:block;width:var(--comparison-width,100%);max-width:none;height:auto;background:white;margin-bottom:12px}
+</style><script src="assets/engine.js?v=8bac597d7f9a"></script><script src="assets/browser-api.js?v=7e204506c0c5"></script><script src="assets/recovery-store.js?v=4bdf843ab22c"></script>
+<script src="assets/recovery.js?v=daf3be38dd97"></script></head>
+<body data-studio-page="compose" class="compose-page"><dialog id="recovery-dialog" aria-labelledby="recovery-title">
+<h2 id="recovery-title">Recover unfinished work</h2>
+<p>Choose a recovery copy from this browser. Restoring opens a working copy; saved handwriting and finished compositions stay intact. A listed draft may also be open in another tab.</p>
+<label>Draft <select id="recovery-list"></select></label>
+<p id="recovery-detail"></p>
+<div class="compose-actions"><button id="recovery-restore" type="button" class="primary">Restore draft</button><button id="recovery-discard" type="button">Discard draft</button><button id="recovery-later" type="button">Keep for later</button></div>
+<p id="recovery-status" role="status" aria-live="polite"></p>
+<p>Recovery copies stay on this device and are not included in backups. Save restored work normally before downloading a backup.</p>
+</dialog>
+
+<div class="compose-shell">
+  <aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small><small id="draft-status" role="status">Checking draft recovery…</small></div><div class="storage-buttons"><button id="recovery-open" type="button">Drafts</button><button id="backup-open" type="button">Backup / Import</button></div></aside>
+<header><div><p class="eyebrow">Handwriting Studio</p><h1>Compose your handwriting</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="index.html">Capture letters</a><a class="button" id="review-link" href="review.html">Review samples</a><a class="button" href="fonts.html">Fonts</a><a class="button" href="calibration.html">Calibration</a><a class="button" href="alphabet.html">My alphabet</a><a class="button" href="blending.html">Blend a character</a><a class="button" href="plotting.html">Plotter</a><a class="button" href="help.html#compose" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a></nav></header>
+  <p>Type with your saved letters, numbers and punctuation. Choose a fixed sequence or shuffled selection below. Included preferred versions are used when enabled and allowed by the source type; otherwise the chosen sample pool is used. Excluded samples are skipped.</p>
+  <fieldset class="saved-compositions"><legend>Saved compositions</legend><label>Name <input id="composition-title" type="text" maxlength="100" placeholder="For example: Letter to a friend"></label><div class="compose-actions"><button id="composition-save" type="button">Save composition</button><button id="composition-copy" type="button">Save a copy</button></div><label>Saved documents <select id="composition-list"></select></label><button id="composition-open" type="button" disabled>Open composition</button><p id="composition-status" role="status" class="subtle">Save text, writing size, source choices, spacing and page layout in this browser. Generate a preview before saving to keep every finished page too. Opening it restores all pages for repeat downloads. Generate preview uses your current handwriting; settings can also be saved as a draft. Use Backup / Import to transfer compositions.</p></fieldset>
+<form id="compose-form">
+    <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
+    <div class="compose-settings sample-settings"><label>Samples <select id="compose-samples"><option value="latest_three">Latest three per letter</option><option value="latest_only">Latest only — check new writing</option><option value="latest_four">Latest four per character</option><option value="all">All saved — newest first</option></select></label></div>
+    <label><input id="compose-connect" type="checkbox" checked> Smooth cursive joins · closer spacing</label><p>Connect neighbouring letters and saved pairs with smooth strokes. The joins are included in SVG and G-code downloads. Natural variation must be Off. Unsafe joins are left open.</p>
+    <p id="compose-source-help">Use chooses original captures, saved blends, or both. Accepted suggested symbols are included with originals; unreviewed suggestions are never used. Preferred versions take priority when enabled and allowed by Use. Otherwise, Samples chooses the newest examples of each character—not the last complete capture set. Repeated characters can use different examples.</p>
+    <p id="compose-source-summary" role="status" aria-live="polite">Generate a preview to see which characters use preferred versions, saved blends or original captures.</p>
+    <p id="compose-counts" class="subtle"></p>
+    <div class="compose-settings">
+      <label>Standard phrase
+        <select id="compose-phrase-example">
+          <option value="">Choose a phrase…</option>
+          <optgroup label="Pangrams">
+            <option value="quick-fox">The quick brown fox</option>
+            <option value="pack-box">Pack my box</option>
+            <option value="black-quartz">Sphinx of black quartz</option>
+          </optgroup>
+          <optgroup label="Cursive tests">
+            <option value="cursive-rain">The thing in the rain</option>
+            <option value="cursive-common">Common joins sentence</option>
+          </optgroup>
+          <optgroup label="Coverage">
+            <option value="lowercase-alphabet">Lowercase alphabet</option>
+          </optgroup>
+        </select>
+      </label>
+      <button id="compose-use-phrase" type="button">Use phrase</button>
+    </div>
+    <label for="phrase">Your phrase</label>
+    <div id="compose-underline-controls"><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase" maxlength="10000" rows="2" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Type a phrase using your saved letters">the quick brown fox jumps over the lazy dog
+abcdefghijklmnopqrstuvwxyz</textarea>
+    <p class="subtle">The example uses this writer’s available letters. Edit it to try your own words. Use captured capitals, lowercase, numbers and supported punctuation, plus spaces and line breaks. Up to 10,000 characters can flow across up to 20 A4 pages. Size refers to the small-letter guide, keeping your natural proportions.</p>
+    <fieldset class="sample-sizing"><legend>Natural variation · live after Generate preview</legend>
+<label for="compose-natural">Amount</label><select id="compose-natural"><option value="off" selected>Off</option><option value="subtle">Subtle</option><option value="pronounced">More pronounced</option></select>
+<button id="compose-natural-new" type="button" disabled>Try another natural variation</button>
+<p>Add small changes to word gaps, letter sizes and the slope and curve of lines. Nearby letters vary gradually. Subtle uses up to ±5% word spacing and ±1.5% size; More pronounced uses up to ±10% and ±3%. Page margins remain clear.</p>
+<p>Changing the amount or layout keeps the same pattern. Try another natural variation changes that pattern without choosing different letter samples. Save composition keeps it with your text and settings; generate before saving to keep the exact finished pages.</p>
+</fieldset>
+<fieldset class="sample-sizing"><legend>Sample order</legend>
+<label for="compose-order">Choose letter versions</label><select id="compose-order"><option value="cycle">In sequence</option><option value="shuffle">Shuffled · avoid repetition</option></select>
+<button id="compose-shuffle" type="button" disabled>Try another variation</button>
+<p>Shuffled uses each eligible version before reusing one and avoids repeating it immediately when alternatives exist. It follows your source and preferred-version choices. With only one eligible version, that character stays the same.</p>
+<p>Changing spacing or generating again keeps the same selection. Save the composition to keep this variation; generate before saving to preserve the exact finished drawing too.</p>
+</fieldset>
+<div class="compose-settings"><label>Use <select id="compose-source"><option value="both">Originals and saved blends</option><option value="originals">Original samples only</option><option value="blends">Saved blends only</option></select></label><label><input id="compose-preferred" type="checkbox" checked> Use preferred versions when available</label></div><p>Preferred versions must match the chosen source type. Missing saved blends are reported before generating. <a href="alphabet.html">Manage my alphabet</a></p><label><input id="compose-joined" type="checkbox" aria-describedby="compose-joined-help"> Use saved joined pairs · Experimental</label><p id="compose-joined-help" class="subtle">Off for new compositions. Pair sizes may differ from individual letters, and enable Smooth cursive joins to connect pairs to neighbouring letters. Saved compositions and restored drafts keep their previous choice.</p><select id="compose-variation" hidden><option value="original">Saved examples</option></select><p><a href="blending.html">Blend and save a single character</a>, then use it here as a saved sample.</p><fieldset class="compose-spacing"><legend>Spacing · live after Generate preview</legend><label>Letter spacing · <output id="compose-letter-value">100%</output><input id="compose-letter-spacing" type="range" min="50" max="200" step="5" value="100"></label><label>Word spacing · <output id="compose-word-value">100%</output><input id="compose-word-spacing" type="range" min="50" max="200" step="5" value="100"></label><label>Line gap · <output id="compose-line-value">100%</output><input id="compose-line-spacing" type="range" min="50" max="200" step="5" value="100"></label><button type="button" id="compose-spacing-reset">Reset spacing</button><p>100% uses the normal layout. Letter spacing changes the distance between character starts; line gap changes the space between lines. Size and character shapes stay the same.</p></fieldset><fieldset class="compose-layout"><legend>Page layout · live after Generate preview</legend>
+<div class="layout-fields">
+<label>Top margin (mm) <input id="compose-margin-top" type="number" min="20" max="60" step="1" value="20" required></label>
+<label>Bottom margin (mm) <input id="compose-margin-bottom" type="number" min="20" max="60" step="1" value="20" required></label>
+<label>Left margin (mm) <input id="compose-margin-left" type="number" min="20" max="60" step="1" value="20" required></label>
+<label>Right margin (mm) <input id="compose-margin-right" type="number" min="20" max="60" step="1" value="20" required></label>
+<label>Alignment <select id="compose-alignment"><option value="left">Left</option><option value="centre">Centre</option><option value="right">Right</option></select></label>
+<label>Extra paragraph gap (mm) <input id="compose-paragraph-gap" type="number" min="0" max="30" step="1" value="0" required></label>
+</div>
+<button id="compose-layout-reset" type="button">Reset page layout</button>
+<p>Leave a blank line between paragraphs. Extra paragraph gap adds space after that blank line. Margins keep at least 20 mm clear for the verified A4 setup. Longer writing continues onto new pages automatically, up to 20 pages.</p>
+</fieldset>
+<div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="compose-gcode" disabled>Download plotter G-code</button><button type="button" id="refresh-writers">Refresh samples</button></div>
+  </form>
+  <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
+  <section id="compose-compare-panel">
+    <button id="compose-compare" type="button">Compare smooth joins off / on</button>
+    <p id="compose-compare-status" role="status">Compare the current writer and text with smooth joins off and on.</p>
+    <div id="compose-comparison" hidden>
+      <label for="compose-compare-zoom">Comparison zoom</label>
+      <select id="compose-compare-zoom"><option value="100">Fit width (100%)</option><option value="150">150%</option><option value="200">200%</option><option value="300">300%</option><option value="400">400%</option></select>
+      <button id="compose-compare-fit" type="button">Fit width</button>
+      <p>Zoom enlarges both sides equally. Scroll each pane in either direction to inspect the writing. Exported writing size stays unchanged.</p>
+      <div class="compose-compare-grid">
+      <section><h3>Unticked · joins off</h3><div id="compose-compare-off" class="compose-compare-paper"></div></section>
+      <section><h3>Ticked · joins on</h3><div id="compose-compare-on" class="compose-compare-paper"></div></section>
+    </div></div>
+  </section>
+  <nav class="compose-pages" aria-label="Preview pages">
+<button id="compose-page-previous" type="button" disabled>Previous page</button>
+<label>Preview page <select id="compose-page-select" disabled><option value="0">No preview yet</option></select></label>
+<button id="compose-page-next" type="button" disabled>Next page</button>
+<output id="compose-page-status" aria-live="polite"></output>
+</nav>
+<p class="subtle">Downloads contain the selected page. For a document with several pages, download each page separately. Finish plotting one file, then fit a fresh sheet at the same top-left home before sending the next file.</p>
+<div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
+  <p class="subtle">A4 portrait · adjustable margins, at least 20 mm · one path per pen stroke. Letters with tails extend below the baseline. Capture capitals, numbers and punctuation as needed. Joined pairs are experimental and off for new compositions. Words wrap together; full cursive is not included.</p>
+</div>
+<p class="subtle">G-code uses the verified A4 calibration: top-left home, +X right, −Y down, Z0.5 up and Z5 down. Send the downloaded file from the Mac connected to the plotter. <a href="calibration.html">Check calibration</a> before using a new paper setup.</p>
+<script src="assets/plotter.js?v=c6e39143f57e"></script>
+<script src="assets/compositions.js?v=95745c62f9b3"></script><script src="assets/compose.js?v=104845284a59"></script>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/studio-layout.js?v=cd3a8799c995"></script><script src="assets/backup.js?v=7ed494b93875"></script>
+<script src="assets/tooltips-content.js?v=64213d72698d"></script><script src="assets/tooltips.js?v=3fa12d6f5ade"></script>
+</body>
+</html>
