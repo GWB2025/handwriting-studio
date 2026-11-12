@@ -141,7 +141,9 @@
     const record=characterSpacing(files,data),copy=files.filter(f=>f.key!==record.key).concat(record);
     return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:pairs.includes(data.letter)});
   }
-  function drawingSVG(paths,title){return '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>'+escape(title)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.map(d=>'<path d="'+d+'"/>').join('')+'</g></svg>';}
+  const paperSizes={a3:[297,420],a4:[210,297],a5:[148,210],letter:[215.9,279.4],legal:[215.9,355.6]};
+  function paperSize(value={}){const {size='a4',orientation='portrait'}=value;if(!Object.hasOwn(paperSizes,size)||!['portrait','landscape'].includes(orientation))fail('Choose a supported page size and orientation.');const [w,h]=paperSizes[size];return {size,orientation,width:orientation==='portrait'?w:h,height:orientation==='portrait'?h:w};}
+  function drawingSVG(paths,title,paper={}){const {width,height}=paperSize(paper);return '<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'mm" height="'+height+'mm" viewBox="0 0 '+width+' '+height+'"><title>'+escape(title)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.map(d=>'<path d="'+d+'"/>').join('')+'</g></svg>';}
   function validateDrawingSVG(svg){
     if(typeof svg!=='string'||svg.length>7*1024*1024)fail('Invalid finished drawing.');
     // Accept only the inert path-only format emitted by this app; imported SVG is never executed.
@@ -216,8 +218,15 @@
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
     const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:kind==='pairs'&&!text_only,phrase,page_layout:{},natural_variation:data.natural_variation});
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:kind==='pairs'&&!text_only,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
+  }
+  function fitProofSheet(files,data){
+    const attempt=height=>{try{return proofSheet(files,{...data,height});}catch(error){if(/too wide|taller than|more than 20 pages/.test(error.message))return null;throw error;}};
+    let best=attempt(2);if(!best||best.pages.length!==1)fail('This text cannot fit on one page at 2 mm. Choose a larger page or shorten the text.');
+    let low=20,high=200;
+    while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(candidate&&candidate.pages.length===1){low=mid;best=candidate;}else high=mid-1;}
+    return {...best,fitted_height:low/10};
   }
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
@@ -462,8 +471,8 @@
     return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
       line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false},adjustments={},settings={}){
-    const layout=pageLayout(settings),width=210-layout.margin_left-layout.margin_right,bottom=297-layout.margin_bottom,scale=height/80;
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper},adjustments={},settings={}){
+    const dimensions=paperSize(paper),layout=pageLayout(settings),width=dimensions.width-layout.margin_left-layout.margin_right,bottom=dimensions.height-layout.margin_bottom,scale=height/80;
     const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
     // Vary whole glyphs around their reviewed baselines, never the stored samples.
     if(natural.on)used=used.map(s=>{if(!s)return null;const factor=1+natural.size*natural.drift('size',glyphIndex++,6);return {...scaleSample(s,factor),natural_scale:factor};});
@@ -493,7 +502,7 @@
       for(let glyphIndex=0;glyphIndex<line.glyphs.length;glyphIndex++){const {s,x,letter,joinPrevious}=line.glyphs[glyphIndex];
         if(auto_join_preview&&!natural.on&&joinPrevious&&glyphIndex>0){
           const previous=line.glyphs[glyphIndex-1],geometry=connectorGeometry(previous.s,s,offset+previous.x,offset+x,baseline,scale,height);
-          if(geometry&&[geometry.start,geometry.control1,geometry.middle,geometry.control2,geometry.end].every(p=>p.x>=layout.margin_left&&p.x<=210-layout.margin_right&&p.y>=layout.margin_top&&p.y<=bottom)){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
+          if(geometry&&[geometry.start,geometry.control1,geometry.middle,geometry.control2,geometry.end].every(p=>p.x>=layout.margin_left&&p.x<=dimensions.width-layout.margin_right&&p.y>=layout.margin_top&&p.y<=bottom)){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
         }
         for(const stroke of s.processed_strokes){
           if(natural.on){
@@ -570,8 +579,8 @@
       return {svg,used_samples:layout.chosen};
     }
     if(auto_join_preview&&natural.level!=='off')fail('Turn Natural variation off to use smooth cursive joins.');
-    const layouts=auto_join_preview||data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
-    const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
+    const layouts=auto_join_preview||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length,data.paper),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     const source_usage=[];
     for(const s of used.filter(Boolean)){
@@ -655,6 +664,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={paperSizes,paperSize,fitProofSheet,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

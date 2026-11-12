@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),E=require('../web/engine'),{files}=require('./browser_helpers');
 async function workspace(){
  function element(tag='div'){return {tag,value:'',hidden:false,disabled:false,checked:true,style:{},children:[],listeners:{},append(...nodes){this.children.push(...nodes);if(tag==='select'&&!this.value)this.value=nodes[0]?.value||'';},replaceChildren(){this.children=[];this.value='';},addEventListener(name,fn){this.listeners[name]=fn;},click(){downloads.push(this.download);},remove(){}};}
- const ids={};for(const id of ['proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-writing-size','proof-compare-size','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
- ids['proof-compare-size'].value='classic';ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
+ const ids={};for(const id of ['proof-fit','proof-paper','proof-orientation','proof-zoom','proof-view-status','proof-natural','proof-natural-new','proof-natural-controls','proof-example','proof-example-note','proof-text-credit','proof-text-label','proof-previous','proof-next','proof-page-number','proof-mode','proof-alphabet-text','proof-comparison-text','proof-writing-size','proof-compare-size','proof-compare-text','proof-writer','proof-kind','proof-source','proof-size','proof-smooth','proof-sentence','proof-refresh','proof-svg','proof-gcode','proof-status','proof-missing','proof-image'])ids[id]=element(['proof-writer','proof-kind','proof-source','proof-size'].includes(id)?'select':'div');
+ ids['proof-paper'].value='a4';ids['proof-orientation'].value='portrait';ids['proof-compare-size'].value='classic';ids['proof-zoom'].value='100';ids['proof-mode'].value='alphabet';ids['proof-natural'].value='off';ids['proof-compare-text'].value='f i j l t z\nfizz\njilt';ids['proof-kind'].value='lowercase';ids['proof-source'].value='both';ids['proof-size'].value='5';const records=files(),urls=[],downloads=[],exported=[];let snapshot=async()=>records;
  const doc={getElementById:id=>ids[id],createElement:element,body:element(),addEventListener(){}},context={document:doc,StudioEngine:E,crypto:require('node:crypto').webcrypto,StudioComparison:require('../web/proof-comparison'),StudioStorage:{snapshot:()=>snapshot()},StudioPlotter:{fromSVG(svg){exported.push(svg);return 'G21\n';}},Blob,URLSearchParams,URL:{createObjectURL(blob){urls.push(blob);return 'blob:'+urls.length;},revokeObjectURL(){}},setTimeout,clearTimeout,location:{search:'?writer=Writer'},addEventListener(){}};context.window=context;
  const root=process.env.STUDIO_PAGES_TEST?'docs/assets/':'web/';vm.runInNewContext(fs.readFileSync(root+'proof-texts.js','utf8'),context);
  await vm.runInNewContext(fs.readFileSync(root+'proof.js','utf8'),context);return {ids,records,urls,downloads,exported,setSnapshot(fn){snapshot=fn;}};
@@ -116,4 +116,29 @@ test('proof inspection status distinguishes Off, updating, failed and comparison
  e['proof-sentence'].value='Z';e['proof-sentence'].listeners.input();await e['proof-refresh'].onclick();e['proof-zoom'].value='300';e['proof-zoom'].listeners.change();
  assert.match(e['proof-view-status'].textContent,/300%.*Preview unavailable/);assert.doesNotMatch(e['proof-view-status'].textContent,/Updating/);assert.equal(e['proof-svg'].disabled,true);
  e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();await e['proof-refresh'].onclick();assert.match(e['proof-view-status'].textContent,/Compare versions.*not applied.*300%/);assert.doesNotMatch(e['proof-view-status'].textContent,/Updating|unavailable/);
+});
+
+test('Fit to page finds a fractional physical size and page choices reach the SVG',async()=>{
+ const w=await workspace(),e=w.ids;
+ e['proof-mode'].value='passage';e['proof-mode'].listeners.change();e['proof-sentence'].value=Array(14).fill('the quick brown fox jumps over the lazy dog').join('\n');e['proof-sentence'].listeners.input();
+ await e['proof-fit'].onclick();assert.equal(e['proof-page-number'].textContent,'Page 1 of 1');assert.match(e['proof-status'].textContent,/Fitted to one page/);const height=Number(e['proof-size'].value);assert(height>=2&&height<=20);
+ const opts={writer:'Writer',sentence:e['proof-sentence'].value,text_only:true,height:height+.1};if(height<20){try{assert(E.proofSheet(w.records,opts).pages.length>1);}catch(error){assert.match(error.message,/too wide|taller than|more than/);}}
+ for(const [size,orientation,dimensions] of [['a5','portrait','148 210'],['letter','landscape','279.4 215.9'],['a3','portrait','297 420']]){
+  e['proof-paper'].value=size;e['proof-orientation'].value=orientation;e['proof-paper'].listeners.change();assert(e['proof-svg'].disabled);await e['proof-fit'].onclick();assert.equal(e['proof-page-number'].textContent,'Page 1 of 1');assert.match(await w.urls.at(-1).text(),new RegExp('viewBox="0 0 '+dimensions+'"'));assert(e['proof-gcode'].disabled);e['proof-svg'].onclick();assert(w.downloads.at(-1).includes(size));
+ }
+ e['proof-paper'].value='a4';e['proof-orientation'].value='portrait';await e['proof-refresh'].onclick();assert.equal(e['proof-gcode'].disabled,false);
+});
+test('Fit cannot hide missing characters and comparison keeps explicit sizes',async()=>{
+ const w=await workspace(),e=w.ids;e['proof-sentence'].value='missing XYZ';e['proof-sentence'].listeners.input();await e['proof-fit'].onclick();assert(e['proof-svg'].disabled);assert.match(e['proof-status'].textContent,/No included/);
+ e['proof-mode'].value='comparison';e['proof-mode'].listeners.change();assert(e['proof-fit'].disabled);e['proof-paper'].value='a3';e['proof-orientation'].value='landscape';await e['proof-refresh'].onclick();assert.match(await w.urls.at(-1).text(),/viewBox="0 0 420 297"/);
+});
+test('page sizes retain all text inside margins and impossible fits report failure',()=>{
+ const records=files(),text=Array(10).fill('the quick brown fox jumps over the lazy dog').join('\n');
+ for(const size of Object.keys(E.paperSizes))for(const orientation of ['portrait','landscape']){
+  const paper={size,orientation},result=E.fitProofSheet(records,{writer:'Writer',text_only:true,sentence:text,paper,natural_variation:{level:'subtle',seed:'fit-test'}}),dims=E.paperSize(paper);
+  assert.equal(result.pages.length,1);assert.equal(result.used_samples.length,text.replace(/\s/g,'').length);
+  for(const match of result.svg.matchAll(/<path d="([^"]+)"/g)){const nums=match[1].match(/-?\d+(?:\.\d+)?/g).map(Number);nums.forEach((n,i)=>assert(n>=19.99&&n<=(i%2?dims.height:dims.width)-19.99));}
+ }
+ assert.throws(()=>E.fitProofSheet(records,{writer:'Writer',text_only:true,sentence:Array(200).fill('a').join('\n'),paper:{size:'a5'}}),/cannot fit on one page/);
+ assert.throws(()=>E.proofSheet(records,{writer:'Writer',paper:{size:'unknown'}}),/supported page/);
 });

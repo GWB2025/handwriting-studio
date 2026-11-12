@@ -6,6 +6,9 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'proof-paper':'Choose the physical page size used for layout and SVG downloads. Margins remain 20 mm. Plotter G-code is available only for A4 portrait.',
+  'proof-orientation':'Choose portrait or landscape for the proof sheet and its SVG download.',
+  'proof-fit':'Find the largest writing size between 2 and 20 mm that fits the current alphabet or passage on one page, in 0.1 mm steps. This changes physical writing size, not preview zoom. Not available in Compare versions.',
   'capture-suggestions':'Open Suggested symbols in My alphabet for the current Writer. Review best-guess symbols there before accepting any for Compose.',
   'symbol-zoom':'Enlarge every suggested symbol from 100% to 400% for inspection. This changes the preview only, not saved strokes, physical writing size or acceptance.',
   'symbol-zoom-reset':'Return every suggested symbol preview to 100%. Saved symbols and review choices stay unchanged.',

@@ -120,7 +120,7 @@
    focus(preview,[editor]);
   }else if(page==='proof'){
    const controls=q('.proof-controls',shell),{editor,preview}=workspace(controls);
-   move(editor,controls,details('Text and examples',[$('proof-alphabet-text'),$('proof-comparison-text')]));
+   move(editor,controls,$('proof-fit-help'),details('Text and examples',[$('proof-alphabet-text'),$('proof-comparison-text')]));
    move(preview,$('proof-status'),$('proof-missing'),q('.proof-page-nav'),q('.proof-inspection'),q('.proof-paper'),primary(q('.proof-actions')));
    const oldHeading=Array.from(shell.children).find(el=>el.tagName==='H2');oldHeading?.remove();
    focus(preview,[editor]);
