@@ -13,7 +13,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     return target;
   }
   const elements = {};
-  for (const id of ['compose-compare-zoom','compose-compare-fit','compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-underline','compose-ununderline','compose-underline-status','compose-compare-zoom','compose-compare-fit','compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
       style:{setProperty(name,value){this[name]=value;}},
@@ -85,7 +85,7 @@ test('sample choice reaches the server and changing it invalidates the old downl
 test('opening a saved composition restores the complete form and invalidates earlier exports',async()=>{
  const c=await composer(true,true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(e['compose-download'].disabled,false);
  const settings={...c.window.compositions.read(),phrase:'a saved letter',height:20,samples:'all',source:'blends',use_preferred:false,joined:true,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
- await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),settings);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
+ await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),JSON.parse(JSON.stringify(settings)));assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
  await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');assert.equal(JSON.parse(c.requests.at(-1).options.body).height,20);
  await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
 });
@@ -339,3 +339,13 @@ test('side-by-side comparison uses identical selection and keeps normal download
  assert.equal(e['compose-compare-off'].scrollLeft,0);assert.equal(e['compose-compare-on'].scrollTop,0);
  assert.equal(c.requests.length,requests);assert.equal(e['composed-image'].src,src);assert.equal(e['compose-download'].disabled,false);
  });
+
+test('Compose underlines update preview requests, survive save and recovery, and follow text edits',async()=>{
+ const c=await composer(true,true,true,true,true),e=c.elements;const plain=x=>JSON.parse(JSON.stringify(x));e.phrase.focus=()=>{};e.phrase.value='a heading\na bad cab';e.phrase.emit('input');e.phrase.selectionStart=0;e.phrase.selectionEnd=9;e['compose-underline'].onclick();await settle();
+ assert.deepEqual(JSON.parse(c.requests.at(-1).options.body).underline,[{start:0,end:9}]);assert.match(e['compose-underline-status'].textContent,/9 characters/);
+ const settings=plain(c.window.compositions.read()),record=require('../web/engine').createComposition({id:require('node:crypto').randomUUID(),title:'Underlined',settings});assert.deepEqual(record.settings.underline,[{start:0,end:9}]);
+ const draft=plain(c.window.recovery.read()),next=await composer(true,true,true,true,true);await next.window.recovery.restore(draft);assert.deepEqual(plain(next.window.compositions.read().underline),[{start:0,end:9}]);
+ await next.window.compositions.restore(record.settings);assert.deepEqual(plain(next.window.compositions.read().underline),[{start:0,end:9}]);
+ e.phrase.value='new '+e.phrase.value;e.phrase.emit('input');assert.deepEqual(plain(c.window.compositions.read().underline),[{start:4,end:13}]);e.phrase.selectionStart=4;e.phrase.selectionEnd=13;e['compose-ununderline'].onclick();await settle();assert.deepEqual(JSON.parse(c.requests.at(-1).options.body).underline,[]);
+ assert.throws(()=>require('../web/engine').compositionSettings({...settings,underline:[{start:0,end:99999}]}),/valid text range/);
+});

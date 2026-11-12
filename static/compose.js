@@ -11,6 +11,15 @@
   };
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
+  let underlineFlags=[],underlineText=byID('phrase').value;
+  function underlineRanges(){const ranges=[];underlineFlags.forEach((on,i)=>{if(on){if(ranges.length&&ranges.at(-1).end===i)ranges.at(-1).end++;else ranges.push({start:i,end:i+1});}});return ranges;}
+  function underlineStatus(){const status=byID('compose-underline-status');if(status){const n=underlineFlags.filter(Boolean).length;status.textContent=n?n+' characters marked for underlining. Select text to add or remove underlining.':'Select text, then choose Underline selection. Underlines appear in the preview, SVG and G-code.';}}
+  function restoreUnderlines(ranges=[]){underlineText=byID('phrase').value;underlineFlags=[];for(const r of ranges)for(let i=r.start;i<r.end;i++)underlineFlags[i]=true;underlineStatus();}
+  function editUnderlines(){const text=byID('phrase').value;let start=0;while(start<underlineText.length&&start<text.length&&underlineText[start]===text[start])start++;let oldEnd=underlineText.length,newEnd=text.length;while(oldEnd>start&&newEnd>start&&underlineText[oldEnd-1]===text[newEnd-1]){oldEnd--;newEnd--;}underlineFlags=Array.from({length:underlineText.length},(_,i)=>!!underlineFlags[i]);underlineFlags.splice(start,oldEnd-start,...Array(newEnd-start).fill(false));underlineText=text;underlineStatus();}
+  function markUnderline(on){const box=byID('phrase'),start=box.selectionStart,end=box.selectionEnd;if(start===end){byID('compose-underline-status').textContent='Select the text you want to '+(on?'underline.':'remove underlining from.');box.focus();return;}for(let i=start;i<end;i++)underlineFlags[i]=on;underlineText=box.value;phraseEdited=true;underlineStatus();box.focus();invalidate();window.StudioRecovery?.changed();byID('compose-form').onsubmit({preventDefault(){},live:true});}
+  if(byID('compose-underline'))byID('compose-underline').onclick=()=>markUnderline(true);
+  if(byID('compose-ununderline'))byID('compose-ununderline').onclick=()=>markUnderline(false);
+
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   let sampleSeed=crypto.randomUUID(),naturalSeed=crypto.randomUUID();
   let previewPages=[],pageIndex=0;
@@ -49,7 +58,7 @@
     if(!profile)return;
     const available=[...(window.StudioEngine?.characters || alphabet)].filter(letter=>sourceCounts(profile)[letter]>0).join('');
     automaticPhrase=available===alphabet?fullExample:available==='abcde'?'a bad cab\naaaa bbbb cccc dddd eeee':[...available].join(' ');
-    byID('phrase').value=automaticPhrase;
+    byID('phrase').value=automaticPhrase;restoreUnderlines();
   }
   function clearPreview(keepImage=false){
     clearComparison();
@@ -98,7 +107,7 @@
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
     finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-natural','compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
-  function composeRequest(){return {writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})};}
+  function composeRequest(){return {writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{underline:underlineRanges(),source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})};}
   let comparisonTicket=0,comparisonController=null,comparisonURLs=[];
   function comparisonZoom(){
     const value=Number(byID('compose-compare-zoom')?.value)||100;
@@ -210,10 +219,10 @@
   byID('compose-use-phrase')?.addEventListener('click',()=>{
     const key=byID('compose-phrase-example')?.value,text=standardPhrases[key];
     if(!text)return;
-    byID('phrase').value=text;phraseEdited=true;invalidate();
+    byID('phrase').value=text;restoreUnderlines();phraseEdited=true;invalidate();
     byID('phrase').focus({preventScroll:true});
   });
-  byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
+  byID('phrase').addEventListener('input',()=>{editUnderlines();phraseEdited=true;invalidate();});
   function spacingData(){return Object.fromEntries(['letter','word','line'].map(name=>[name+'_spacing',Number(byID('compose-'+name+'-spacing')?.value||100)/100]));}
   function liveSpacing(){
     for(const name of ['letter','word','line'])if(byID('compose-'+name+'-value'))byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
@@ -263,10 +272,10 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData()}),restore:async (settings,drawing='',drawings)=>{
+    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({underline:underlineRanges(),writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData()}),restore:async (settings,drawing='',drawings)=>{
       const savedPages=drawings?.length?drawings:drawing?[drawing]:[];for(const svg of savedPages)window.StudioEngine.validateDrawingSVG(svg);
       const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!savedPages.length){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
-      byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;if(byID('compose-connect'))byID('compose-connect').checked=settings.auto_join_preview??false;
+      byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;restoreUnderlines(settings.underline);phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;if(byID('compose-connect'))byID('compose-connect').checked=settings.auto_join_preview??false;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
       if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
       if(byID('compose-natural'))byID('compose-natural').value=settings.natural_variation?.level??'off';naturalSeed=settings.natural_variation?.seed??'0';
@@ -275,11 +284,11 @@
     }});
     if(window.StudioRecovery){
       const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-connect','compose-order','compose-natural',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
-      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{seed:sampleSeed,...(byID('compose-natural')?{natural_seed:naturalSeed}:{}),fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined','compose-connect'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
+      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{underline:underlineRanges(),seed:sampleSeed,...(byID('compose-natural')?{natural_seed:naturalSeed}:{}),fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined','compose-connect'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
         if(!profiles.some(p=>p.writer===data.fields['compose-writer'])){const option=document.createElement('option');option.value=data.fields['compose-writer'];option.textContent=(option.value||'Choose a writer')+' · recovered draft';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
         if(byID('compose-connect'))byID('compose-connect').checked=data.fields['compose-connect']??false;
         for(const id of draftIDs)if(byID(id)&&data.fields[id]!==undefined){if(['compose-smooth','compose-preferred','compose-joined','compose-connect'].includes(id))byID(id).checked=data.fields[id];else byID(id).value=data.fields[id];}
-        sampleSeed=data.seed;naturalSeed=data.natural_seed??'0';if(byID('compose-natural'))byID('compose-natural').value=data.fields['compose-natural']??'off';phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
+        restoreUnderlines(data.underline);sampleSeed=data.seed;naturalSeed=data.natural_seed??'0';if(byID('compose-natural'))byID('compose-natural').value=data.fields['compose-natural']??'off';phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
         for(const name of ['letter','word','line'])byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
         byID('compose-status').textContent='Composition draft restored. Generate a preview and Save composition to keep it. Your earlier saved document is unchanged.';
       }});
