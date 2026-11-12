@@ -122,7 +122,7 @@ test('Fit to page finds a fractional physical size and page choices reach the SV
  const w=await workspace(),e=w.ids;
  e['proof-mode'].value='passage';e['proof-mode'].listeners.change();e['proof-sentence'].value=Array(14).fill('the quick brown fox jumps over the lazy dog').join('\n');e['proof-sentence'].listeners.input();
  await e['proof-fit'].onclick();assert.equal(e['proof-page-number'].textContent,'Page 1 of 1');assert.match(e['proof-status'].textContent,/Fitted to one page/);const height=Number(e['proof-size'].value);assert(height>=2&&height<=20);
- const opts={writer:'Writer',sentence:e['proof-sentence'].value,text_only:true,height:height+.1,auto_join_preview:true};if(height<20){try{assert(E.proofSheet(w.records,opts).pages.length>1);}catch(error){assert.match(error.message,/too wide|taller than|more than/);}}
+ const opts={writer:'Writer',sentence:e['proof-sentence'].value,text_only:true,height:height+.1,auto_join_preview:true};if(height<20){try{const larger=E.proofSheet(w.records,opts);assert(larger.pages.length>1||larger.pages[0].lines.length>14);}catch(error){assert.match(error.message,/too wide|taller than|more than/);}}
  for(const [size,orientation,dimensions] of [['a5','portrait','148 210'],['letter','landscape','279.4 215.9'],['a3','portrait','297 420']]){
   e['proof-paper'].value=size;e['proof-orientation'].value=orientation;e['proof-paper'].listeners.change();assert(e['proof-svg'].disabled);await e['proof-fit'].onclick();assert.equal(e['proof-page-number'].textContent,'Page 1 of 1');assert.match(await w.urls.at(-1).text(),new RegExp('viewBox="0 0 '+dimensions+'"'));assert(e['proof-gcode'].disabled);e['proof-svg'].onclick();assert(w.downloads.at(-1).includes(size));
  }
@@ -157,4 +157,15 @@ test('Tab and Insert tab edit text; Shift Tab retains keyboard navigation; joins
  e['proof-tab'].onclick();assert.equal(box.value,'ab\n\t\tab');prevented=false;box.listeners.keydown({key:'Tab',shiftKey:true,preventDefault(){prevented=true;}});assert.equal(prevented,false);
  await e['proof-refresh'].onclick();const joined=await w.urls.at(-1).text();assert(e['proof-connect'].checked);e['proof-connect'].checked=false;e['proof-connect'].listeners.change();assert(e['proof-svg'].disabled);await e['proof-refresh'].onclick();assert.notEqual(await w.urls.at(-1).text(),joined);
  e['proof-natural'].value='pronounced';e['proof-natural'].listeners.change();e['proof-connect'].checked=true;e['proof-connect'].listeners.change();assert.equal(e['proof-natural'].value,'off');await e['proof-refresh'].onclick();assert.match(e['proof-view-status'].textContent,/Smooth cursive joins: On/);
+});
+
+test('passage fitting preserves verse lines and indented couplets at the largest fitting size',()=>{
+ const records=files(),lines=['the quick brown fox','jumps over the lazy dog','\tthe quick brown fox jumps over the lazy dog','\tthe quick brown fox jumps over the lazy dog'],sentence=lines.join('\n');
+ for(const auto_join_preview of [false,true]){
+  const options={writer:'Writer',text_only:true,sentence,auto_join_preview,paper:{size:'a4',orientation:'portrait'}};
+  const result=E.fitProofSheet(records,options),page=result.pages[0];
+  assert.equal(result.pages.length,1);assert.deepEqual(page.lines.map(line=>line.characters),lines.map(line=>line.replace(/\s/g,'')));
+  for(const line of page.lines.slice(-2))assert(Math.abs(line.left-page.lines[0].left-result.fitted_height*2.8)<.001);
+  const larger=E.proofSheet(records,{...options,height:result.fitted_height+.1});assert(larger.pages.length>1||larger.pages[0].lines.length>lines.length);
+ }
 });

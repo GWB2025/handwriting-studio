@@ -222,10 +222,13 @@
     return {...result,missing,characters:ready};
   }
   function fitProofSheet(files,data){
+    // Passage fitting preserves explicit verse lines, including their indentation.
+    const lineCount=data.text_only&&typeof data.sentence==='string'?data.sentence.split('\n').filter(line=>line.trim()).length:null;
+    const fits=result=>result&&result.pages.length===1&&(lineCount===null||result.pages[0].lines.length===lineCount);
     const attempt=height=>{try{return proofSheet(files,{...data,height});}catch(error){if(/too wide|taller than|more than 20 pages/.test(error.message))return null;throw error;}};
-    let best=attempt(2);if(!best||best.pages.length!==1)fail('This text cannot fit on one page at 2 mm. Choose a larger page or shorten the text.');
+    let best=attempt(2);if(!fits(best))fail('This text cannot fit on one page without wrapping at 2 mm. Choose a larger page or shorten the text.');
     let low=20,high=200;
-    while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(candidate&&candidate.pages.length===1){low=mid;best=candidate;}else high=mid-1;}
+    while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(fits(candidate)){low=mid;best=candidate;}else high=mid-1;}
     return {...best,fitted_height:low/10};
   }
   function validateBlendReferences(files){
