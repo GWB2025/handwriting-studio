@@ -1,125 +1,62 @@
 'use strict';
 (function(root){
+ // Deliberately limited to decisions that benefit from an explanation.
+ const important=new Set(('writer writer-new capture-kind save guide-symbols single-pool single-count single-save single-preferred sample-size sample-shift sample-included stroke-target review-save alphabet-writer alphabet-preferred proof-size proof-source proof-natural proof-zoom compose-writer compose-size compose-source compose-samples compose-preferred compose-joined compose-connect compose-natural compose-order compose-letter-spacing compose-word-spacing compose-line-spacing compose-compare compose-compare-zoom compose-gcode composition-save backup-download backup-import recovery-restore calibration-stage font-size font-upload').split(' '));
  function init(doc,win,content){
   const selector='button,input:not([type="hidden"]),select,textarea,a[href],canvas,summary,[tabindex]:not([tabindex="-1"])';
-  const entries=new Map(),hosts=new Map(),toggles=[];
-  const pointers=new Set();
-  let sequence=0,active=null,anchor=null,inspect=false,origin=null,showTimer,hideTimer;
-  const panel=doc.createElement('div');panel.className='studio-tip-panel studio-tip-ui';panel.hidden=true;
-  const message=doc.createElement('p');message.setAttribute('role','tooltip');
-  const done=doc.createElement('button');done.type='button';done.textContent='Done with tips';done.title='Close this explanation and return to normal use.';done.hidden=true;
-  panel.append(message,done);doc.body.append(panel);
+  const entries=new Map();let active=null;
+  const panel=doc.createElement('div');panel.className='studio-tip-panel studio-tip-ui';panel.id='studio-help-explanation';panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Control help');
+  const message=doc.createElement('p'),close=doc.createElement('button');close.type='button';close.textContent='Close help';panel.append(message,close);doc.body.append(panel);
   const own=node=>!!node?.closest?.('.studio-tip-ui');
-  function controlFor(node){
-   if(own(node))return null;
-   return node?.closest?.(selector)||node?.closest?.('label')?.control||null;
+  function hide(restore=false){const previous=active;active=null;panel.hidden=true;previous?.button.setAttribute('aria-expanded','false');if(restore&&previous?.button.isConnected)previous.button.focus({preventScroll:true});}
+  function position(){
+   if(!active||panel.hidden)return;
+   const viewport=win.visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||win.innerWidth,height=viewport?.height||win.innerHeight;
+   panel.style.maxWidth=Math.max(120,Math.min(360,width-24))+'px';panel.style.maxHeight=Math.max(80,height-24)+'px';
+   const box=active.button.getBoundingClientRect(),tip=panel.getBoundingClientRect();
+   panel.style.left=Math.max(left+12,Math.min(box.left,left+width-tip.width-12))+'px';
+   const below=box.bottom+8,y=below+tip.height<=top+height-12?below:box.top-tip.height-8;
+   panel.style.top=Math.max(top+12,Math.min(y,top+height-tip.height-12))+'px';
   }
-  function hostFor(control){
-   const parent=control.closest('dialog')||doc.body;
-   if(!hosts.has(parent)){const host=doc.createElement('div');host.className='studio-tip-descriptions studio-tip-ui';host.hidden=true;parent.append(host);hosts.set(parent,host);}
-   return hosts.get(parent);
-  }
+  function label(control){const copy=control.labels?.[0]?.cloneNode(true);for(const node of copy?.querySelectorAll('button,input,select,textarea')||[])node.remove();return control.getAttribute('aria-label')||copy?.textContent.trim()||control.textContent?.trim()||control.id.replace(/-/g,' ');}
   function decorate(control){
    if(own(control))return;
    const text=content.describe(control,doc);if(!text)return;
+   // Native title tooltips should not appear either.
+   control.removeAttribute('title');
+   if(!important.has(control.id))return text;
    let entry=entries.get(control);
-   if(!entry){const node=doc.createElement('span');node.id='studio-control-tip-'+(++sequence);hostFor(control).append(node);entry={node,text:''};entries.set(control,entry);}
-   if(entry.text!==text){entry.text=text;entry.node.textContent=text;}
-   const ids=(control.getAttribute('aria-describedby')||'').split(/\s+/).filter(Boolean);
-   if(!ids.includes(entry.node.id))control.setAttribute('aria-describedby',[...ids,entry.node.id].join(' '));
-   return entry.text;
+   if(!entry){
+    const button=doc.createElement('button');button.type='button';button.className='studio-help-marker studio-tip-ui';button.textContent='?';button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-expanded','false');
+    entry={control,button,text};entries.set(control,entry);
+    button.addEventListener('click',event=>{
+     event.preventDefault();event.stopPropagation();
+     if(active===entry){hide(true);return;}
+     hide();entry.text=content.describe(control,doc);message.textContent=entry.text;
+     const host=control.closest('dialog')||doc.body;host.append(panel);
+     active=entry;button.setAttribute('aria-expanded','true');panel.hidden=false;position();close.focus({preventScroll:true});
+    });
+    const enclosing=control.closest('label');
+    if(control.labels?.length&&!control.hasAttribute('aria-label'))control.setAttribute('aria-label',label(control));
+    if(enclosing){if(control.matches('select,textarea,input:not([type="checkbox"]):not([type="radio"])'))control.before(button);else enclosing.append(button);}
+    else {const matching=control.labels?.[0];if(matching)matching.append(button);else control.after(button);}
+   }
+   entry.text=text;entry.button.setAttribute('aria-label','Help: '+label(control));
+   return text;
   }
-  function scan(node){
-   if(own(node))return;
-   if(node.matches?.(selector))decorate(node);
-   for(const control of node.querySelectorAll?.(selector)||[])decorate(control);
-  }
-  function hide(){win.clearTimeout(showTimer);win.clearTimeout(hideTimer);panel.hidden=true;active=null;anchor=null;}
-  function position(){
-   if(panel.hidden||!anchor)return;
-   const viewport=win.visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||win.innerWidth,height=viewport?.height||win.innerHeight;
-   panel.style.maxWidth=Math.max(120,Math.min(360,width-24))+'px';panel.style.maxHeight=Math.max(80,height-24)+'px';
-   const box=anchor.getBoundingClientRect(),tip=panel.getBoundingClientRect();
-   const x=Math.max(left+12,Math.min(box.left,left+width-tip.width-12));
-   const below=box.bottom+8,y=below+tip.height<=top+height-12?below:box.top-tip.height-8;
-   panel.style.left=x+'px';panel.style.top=Math.max(top+12,Math.min(y,top+height-tip.height-12))+'px';
-  }
-  function show(control,override){
-   win.clearTimeout(showTimer);win.clearTimeout(hideTimer);
-   const text=override||decorate(control);if(!text)return;
-   const parent=control.closest('dialog')||doc.body;if(panel.parentNode!==parent)parent.append(panel);
-   active=override?null:control;anchor=control;
-   if(message.textContent!==text)message.textContent=text;
-   panel.hidden=false;done.hidden=!inspect;panel.classList.toggle('studio-tip-inspecting',inspect);position();
-  }
-  function setInspect(value,button){
-   origin=button||origin;
-   if(value&&pointers.size){show(origin,'Finish drawing or dragging, then turn on Control tips.');return;}
-   inspect=value;
-   for(const toggle of toggles)toggle.setAttribute('aria-pressed',String(inspect));
-   message.setAttribute('role',inspect?'status':'tooltip');
-   if(inspect){doc.activeElement?.blur?.();show(origin,'Control tips are on. Tap a control to read what it does without activating it. Tap Done with tips, Control tips, or press Escape to return to normal use.');}
-   else{hide();origin?.focus({preventScroll:true});}
-  }
-  function addToggle(parent){
-   const button=doc.createElement('button');button.type='button';button.className='studio-tip-toggle studio-tip-ui';button.textContent='Control tips';button.setAttribute('aria-pressed','false');button.setAttribute('aria-label','Control tips: tap controls for explanations without activating them');button.title='Turn on tap-to-explain mode. Turn it off to use controls normally.';
-   button.addEventListener('click',()=>{const help=button.closest('#capture-help-dialog')||button.closest('#studio-help-dialog');if(help){help.close();setInspect(!inspect,doc.getElementById(help.id.replace('-dialog','')));}else setInspect(!inspect,button);});parent.append(button);toggles.push(button);
-  }
-  const captureTips=doc.querySelector('#capture-tips')||doc.querySelector('#studio-tips');
-  addToggle(captureTips||doc.querySelector('.storage-buttons')||doc.querySelector('header')||doc.body);
-  for(const dialog of doc.querySelectorAll('dialog'))if(!captureTips||!dialog.contains(captureTips))addToggle(dialog);
-  done.addEventListener('click',()=>setInspect(false));scan(doc.body);
-  const cancel=event=>{event.preventDefault();event.stopImmediatePropagation();};
-  doc.addEventListener('pointerover',event=>{
-   if(inspect||pointers.size||event.buttons||event.pointerType==='touch'||event.pointerType==='pen')return;
-   const control=controlFor(event.target);if(!control||control.contains(event.relatedTarget))return;
-   win.clearTimeout(hideTimer);win.clearTimeout(showTimer);showTimer=win.setTimeout(()=>show(control),450);
-  },true);
-  doc.addEventListener('pointerout',event=>{
-   if(inspect)return;
-   if(panel.contains(event.relatedTarget)||active?.contains(event.relatedTarget)||controlFor(event.target)?.contains(event.relatedTarget))return;
-   if(controlFor(event.target)||panel.contains(event.target)){win.clearTimeout(showTimer);hideTimer=win.setTimeout(hide,200);}
-  },true);
-  panel.addEventListener('pointerenter',()=>win.clearTimeout(hideTimer));
-  doc.addEventListener('focusin',event=>{const control=controlFor(event.target);if(control&&!pointers.size)show(control);},true);
-  doc.addEventListener('focusout',event=>{if(!inspect&&!panel.contains(event.relatedTarget))hide();},true);
-  doc.addEventListener('pointerdown',event=>{
-   const control=controlFor(event.target);
-   if(inspect&&control){cancel(event);show(control);return;}
-   if(!inspect){pointers.add(event.pointerId);hide();}
-  },true);
-  doc.addEventListener('pointerup',event=>{pointers.delete(event.pointerId);if(inspect&&controlFor(event.target))cancel(event);},true);
-  doc.addEventListener('pointercancel',event=>{pointers.delete(event.pointerId);},true);
-  doc.addEventListener('click',event=>{const control=controlFor(event.target);if(inspect&&control){cancel(event);show(control);}},true);
-  doc.addEventListener('keydown',event=>{
-   if(event.key==='Escape'&&(inspect||!panel.hidden)){cancel(event);if(inspect)setInspect(false);else hide();return;}
-   if(!inspect&&!['Tab','Shift'].includes(event.key))hide();
-   const control=controlFor(event.target);
-   if(inspect&&control&&!['Tab','Shift'].includes(event.key)&&!event.ctrlKey&&!event.metaKey&&!event.altKey){cancel(event);show(control);}
-  },true);
-  doc.addEventListener('contextmenu',event=>{const control=controlFor(event.target);if(inspect&&control){cancel(event);show(control);}},true);
-  doc.addEventListener('input',event=>{if(!inspect&&controlFor(event.target))hide();},true);
-  doc.addEventListener('scroll',()=>{if(inspect)position();else hide();},true);
-  win.addEventListener('resize',position);win.visualViewport?.addEventListener('resize',position);win.visualViewport?.addEventListener('scroll',position);
-  function suspend(){inspect=false;for(const toggle of toggles)toggle.setAttribute('aria-pressed','false');hide();pointers.clear();}
-  win.addEventListener('blur',suspend);doc.addEventListener('visibilitychange',()=>{if(doc.hidden)suspend();});
+  function scan(node){if(own(node))return;if(node.matches?.(selector))decorate(node);for(const control of node.querySelectorAll?.(selector)||[])decorate(control);}
+  close.addEventListener('click',()=>hide(true));
+  doc.addEventListener('keydown',event=>{if(event.key==='Escape'&&active){event.preventDefault();event.stopPropagation();hide(true);}},true);
+  doc.addEventListener('pointerdown',event=>{if(active&&!panel.contains(event.target)&&!active.button.contains(event.target))hide();},true);
+  doc.addEventListener('focusin',event=>{if(active&&!panel.contains(event.target)&&event.target!==active.button)hide();});
+  doc.addEventListener('scroll',position,true);win.addEventListener('resize',position);win.visualViewport?.addEventListener('resize',position);win.visualViewport?.addEventListener('scroll',position);
+  scan(doc.body);
   const observer=new win.MutationObserver(records=>{
-   for(const record of records){
-    if(own(record.target))continue;
-    const target=record.target.nodeType===3?record.target.parentElement:record.target,control=controlFor(target);
-    if(control)decorate(control);
-    if(record.type==='attributes'&&target.matches?.('fieldset'))scan(target);
-    for(const node of record.addedNodes||[])if(node.nodeType===1)scan(node);
-   }
-   for(const [control,entry] of entries)if(!control.isConnected){
-    const ids=(control.getAttribute('aria-describedby')||'').split(/\s+/).filter(id=>id&&id!==entry.node.id);
-    if(ids.length)control.setAttribute('aria-describedby',ids.join(' '));else control.removeAttribute('aria-describedby');
-    entry.node.remove();entries.delete(control);
-   }
-   if(active){if(!active.isConnected||active.closest('[hidden]'))hide();else if(!panel.hidden)show(active);}
+   for(const record of records){if(own(record.target))continue;const target=record.target.nodeType===3?record.target.parentElement:record.target;if(target)scan(target);}
+   for(const [control,entry] of entries){if(!control.isConnected){if(active===entry)hide();entry.button.remove();entries.delete(control);}else if(active===entry){if(control.closest('[hidden]')||control.closest('dialog:not([open])'))hide();else{const text=content.describe(control,doc);if(message.textContent!==text)message.textContent=text;position();}}}
   });
-  observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','aria-disabled','aria-expanded','href','open']});
-  return {describe:control=>decorate(control),panel,message,toggles};
+  observer.observe(doc.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','aria-disabled','hidden','open']});
+  return {describe:decorate,panel,message,entries};
  }
  if(typeof module!=='undefined'&&module.exports)module.exports={init};else init(root.document,root,root.StudioTipContent);
 })(typeof window!=='undefined'?window:globalThis);

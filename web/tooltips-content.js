@@ -8,7 +8,7 @@
  const ids={
   'studio-more':'Open Review samples, proof sheets, Free writing, Calibration, Plotter and extra tools for this page.',
   'studio-more-close':'Close the extra tools and return to this page.',
-  'studio-help':'Open instructions for this page, the full help guide and tap-to-explain Control tips.',
+  'studio-help':'Open instructions for this page, the full help guide.',
   'studio-help-close':'Close the instructions and return to your work.',
   'studio-focus':'Give the handwriting more room by hiding navigation and sample choices. Show controls restores them. Saved writing and physical sizes stay unchanged.',
   'backup-open':'Open backup and import tools for the writing saved in this browser.',
@@ -30,7 +30,7 @@
   'capture-more-close':'Close the extra tools and return to your writing sheet.',
   'capture-guides':'Choose the writing lines, shading, symbol examples and smoothing shown on this sheet.',
   'capture-guides-close':'Close the guide settings and return to the sheet with your choices applied.',
-  'capture-help':'Open capture instructions, the full help guide and tap-to-explain Control tips.',
+  'capture-help':'Open capture instructions, the full help guide.',
   'capture-help-close':'Close the instructions and return to your current writing.',
   'writing-focus':'Enlarge the writing sheet by hiding secondary controls. Show controls restores them. Strokes and saved character proportions stay unchanged. Finish the Pencil stroke before switching.',
   'capture-kind':'Choose lowercase letters, capitals, numbers, symbols or experimental joined pairs. Changing this clears unsaved practice after confirmation.',
@@ -203,7 +203,7 @@
   if(id==='writer-change'&&!capture)tip='Edit the writer name for this free-writing page. Previously saved pages are kept.';
   if(id==='capture-more'&&!capture)tip='Open other Studio pages, unfinished drafts and the SVG download for this free-writing page.';
   if(id==='capture-guides'&&!capture)tip='Choose whether to show writing lines and use gentle smoothing.';
-  if(id==='capture-help'&&!capture)tip='Open free-writing instructions, the full help guide and tap-to-explain Control tips.';
+  if(id==='capture-help'&&!capture)tip='Open free-writing instructions, the full help guide.';
   if(control.matches('summary'))tip='Show or hide '+text.toLowerCase()+'. Current settings are kept when this section is closed.';
   if(id==='save')tip=capture?(text.startsWith('Start')?'Start capturing a shuffled set of labelled characters. Practice strokes are cleared; they are not saved as samples.':text.startsWith('Compose')?'Open Compose using the character samples you have saved.':'Save this capture sheet in your browser and move to the next sheet. Use Backup / Import to keep an external copy.'):'Save this free-writing page in your browser. Editing an opened page creates a new copy; download a backup to keep it elsewhere.';
   if(id==='clear')tip=capture?'Clear the current unsaved sheet. Previously saved samples are kept.':'Clear the current working page. Previously saved pages are kept.';
