@@ -17,6 +17,7 @@
   // Keep historical plans available so old backups and unfinished drafts remain valid.
   const legacySymbols={...plans.symbols,id:'symbols-v3',alphabet:[...oldSymbols],orders:Array.from({length:8},(_,i)=>[...oldSymbols].slice(i*4,i*4+4)),sheets_per_set:8};
   const legacyPairsPlan={...plan,id:'pairs-v3',alphabet:legacyPairs,orders:Array.from({length:4},(_,i)=>legacyPairs.slice(i*4,i*4+4)),sheets_per_set:4};
+  // Milestone 1 briefly used pairs-v3 for the expanded 24-pair set. Preserve those records too.
   const transitionalPairsPlan={...plans.pairs,id:'pairs-v3'};
   const getPlan=id=>id===legacySymbols.id?legacySymbols:id===legacyPairsPlan.id?legacyPairsPlan:Object.values(plans).find(p=>p.id===id);
   const tokens=order=>Array.from(order);
@@ -124,7 +125,7 @@
     for(const stroke of result.processed_strokes)for(const p of stroke.points){p.x*=factor;p.y*=factor;}
     result.bounds={...result.bounds,left:0,right:(sample.bounds.right-sample.bounds.left)*factor};return result;
   }
-  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const raw=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value.samples.find(p=>p.letter===s.letter);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
+  function sampleAtSize(files,s,factor,edit=s.stroke_edit){const record=files.find(f=>(f.key==='letters/'+s.capture_id+'.json'||f.key==='blends/'+s.capture_id+'.json'))?.value,original=record?.samples.find(p=>p.letter===s.letter),raw=original&&baselineSample(original,record,s.baseline_shift_mm,files);if(!raw)fail('This sample is unavailable.');return {...s,...scaleSample(editStrokes(raw,edit),factor),stroke_edit:clone(edit??originalStrokeEdit(raw.processed_strokes.length)),baseline_shift_mm:s.baseline_shift_mm,scale_factor:factor};}
   const preferenceIDs=value=>Array.isArray(value)?value:value?[value]:[];
   const characterSpacingKey=writer=>'character_spacing/'+encodeURIComponent(writer)+'.json';
   function validateCharacterSpacing(setting){if(!setting||!finite(setting.before_mm,-2,3)||!finite(setting.after_mm,-2,3))fail('Character spacing must be between −2 and +3 mm at Medium size.');}
@@ -140,7 +141,9 @@
     const record=characterSpacing(files,data),copy=files.filter(f=>f.key!==record.key).concat(record);
     return compose(copy,{writer:data.writer,phrase:data.text,height:5,joined:pairs.includes(data.letter)});
   }
-  function drawingSVG(paths,title){return '<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>'+escape(title)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.map(d=>'<path d="'+d+'"/>').join('')+'</g></svg>';}
+  const paperSizes={a3:[297,420],a4:[210,297],a5:[148,210],letter:[215.9,279.4],legal:[215.9,355.6]};
+  function paperSize(value={}){const {size='a4',orientation='portrait'}=value;if(!Object.hasOwn(paperSizes,size)||!['portrait','landscape'].includes(orientation))fail('Choose a supported page size and orientation.');const [w,h]=paperSizes[size];return {size,orientation,width:orientation==='portrait'?w:h,height:orientation==='portrait'?h:w};}
+  function drawingSVG(paths,title,paper={}){const {width,height}=paperSize(paper);return '<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'mm" height="'+height+'mm" viewBox="0 0 '+width+' '+height+'"><title>'+escape(title)+'</title><g fill="none" stroke="black" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round">'+paths.map(d=>'<path d="'+d+'"/>').join('')+'</g></svg>';}
   function validateDrawingSVG(svg){
     if(typeof svg!=='string'||svg.length>7*1024*1024)fail('Invalid finished drawing.');
     // Accept only the inert path-only format emitted by this app; imported SVG is never executed.
@@ -157,10 +160,13 @@
     }
     return svg;
   }
+  function validateUnderline(underline,length){if(!Array.isArray(underline)||underline.length>10000||underline.some(r=>!r||!Number.isInteger(r.start)||!Number.isInteger(r.end)||r.start<0||r.end<=r.start||r.end>length))fail('Choose a valid text range to underline.');}
   function compositionSettings(data){
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>(data.page_layout!==undefined?10000:2000))fail('Choose a writer and enter text within the document limit before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??false,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
     if(![3,5,8,10,12,16,20].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    if(data.underline!==undefined){validateUnderline(data.underline,data.phrase.length);result.underline=clone(data.underline);}
+    if(data.auto_join_preview!==undefined){if(typeof data.auto_join_preview!=='boolean')fail('Invalid cursive join setting.');result.auto_join_preview=data.auto_join_preview;}
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
     if(data.page_layout!==undefined)result.page_layout=pageLayout(data.page_layout);
     if(data.natural_variation!==undefined)result.natural_variation=naturalSettings(data.natural_variation);
@@ -189,7 +195,7 @@
     if(data.source_scales!==undefined&&(!Array.isArray(data.source_scales)||data.source_scales.length!==data.source_ids.length||!data.source_scales.every(v=>finite(v,.5,4))))fail('Invalid source sizes.');
     if(data.source_edits!==undefined&&(!Array.isArray(data.source_edits)||data.source_edits.length!==data.source_ids.length))fail('Invalid source stroke corrections.');
     if(data.source_edits!==undefined)data.source_edits.forEach(e=>validateStrokeEdit(e));
-    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
+    const sources=data.source_ids.map((id,i)=>{const s=all.find(s=>s.capture_id===id&&s.letter===data.letter&&s.included&&!s.derived&&!s.suggested),factor=data.source_scales?.[i]??s?.scale_factor??1;return s&&{...sampleAtSize(files,s,factor,data.source_edits?.[i]??s.stroke_edit),scale_factor:factor,baseline_shift_mm:data.source_shifts?.[i]??s.baseline_shift_mm};});
     if(sources.some(s=>!s))fail('A source is unavailable or excluded. Reload the samples.');
     const h=data.horizontal/100,v=data.vertical/100,weights=sources.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v],result=blendMany(sources,weights);
     if(!result)fail('These samples have incompatible strokes. Choose samples with matching stroke order and direction.');
@@ -213,16 +219,35 @@
     const ready=tokens(p.alphabet).filter(c=>counts[c]>0),missing=tokens(p.alphabet).filter(c=>!counts[c]);
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
-    const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:kind==='pairs'&&!text_only,phrase,page_layout:{},natural_variation:data.natural_variation});
+    const phrase=text_only?sentence.replace(/^\n+|\n+$/g,''):ready.join(' ')+(sentence.trim()?'\n\n'+sentence.replace(/^\n+|\n+$/g,''):'');
+    const leading=sentence.length-sentence.replace(/^\n+/,'').length,shift=(text_only?0:ready.join(' ').length+2)-leading;
+    const underline=(data.underline||[]).map(r=>({start:r.start+shift,end:r.end+shift})).filter(r=>r.end>0).map(r=>({start:Math.max(0,r.start),end:Math.min(phrase.length,r.end)})).filter(r=>r.end>r.start);
+    const result=compose(files,{underline,writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:(kind==='pairs'&&!text_only)||!!data.auto_join_preview,auto_join_preview:data.auto_join_preview??false,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
+  }
+  function fitProofSheet(files,data){
+    // Passage fitting preserves explicit verse lines, including their indentation.
+    const lineCount=data.text_only&&typeof data.sentence==='string'?data.sentence.split('\n').filter(line=>line.trim()).length:null;
+    const fits=result=>result&&result.pages.length===1&&(lineCount===null||result.pages[0].lines.length===lineCount);
+    const attempt=height=>{try{return proofSheet(files,{...data,height});}catch(error){if(/too wide|taller than|more than 20 pages/.test(error.message))return null;throw error;}};
+    let best=attempt(2);if(!fits(best))fail('This text cannot fit on one page without wrapping at 2 mm. Choose a larger page or shorten the text.');
+    let low=20,high=200;
+    while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(fits(candidate)){low=mid;best=candidate;}else high=mid-1;}
+    return {...best,fitted_height:low/10};
   }
   function validateBlendReferences(files){
     const map=new Map(files.map(f=>[f.key,f.value]));
     for(const f of files.filter(f=>f.key.startsWith('blends/'))){const r=f.value,sources=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture?.samples.find(s=>s.letter===r.order[0]);if(!sample)fail('A saved blend is missing an original source.');return {...scaleSample(editStrokes(sample,r.source_edits?.[i]),r.source_scales?.[i]??1),capture_id:id,baseline_shift_mm:r.source_shifts[i]};});
-      const result=blendMany(sources,r.weights);if(!result||!same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm}))fail('Saved blend does not match its sources.');
+      const matches=result=>result&&same(r.samples[0],{letter:r.order[0],processed_strokes:result.processed_strokes,bounds:result.bounds,baseline_shift_mm:result.baseline_shift_mm});
+      if(!matches(blendMany(sources,r.weights))){
+        const aligned=r.source_ids.map((id,i)=>{const capture=map.get('letters/'+id+'.json'),sample=capture.samples.find(s=>s.letter===r.order[0]);return {...scaleSample(editStrokes(baselineSample(sample,capture,r.source_shifts[i]),r.source_edits?.[i]),r.source_scales?.[i]??1),baseline_shift_mm:r.source_shifts[i]};});
+        if(!matches(blendMany(aligned,r.weights)))fail('Saved blend does not match its sources.');
+      }
     }
   }
+  const allUppercase='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  function validateUppercaseJoins(value){if(typeof value!=='string'||!/^[A-Z]*$/.test(value)||new Set(value).size!==value.length)fail('Choose distinct uppercase letters A–Z for cursive joins.');}
+  function setUppercaseJoins(files,data){validateUppercaseJoins(data.letters);if(!catalog(files).writers.some(p=>p.writer===data.writer))fail('Choose an available writer.');const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value;return {key,value:{...(old||{schema_version:2,writer:data.writer,choices:{}}),uppercase_joins:allUppercase.split('').filter(c=>data.letters.includes(c)).join(''),updated_at:new Date().toISOString()}};}
   const alphabetKey=writer=>'alphabets/'+encodeURIComponent(writer)+'.json';
   function validateAlphabetReferences(files){
     const cat=catalog(files);
@@ -239,7 +264,7 @@
     const key=alphabetKey(data.writer),old=files.find(f=>f.key===key)?.value,multi=data.capture_ids!==undefined||old?.schema_version===2;
     const choices=clone(old?.choices||{});if(multi)for(const letter of Object.keys(choices))choices[letter]=preferenceIDs(choices[letter]);
     if(!ids.length)delete choices[data.letter];else choices[data.letter]=multi?ids.slice():ids[0];
-    return {key,value:old&&same(old.choices,choices)?old:{schema_version:multi?2:1,writer:data.writer,choices,updated_at:new Date().toISOString()}};
+    return {key,value:old&&same(old.choices,choices)?old:{schema_version:multi?2:1,writer:data.writer,choices,...(old?.uppercase_joins!==undefined?{uppercase_joins:old.uppercase_joins}:{}),updated_at:new Date().toISOString()}};
   }
   function countsFor(profile,source='both'){
     return profile?(source==='originals'?profile.original_counts||profile.counts:source==='blends'?profile.blend_counts||{}:profile.counts):{};
@@ -256,6 +281,7 @@
     }
     if(key.startsWith('alphabets/')){
       if(!r||![1,2].includes(r.schema_version)||typeof r.writer!=='string'||!r.writer.trim()||r.writer.length>80||key!==alphabetKey(r.writer)||!r.choices||typeof r.choices!=='object'||Array.isArray(r.choices)||!Number.isFinite(Date.parse(r.updated_at)))fail('Invalid alphabet preferences.');
+      if(r.uppercase_joins!==undefined)validateUppercaseJoins(r.uppercase_joins);
       size(r);for(const [letter,value] of Object.entries(r.choices)){const ids=preferenceIDs(value);if(![...characters,...pairs].includes(letter)||(r.schema_version===1?!uuid(value):!Array.isArray(value))||!ids.length||ids.length>100||new Set(ids).size!==ids.length||!ids.every(uuid))fail('Invalid preferred character.');}return;
     }
     if(!r||!uuid(r.id||r.capture_id))fail('Unsupported backup record.');
@@ -269,6 +295,7 @@
       if(r.schema_version===6){if(!Array.isArray(r.source_edits)||r.source_edits.length!==r.source_ids.length)fail('Invalid saved stroke corrections.');r.source_edits.forEach(e=>validateStrokeEdit(e));}else if(r.source_edits!==undefined)fail('Unexpected saved stroke corrections.');
       const h=r.horizontal/100,v=r.vertical/100,w=r.source_ids.length===2?[1-h,h]:[(1-h)*(1-v),h*(1-v),(1-h)*v,h*v];if(!same(r.weights,w)||!Array.isArray(r.samples)||r.samples.length!==1)fail('Invalid blend weights.');return;
     }
+    if(r.schema_version===7){if(r.plan_id!==plans.symbols.id||r.suggestion?.method!=='symbol-sketch-v1'||!Array.isArray(r.suggestion.source_ids)||!r.suggestion.source_ids.length||!r.suggestion.source_ids.every(uuid))fail('Invalid suggested symbols.');const original=clone(r);original.schema_version=3;validateRecord(key,original);return;}
     size(r);validateContent(r.writer,r.raw_strokes,r.display_smoothing);
     if(typeof r.saved_at!=='string'||!/(Z|[+-]\d\d:\d\d)$/.test(r.saved_at)||!Number.isFinite(Date.parse(r.saved_at)))fail('Invalid save time.');
     if(r.coordinates?.width!==1000||r.coordinates?.height!==500||r.coordinates?.y!=='down')fail('Unsupported coordinates.');
@@ -279,24 +306,56 @@
     if(!Number.isInteger(r.order_index)||!same(r.order,orders[r.order_index])||(r.schema_version===2&&r.plan_id!==plan.id))fail('Unsupported capture plan.');
     if(!same(r.samples,extract(r.raw_strokes,r.order,r.schema_version)))fail('Processed samples do not match the original writing.');
   }
+  // Keep stored extraction and backup validation stable. Recover optional z tails
+  // from the original guide coordinates only when no manual shift was chosen.
+  function baselineSample(sample,record,shift=0,files=[]){
+    if(record?.derived&&sample.letter==='z'&&shift===0){
+      const sources=record.source_ids.map((id,i)=>{
+        const capture=files.find(f=>f.key==='letters/'+id+'.json')?.value;
+        const raw=capture?.samples.find(s=>s.letter==='z');
+        if(!raw)return null;
+        return {capture,raw,scale:record.source_scales?.[i]??1,shift:record.source_shifts[i],edit:record.source_edits?.[i]};
+      });
+      if(sources.some(s=>!s))return sample;
+      const legacy=blendMany(sources.map(s=>({...scaleSample(editStrokes(s.raw,s.edit),s.scale),baseline_shift_mm:s.shift})),record.weights);
+      // Only migrate the display of old blends; newly corrected blends already
+      // contain this translation and must never receive it twice.
+      if(!legacy||!same(legacy.processed_strokes,sample.processed_strokes))return sample;
+      const correction=sources.reduce((sum,s,i)=>{
+        const aligned=baselineSample(s.raw,s.capture,s.shift);
+        return sum+(aligned.processed_strokes[0].points[0].y-s.raw.processed_strokes[0].points[0].y)*s.scale*record.weights[i];
+      },0);
+      if(!correction)return sample;
+      const result=clone(sample);
+      for(const stroke of result.processed_strokes)for(const point of stroke.points)point.y+=correction;
+      return result;
+    }
+    if(record?.schema_version!==2||record.derived||sample.letter!=='z'||shift!==0)return sample;
+    const baseline=record.guides?.baseline??330,bottom=sample.bounds?.bottom,top=sample.bounds?.top;
+    if(!(bottom>baseline+16&&top<baseline))return sample;
+    const result=clone(sample);
+    for(const stroke of result.processed_strokes)for(const point of stroke.points)point.y+=bottom-baseline;
+    return result;
+  }
   function catalog(files){
     const records=files.filter(f=>f.key.startsWith('letters/')||f.key.startsWith('blends/')).map(f=>f.value).sort((a,b)=>Date.parse(b.saved_at)-Date.parse(a.saved_at)||b.id.localeCompare(a.id));
     const reviews=new Map(files.filter(f=>f.key.startsWith('letter_reviews/')).map(f=>[f.value.capture_id,f.value.reviews]));
     const profiles=new Map(),byWriter=new Map(),states=new Map(),next=new Set();
     for(const r of records){
-      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
+      if(!profiles.has(r.writer)){profiles.set(r.writer,{writer:r.writer,counts:{},original_counts:{},blend_counts:{},capture_counts:{},total_counts:{},latest_saved_at:r.saved_at,next_order_index:0});byWriter.set(r.writer,[]);states.set(r.writer,[]);}
       const profile=profiles.get(r.writer),review=reviews.get(r.id)||{};
       profile.capture_progress??={};
       if(r.schema_version>=2&&r.schema_version<=3&&!profile.capture_progress[r.plan_id]){const historicalPlan=r.schema_version===3?recordPlan(r):plan;if(historicalPlan)profile.capture_progress[r.plan_id]={next_order_index:(r.order_index+1)%historicalPlan.orders.length,capture_orders:clone(r.capture_orders||historicalPlan.orders)};}
       if(r.schema_version===2&&!next.has(r.writer)){profile.next_order_index=(r.order_index+1)%plan.orders.length;if(r.capture_orders)profile.capture_orders=clone(r.capture_orders);next.add(r.writer);}
       states.get(r.writer).push([r.id,r.saved_at,review]);
-      for(const s of r.samples){const setting=review[s.letter]||{included:true,baseline_shift_mm:s.baseline_shift_mm||0};
+      for(const s of r.samples){const setting=review[s.letter]||{included:r.schema_version!==7,baseline_shift_mm:s.baseline_shift_mm||0};
+        if(!r.derived&&r.schema_version!==7)profile.capture_counts[s.letter]=(profile.capture_counts[s.letter]||0)+1;
         profile.total_counts[s.letter]=(profile.total_counts[s.letter]||0)+1;profile.counts[s.letter]=(profile.counts[s.letter]||0)+Number(setting.included);
         if(setting.included){const counts=r.derived?profile.blend_counts:profile.original_counts;counts[s.letter]=(counts[s.letter]||0)+1;}
-        byWriter.get(r.writer).push({...scaleSample(editStrokes(s,setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived});
+        byWriter.get(r.writer).push({...scaleSample(editStrokes(baselineSample(s,r,setting.baseline_shift_mm,files),setting.stroke_edit),setting.scale_factor??1),...setting,stroke_edit:clone(setting.stroke_edit??originalStrokeEdit(s.processed_strokes.length)),scale_factor:setting.scale_factor??1,capture_id:r.id,saved_at:r.saved_at,derived:!!r.derived,suggested:r.schema_version===7});
       }
     }
-    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
+    for(const [writer,p] of profiles){const choices=clone(files.find(f=>f.key===alphabetKey(writer))?.value.choices||{});p.preferred_sets=Object.fromEntries(Object.entries(choices).map(([c,ids])=>[c,preferenceIDs(ids)]));p.preferred=Object.fromEntries(Object.entries(p.preferred_sets).map(([c,ids])=>[c,ids[0]]));p.uppercase_joins=files.find(f=>f.key===alphabetKey(writer))?.value.uppercase_joins??allUppercase;p.character_spacing=clone(files.find(f=>f.key===characterSpacingKey(writer))?.value.adjustments||{});states.get(writer).push(['preferred',choices],['spacing',p.character_spacing],['uppercase_joins',p.uppercase_joins]);p.counts=Object.fromEntries(Object.entries(p.counts).sort());p.total_counts=Object.fromEntries(Object.entries(p.total_counts).sort());p.revision=stable(states.get(writer));}
     return {writers:[...profiles.values()].sort((a,b)=>a.writer.toLowerCase().localeCompare(b.writer.toLowerCase())),byWriter};
   }
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -369,17 +428,21 @@
     for(const stroke of sample.processed_strokes||[])for(const p of stroke.points||[]){left=Math.min(left,p.x);right=Math.max(right,p.x);}
     return Number.isFinite(left)&&Number.isFinite(right)?Math.max(0,right-left):Math.max(0,(sample.bounds?.right||0)-(sample.bounds?.left||0));
   }
-  function spacing(a,b,scale,height){
+  function spacing(a,b,scale,height,connected=false){
     function envelope(sample){const rows=new Map();for(const stroke of sample.processed_strokes){const points=resample(stroke.points,128);for(const p of points){const row=Math.floor((p.y*scale+sample.baseline_shift_mm)/.5),x=p.x*scale;for(const key of [row-1,row,row+1]){const r=rows.get(key)||[Infinity,-Infinity];r[0]=Math.min(r[0],x);r[1]=Math.max(r[1],x);rows.set(key,r);}}}return rows;}
-    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*.25;
-    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*.18);
-    return Math.max(width*.45,Math.min(width+height*.22,advance));
+    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*(connected?.08:.25);
+    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*(connected?.04:.18));
+    const normal=Math.max(width*.45,Math.min(width+height*.22,advance));
+    if(connected){const aJoin=connectionMetrics(a),bJoin=connectionMetrics(b);if(aJoin&&bJoin)return Math.max(normal,(aJoin.exit.x-bJoin.entry.x)*scale+height*.04);}
+    return normal;
   }
   function writingExtents(used,height){let above=0,below=0;for(const s of used)if(s)for(const stroke of s.processed_strokes)for(const p of stroke.points){const y=p.y*height/80+s.baseline_shift_mm;above=Math.max(above,-y);below=Math.max(below,y);}return {above,below};}
-  function wordLayout(letters,used,height,letter_spacing,adjustments){
+  // Punctuation and digits break cursive runs, including inside a word.
+  function cursiveNeighbours(left,right,uppercase=allUppercase){return /^[a-z]+$/i.test(left)&&/^[a-z]+$/i.test(right)&&(!/[A-Z]$/.test(left)||!/^[a-z]/.test(right)||uppercase.includes(left.at(-1)));}
+  function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false,uppercase=allUppercase){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height)*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1],uppercase))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
     const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
@@ -387,6 +450,7 @@
     const scale=height/80,{above,below}=extents,right=frame.x+frame.width;let x=frame.x,baseline=frame.y+above;
     const line=above+below+height*.8*line_spacing,paths=[],chosen=[];let maxRight=frame.x;
     for(let i=0;i<letters.length;){
+      if(letters[i]==='\t'){const stop=height*2.8*word_spacing;x=frame.x+(Math.floor((x-frame.x+.000001)/stop)+1)*stop;i++;continue;}
       if(letters[i]==='\n'){x=frame.x;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
       const {positions,left,wordWidth,cursor}=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
@@ -419,23 +483,25 @@
     return {on:settings.level!=='off',word:limits[0],size:limits[1],slope:Math.tan(limits[2]*Math.PI/180),bend:limits[3],drift,
       line:index=>({slope:Math.tan(limits[2]*Math.PI/180)*(.65*noise('page-slope',0)+.35*drift('line-slope',index,4)),bend:limits[3]*drift('line-bend',index,4)})};
   }
-  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation},adjustments={},settings={}){
-    const layout=pageLayout(settings),width=210-layout.margin_left-layout.margin_right,bottom=297-layout.margin_bottom,scale=height/80;
+  function layoutDocument(letters,used,{height,smooth=true,letter_spacing=1,word_spacing=1,line_spacing=1,natural_variation,auto_join_preview=false,paper,underline=[],uppercase_joins=allUppercase},adjustments={},settings={}){
+    const dimensions=paperSize(paper),layout=pageLayout(settings),width=dimensions.width-layout.margin_left-layout.margin_right,bottom=dimensions.height-layout.margin_bottom,scale=height/80;
     const natural=naturalPattern(natural_variation);let glyphIndex=0,gapIndex=0,lineIndex=0;
     // Vary whole glyphs around their reviewed baselines, never the stored samples.
     if(natural.on)used=used.map(s=>{if(!s)return null;const factor=1+natural.size*natural.drift('size',glyphIndex++,6);return {...scaleSample(s,factor),natural_scale:factor};});
-    const extents=writingExtents(used,height),padding=natural.slope*width/2+natural.bend,above=extents.above+padding,below=extents.below+padding,advance=above+below+height*.8*line_spacing;
+    const extents=writingExtents(used,height),padding=natural.slope*width/2+natural.bend,above=extents.above+padding,below=extents.below+padding+(underline.length?height*.2:0),advance=above+below+height*.8*line_spacing;
     if(above+below>bottom-layout.margin_top)fail('The writing is taller than the available page area. Reduce its size or margins.');
+    let textOffset=0;const tokenOffsets=letters.map(letter=>{const start=textOffset;textOffset+=letter.length;return start;});
     const lines=[];let row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};
     const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){flush();i++;continue;}
-      if(letters[i]===' '){row.cursor+=height*.7*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
+      if(letters[i]==='\t'){const stop=height*2.8*word_spacing;row.cursor=(Math.floor((row.cursor+.000001)/stop)+1)*stop;i++;continue;}
+      if(letters[i]===' '){row.cursor+=height*(auto_join_preview?.35:.7)*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
-      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
+      const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview,uppercase_joins);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
-      if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
-      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j]});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
+      if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else fail('A word and its indentation are too wide for the page. Reduce writing size or indentation.');}
+      for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,textOffset:tokenOffsets[j],letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j],uppercase_joins)});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
     // Preserve paragraph breaks, but never create blank leading/trailing pages.
@@ -447,14 +513,34 @@
       if(baseline+below>bottom+.00001){if(page.paths.length){pages.push(page);if(pages.length>=20)fail('This document needs more than 20 pages. Split the text into smaller documents.');page={paths:[],chosen:[],lines:[]};}baseline=layout.margin_top+above;}
       const offset=layout.margin_left+(layout.alignment==='centre'?(width-line.right-line.left)/2:layout.alignment==='right'?width-line.right:0);
       const shape=natural.line(lineIndex++);
-      for(const {s,x,letter} of line.glyphs){for(const stroke of s.processed_strokes){
-        if(natural.on){
-          // Apply a continuous baseline drift to the complete line. The reserved
-          // envelope also contains quadratic control points after smoothing.
-          const points=stroke.points.map(p=>{const px=offset+x+p.x*scale,t=(px-layout.margin_left)/width;return {x:px,y:baseline+s.baseline_shift_mm+p.y*scale+shape.slope*(px-layout.margin_left-width/2)+shape.bend*Math.sin(Math.PI*t)};});
-          page.paths.push(pathData(points,smooth,0,0,1));
-        }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
-      }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      for(let glyphIndex=0;glyphIndex<line.glyphs.length;glyphIndex++){const {s,x,letter,joinPrevious}=line.glyphs[glyphIndex];
+        if(auto_join_preview&&!natural.on&&joinPrevious&&glyphIndex>0){
+          const previous=line.glyphs[glyphIndex-1],geometry=connectorGeometry(previous.s,s,offset+previous.x,offset+x,baseline,scale,height);
+          if(geometry&&[geometry.start,geometry.control1,geometry.middle,geometry.control2,geometry.end].every(p=>p.x>=layout.margin_left&&p.x<=dimensions.width-layout.margin_right&&p.y>=layout.margin_top&&p.y<=bottom)){page.paths.push(connectorPath(geometry));page.generated_joins=(page.generated_joins||0)+1;}else page.skipped_joins=(page.skipped_joins||0)+1;
+        }
+        for(const stroke of s.processed_strokes){
+          if(natural.on){
+            // Apply a continuous baseline drift to the complete line. The reserved
+            // envelope also contains quadratic control points after smoothing.
+            const points=stroke.points.map(p=>{const px=offset+x+p.x*scale,t=(px-layout.margin_left)/width;return {x:px,y:baseline+s.baseline_shift_mm+p.y*scale+shape.slope*(px-layout.margin_left-width/2)+shape.bend*Math.sin(Math.PI*t)};});
+            page.paths.push(pathData(points,smooth,0,0,1));
+          }else page.paths.push(pathData(stroke.points,smooth,offset+x,baseline+s.baseline_shift_mm,scale));
+        }page.chosen.push({letter,capture_id:s.capture_id,...(natural.on?{natural_scale:s.natural_scale}:{}),...(s.sources?{sources:s.sources,weight:s.weight,weights:s.weights}:{})});}
+      // Keep rules below the descender envelope; split at wraps and unselected text.
+      const underlineY=baseline+extents.below+padding+height*.12;
+      let rule=null;
+      const finishRule=()=>{if(rule&&rule.end>rule.start)page.paths.push('M '+rule.start.toFixed(3)+' '+underlineY.toFixed(3)+' L '+rule.end.toFixed(3)+' '+underlineY.toFixed(3));rule=null;};
+      for(const glyph of line.glyphs){
+        const inkWidth=sampleInkWidth(glyph.s)*scale;
+        for(let k=0;k<glyph.letter.length;k++){
+          const position=glyph.textOffset+k,selected=underline.some(r=>position>=r.start&&position<r.end);
+          if(!selected){finishRule();continue;}
+          const start=offset+glyph.x+inkWidth*k/glyph.letter.length,end=offset+glyph.x+inkWidth*(k+1)/glyph.letter.length;
+          if(rule&&!underline.some(r=>rule.position>=r.start&&position<r.end))finishRule();
+          if(rule){rule.end=end;rule.position=position;}else rule={start,end,position};
+        }
+      }
+      finishRule();
       page.lines.push({baseline,left:offset+line.left,right:offset+line.right,characters:line.glyphs.map(g=>g.letter).join(''),...(natural.on?{natural_line:shape}: {})});baseline+=advance;
     }
     if(page.paths.length)pages.push(page);return pages;
@@ -474,7 +560,7 @@
   }
   function compose(files,data){return composeWriting(files,data);}
   function composeWriting(files,data,reviewSample=null){
-    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=false,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
+    const {writer,phrase,height=5,smooth=true,samples:mode='latest_three',variation='original',seed='0',joined=false,auto_join_preview=false,blend_strength,blend_count=2,blend_vertical=50,source='both',use_preferred=true,letter_spacing=1,word_spacing=1,line_spacing=1}=data;
     const {sample_order='cycle',sample_seed='0'}=data,pick=samplePicker(sample_order,sample_seed);
     const natural=naturalSettings(data.natural_variation);
     if(![letter_spacing,word_spacing,line_spacing].every(v=>finite(v,.5,2)))fail('Spacing must be between 50% and 200%.');
@@ -483,21 +569,23 @@
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
     if(typeof phrase!=='string'||phrase.length>(data.page_layout!==undefined?10000:2000)||![...phrase].some(c=>characters.includes(c)))fail(data.page_layout!==undefined?'Type a document (up to 10,000 characters).':'Type a phrase (up to 2000 characters).');
-    if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
-    if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
+    if([...phrase].some(c=>!(characters+' \n\t').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
+    if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean'||typeof auto_join_preview!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
+    const underline=data.underline??[];
+    validateUnderline(underline,phrase.length);
     const previews=[];
     const cat=catalog(files),all=cat.byWriter.get(writer.trim())||[],variants={},available={},preferences=cat.writers.find(p=>p.writer===writer.trim())?.preferred_sets||{};
     for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
     for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred?preferenceIDs(preferences[letter]).map(id=>list.find(s=>s.capture_id===id)).filter(Boolean):[];variants[letter]=preferred.length?preferred:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
     const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&(!reviewSample||pair===reviewSample.letter)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
-    const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
+    const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&c!=='\t'&&!variants[c]?.length))].sort();
     if(missing.length)fail('No included '+(source==='blends'?'saved blends':source==='originals'?'original samples':'samples')+' for: '+missing.join(', ')+'. '+(source==='blends'?'Save blends for these characters or choose Both.':'Capture them or include a saved example in Review samples.'));
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
     let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{
-      if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=pick(c,list,n);
+      if(c===' '||c==='\n'||c==='\t')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=pick(c,list,n);
       if(variation==='blend'){
         const candidates=list.filter(s=>s!==original&&compatible(original,s));
         // Seeded selection stays fixed when only the mix controls change.
@@ -509,7 +597,7 @@
         }fallback++;
       }return original;
     });
-    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural};
+    const profile=cat.writers.find(p=>p.writer===writer.trim()),options={uppercase_joins:profile.uppercase_joins,height,smooth,letter_spacing,word_spacing,line_spacing,natural_variation:natural,auto_join_preview,underline};
     if(reviewSample){
       // Reserve the full review range once: 50–400% size and ±10 mm position.
       // The baseline and display scale must not follow the changing ink bounds.
@@ -521,18 +609,76 @@
       const svg=drawingSVG(layout.paths,'Review: '+phrase).replace('width="210mm" height="297mm" viewBox="0 0 210 297"','viewBox="'+box.join(' ')+'"');
       return {svg,used_samples:layout.chosen};
     }
-    const layouts=data.page_layout!==undefined||natural.level!=='off'?layoutDocument(letters,used,options,profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
-    const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
+    if(auto_join_preview&&natural.level!=='off')fail('Turn Natural variation off to use smooth cursive joins.');
+    const layouts=underline.length||auto_join_preview||phrase.includes('\t')||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length,data.paper),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
-    return {svg:pages[0].svg,pages,used_samples:chosen,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
+    const source_usage=[];
+    for(const s of used.filter(Boolean)){
+      const kind=variation==='blend'&&s.sources?'Generated blend':s.suggested?'Accepted suggested symbol':s.derived?'Saved blend':'Original capture';
+      const preferred=use_preferred&&preferenceIDs(preferences[s.letter]).includes(s.capture_id)&&kind!=='Generated blend';
+      const label=(preferred?'Preferred ':'')+kind.toLowerCase();
+      if(!source_usage.some(item=>item.letter===s.letter&&item.label===label))source_usage.push({letter:s.letter,label});
+    }
+    return {svg:pages[0].svg,pages,used_samples:chosen,source_usage,unavailable_count:0,variation:{mode:variation,blended,fallback,seed:String(seed),blend_count,previews},
       sample_selection:{mode,source,use_preferred,sample_order,sample_seed,all_counts:profile.counts,original_counts:profile.original_counts,blend_counts:profile.blend_counts,preferred:profile.preferred,available_counts:available,writer_revision:profile.revision,latest_saved_at:profile.latest_saved_at,counts:Object.fromEntries(Object.entries(variants).map(([c,v])=>[c,v.length])),newest_saved_at:dates.at(-1),oldest_saved_at:dates[0]}};
   }
+  function strokeLength(stroke){
+    const points=stroke?.points||[];let length=0;
+    for(let i=1;i<points.length;i++)length+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);
+    return length;
+  }
+  function primaryStrokeIndex(sample){
+    const strokes=sample?.processed_strokes||[];let best=-1,bestLength=-1;
+    for(let i=0;i<strokes.length;i++){const length=strokeLength(strokes[i]);if(length>bestLength){best=i;bestLength=length;}}
+    return best;
+  }
   function connectionMetrics(sample){
-    const strokes=sample?.processed_strokes||[],first=strokes.find(s=>s.points?.length)?.points,last=[...strokes].reverse().find(s=>s.points?.length)?.points;
-    if(!first||!last)return null;
-    const tangent=(a,b)=>({dx:b.x-a.x,dy:b.y-a.y,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI});
-    const entry=first[0],exit=last.at(-1),entry_tangent=first.length>1?tangent(first[0],first[1]):{dx:0,dy:0,angle:0},exit_tangent=last.length>1?tangent(last.at(-2),last.at(-1)):{dx:0,dy:0,angle:0};
-    return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length};
+    const strokes=sample?.processed_strokes||[],join_stroke_index=primaryStrokeIndex(sample);
+    if(join_stroke_index<0)return null;
+    const points=strokes[join_stroke_index]?.points||[];if(!points.length)return null;
+    // Ignore stationary pen-up samples; they otherwise erase the end direction.
+    function endpointTangent(fromEnd){
+      const endpoint=fromEnd?points.at(-1):points[0];
+      for(let i=fromEnd?points.length-2:1;fromEnd?i>=0:i<points.length;fromEnd?i--:i++){
+        const other=points[i],dx=fromEnd?endpoint.x-other.x:other.x-endpoint.x,dy=fromEnd?endpoint.y-other.y:other.y-endpoint.y;
+        if(Math.hypot(dx,dy)>1e-6)return {dx,dy,angle:Math.atan2(dy,dx)*180/Math.PI};
+      }
+      return {dx:0,dy:0,angle:0};
+    }
+    const entry=points[0],exit=points.at(-1),entry_tangent=endpointTangent(false),exit_tangent=endpointTangent(true);
+    return {entry:clone(entry),exit:clone(exit),entry_tangent,exit_tangent,stroke_count:strokes.length,join_stroke_index,join_stroke_length:strokeLength(strokes[join_stroke_index]),auxiliary_stroke_count:Math.max(0,strokes.length-1)};
+  }
+  function connectorGeometry(left,right,leftX,rightX,baseline,scale,height){
+    const a=connectionMetrics(left),b=connectionMetrics(right);if(!a||!b)return null;
+    const start={x:leftX+a.exit.x*scale,y:baseline+(left.baseline_shift_mm||0)+a.exit.y*scale};
+    const end={x:rightX+b.entry.x*scale,y:baseline+(right.baseline_shift_mm||0)+b.entry.y*scale};
+    const dx=end.x-start.x,dy=end.y-start.y,distance=Math.hypot(dx,dy);
+    // A negative horizontal gap or a high stem/low tail endpoint cannot be
+    // joined safely without retracing or inventing a long stroke.
+    if(distance<.15||dx<=0||dx>height*1.8||Math.abs(dy)>height*.6)return null;
+    if([start.y,end.y].some(y=>y<baseline-height*.75||y>baseline+height*.4))return null;
+    function direction(t){const length=Math.hypot(t.dx,t.dy);return length>1e-6?{x:t.dx/length,y:t.dy/length}:null;}
+    const outgoing=direction(a.exit_tangent),incoming=direction(b.entry_tangent);
+    if(!outgoing||!incoming)return null;
+    // Keep the connector progressing towards its neighbour. Following a
+    // backwards pen-lift flourish creates a second loop over the saved ink.
+    // Only the new connector changes; endpoints and letter strokes stay fixed.
+    const chord={x:dx/distance,y:dy/distance};
+    const exitDirection=outgoing.x>0?outgoing:chord;
+    const entryDirection=incoming.x>0?incoming:chord;
+    const handle=Math.min(distance/6,dx/6,height*.035);
+    const low=Math.min(start.y,end.y)-height*.02,high=Math.max(start.y,end.y)+height*.02;
+    const clamp=y=>Math.max(low,Math.min(high,y));
+    const control1={x:start.x+exitDirection.x*handle,y:clamp(start.y+exitDirection.y*handle)};
+    const control2={x:end.x-entryDirection.x*handle,y:clamp(end.y-entryDirection.y*handle)};
+    const middle={x:(control1.x+control2.x)/2,y:(control1.y+control2.y)/2};
+    return {start,control1,middle,control2,end,distance};
+  }
+  function connectorPath(geometry){
+    // Two quadratics meet with identical tangents, and use restrained entry and exit curves. Keep the existing path-only SVG and plotter format.
+    const f=n=>Number(n).toFixed(4),point=p=>f(p.x)+' '+f(p.y);
+    return 'M'+point(geometry.start)+' Q'+point(geometry.control1)+' '+point(geometry.middle)+' Q'+point(geometry.control2)+' '+point(geometry.end);
   }
   function comparisonMany(sources,result){
     const svgs=[...sources,result].map(reviewSVG),boxes=svgs.map(svg=>svg.match(/viewBox="([^" ]+) ([^" ]+) ([^" ]+) ([^" ]+)"/).slice(1).map(Number));
@@ -549,6 +695,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,connectionMetrics,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={setUppercaseJoins,validateUppercaseJoins,validateUnderline,paperSizes,paperSize,fitProofSheet,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);

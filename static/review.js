@@ -110,7 +110,7 @@
     $('sample-detail').hidden=!sample;
     if(!sample){controls();return;}
     $('sample-title').textContent=sample.letter+' · '+(sample.included?'Included':'Excluded');
-    $('sample-date').textContent=(sample.derived?'Saved blend · ':'Saved ')+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
+    $('sample-date').textContent=(sample.suggested?'Suggested symbol · ':sample.derived?'Saved blend · ':'Saved ')+new Date(sample.saved_at).toLocaleString()+' · '+sample.stroke_count+' pen stroke'+(sample.stroke_count===1?'':'s');
     drawInk(sample.svg);
     strokeEdit=strokeEnabled()?window.StudioEngine.clone(sample.stroke_edit??window.StudioEngine.originalStrokeEdit(sample.stroke_count)):null;strokeUndo=[];strokeID=strokeEdit?.order[0]??0;renderStrokeChoices();
     $('sample-included').checked=sample.included;$('sample-shift').value=-sample.baseline_shift_mm;shiftReadout(sample.baseline_shift_mm);
@@ -125,7 +125,7 @@
     for(const [index,sample] of samples.entries()){
       const button=document.createElement('button');button.type='button';button.className='page-card';button.dataset.captureId=sample.capture_id;
       const title=document.createElement('strong');title.textContent='Example '+(samples.length-index)+' · '+(sample.included?'Included':'Excluded');
-      const date=document.createElement('span');date.textContent=(sample.derived?'Blend · ':'')+new Date(sample.saved_at).toLocaleString();
+      const date=document.createElement('span');date.textContent=(sample.suggested?'Suggested symbol · ':sample.derived?'Blend · ':'')+new Date(sample.saved_at).toLocaleString();
       button.append(title,date);button.onclick=()=>{showSample(sample);status('Viewing '+sample.letter+'. Choose whether to use this example, then save any changes.');};
       $('sample-list').append(button);
     }

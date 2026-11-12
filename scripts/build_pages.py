@@ -32,7 +32,7 @@ style+='\n'+(ROOT/'web/tooltips.css').read_text()
 style+='\n'+(ROOT/'web/capture-layout.css').read_text()
 style+='\n'+(ROOT/'web/studio-layout.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
+for name in ['symbol-suggestions.js','studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html'),('cursive.html','cursive.html')]:
     html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
@@ -53,6 +53,8 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     if(source=='blending.html'):
         html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
+        html=html.replace('<div id="alphabet-previews"', '<div id="suggested-symbols"></div><div id="alphabet-previews"')
+        html=html.replace('</body>','<script src="assets/symbol-suggestions.js"></script></body>')
         html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
         html=html.replace('<script src="assets/alphabet.js">','<script src="assets/character-spacing.js"></script><script src="assets/alphabet.js">')
     if(source=='review.html'):
@@ -62,13 +64,14 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><label>Character <select')
         html=html.replace('Choose a letter and inspect its saved examples, newest first.', 'Choose a writer, group and character, then inspect its originals and saved blends, newest first. Blends are labelled.')
     if(source=='compose.html'):
+        html=html.replace('<textarea id="phrase"', '<div id="compose-underline-controls"><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase"')
         # Larger sizes are supported by the browser engine; the legacy server keeps its original choices.
         html=html.replace('<option value="8">Large · 8 mm</option>', '<option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option>')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-natural.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-order.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<script src="assets/compose.js"></script>','<script src="assets/compositions.js"></script><script src="assets/compose.js"></script>')
         html=html.replace('<div class="compose-actions">','<div class="compose-settings"><label>Use <select id="compose-source"><option value="both">Originals and saved blends</option><option value="originals">Original samples only</option><option value="blends">Saved blends only</option></select></label><label><input id="compose-preferred" type="checkbox" checked> Use preferred versions when available</label></div><p>Preferred versions must match the chosen source type. Missing saved blends are reported before generating. <a href="alphabet.html">Manage my alphabet</a></p><div class="compose-actions">')
-        html=html.replace('<div class="compose-actions">','<label><input id="compose-joined" type="checkbox" aria-describedby="compose-joined-help"> Use saved joined pairs · Experimental</label><p id="compose-joined-help" class="subtle">Off for new compositions. Pair sizes may differ from individual letters, and pairs do not automatically connect to neighbouring letters. Saved compositions and restored drafts keep their previous choice.</p><select id="compose-variation" hidden><option value="original">Saved examples</option></select><p><a href="blending.html">Blend and save a single character</a>, then use it here as a saved sample.</p><div class="compose-actions">')
+        html=html.replace('<div class="compose-actions">','<label><input id="compose-joined" type="checkbox" aria-describedby="compose-joined-help"> Use saved joined pairs · Experimental</label><p id="compose-joined-help" class="subtle">Off for new compositions. Pair sizes may differ from individual letters, and enable Smooth cursive joins to connect pairs to neighbouring letters. Saved compositions and restored drafts keep their previous choice.</p><select id="compose-variation" hidden><option value="original">Saved examples</option></select><p><a href="blending.html">Blend and save a single character</a>, then use it here as a saved sample.</p><div class="compose-actions">')
         html=html.replace('<option value="all">','<option value="latest_four">Latest four per character</option><option value="all">')
         spacing_controls='<fieldset class="compose-spacing"><legend>Spacing · live after Generate preview</legend>'
         for name,label in [('letter','Letter spacing'),('word','Word spacing'),('line','Line gap')]:

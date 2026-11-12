@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Handwriting Studio · Compose</title>
 <link rel="stylesheet" href="/static/style.css?v=16">
-</head>
+<style>
+.compose-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px}
+#compose-comparison{overflow:auto;margin:16px 0}#compose-comparison[hidden]{display:none}
+.compose-compare-paper{max-height:65vh;overflow:auto;background:#e5e8e1;padding:8px}
+.compose-compare-grid>section{min-width:0}
+.compose-compare-paper img{display:block;width:var(--comparison-width,100%);max-width:none;height:auto;background:white;margin-bottom:12px}
+</style></head>
 <body class="compose-page">
 <div class="compose-shell">
   <header><div><p class="eyebrow">Handwriting Studio</p><h1>Compose your handwriting</h1></div><nav class="header-actions" aria-label="Studio"><a class="button" href="/">Capture letters</a><a class="button" id="review-link" href="/review">Review samples</a><a class="button" href="/fonts">Fonts</a><a class="button" href="/calibration">Calibration</a></nav></header>
@@ -13,6 +19,9 @@
   <form id="compose-form">
     <div class="compose-settings"><label>Writer <select id="compose-writer" required disabled><option value="">Loading writers…</option></select></label><label>Writing size <select id="compose-size"><option value="3">Small · 3 mm</option><option value="5" selected>Medium · 5 mm</option><option value="8">Large · 8 mm</option></select></label><label><input id="compose-smooth" type="checkbox" checked> Gentle smoothing</label></div>
     <div class="compose-settings sample-settings"><label>Samples <select id="compose-samples"><option value="latest_three">Latest three per letter</option><option value="latest_only">Latest only — check new writing</option><option value="all">All saved — newest first</option></select></label></div>
+    <label><input id="compose-connect" type="checkbox" checked> Smooth cursive joins · closer spacing</label><p>Connect neighbouring letters and saved pairs with smooth strokes. The joins are included in SVG and G-code downloads. Natural variation must be Off. Unsafe joins are left open.</p>
+    <p id="compose-source-help">Use chooses original captures, saved blends, or both. Accepted suggested symbols are included with originals; unreviewed suggestions are never used. Preferred versions take priority when enabled and allowed by Use. Otherwise, Samples chooses the newest examples of each character—not the last complete capture set. Repeated characters can use different examples.</p>
+    <p id="compose-source-summary" role="status" aria-live="polite">Generate a preview to see which characters use preferred versions, saved blends or original captures.</p>
     <p id="compose-counts" class="subtle"></p>
     <div class="compose-settings">
       <label>Standard phrase
@@ -41,6 +50,19 @@ abcdefghijklmnopqrstuvwxyz</textarea>
     <div class="compose-actions"><button id="generate" class="primary" disabled>Generate preview</button><button type="button" id="compose-download" disabled>Download A4 SVG</button><button type="button" id="compose-gcode" disabled>Download plotter G-code</button><button type="button" id="refresh-writers">Refresh samples</button></div>
   </form>
   <p id="compose-status" role="status" aria-live="polite">Loading your saved letters…</p>
+  <section id="compose-compare-panel">
+    <button id="compose-compare" type="button">Compare smooth joins off / on</button>
+    <p id="compose-compare-status" role="status">Compare the current writer and text with smooth joins off and on.</p>
+    <div id="compose-comparison" hidden>
+      <label for="compose-compare-zoom">Comparison zoom</label>
+      <select id="compose-compare-zoom"><option value="100">Fit width (100%)</option><option value="150">150%</option><option value="200">200%</option><option value="300">300%</option><option value="400">400%</option></select>
+      <button id="compose-compare-fit" type="button">Fit width</button>
+      <p>Zoom enlarges both sides equally. Scroll each pane in either direction to inspect the writing. Exported writing size stays unchanged.</p>
+      <div class="compose-compare-grid">
+      <section><h3>Unticked · joins off</h3><div id="compose-compare-off" class="compose-compare-paper"></div></section>
+      <section><h3>Ticked · joins on</h3><div id="compose-compare-on" class="compose-compare-paper"></div></section>
+    </div></div>
+  </section>
   <div class="composed-paper"><img id="composed-image" alt="Preview of your phrase using the captured handwriting" hidden><p id="compose-empty">Your handwriting preview will appear here.</p></div>
   <p class="subtle">A4 portrait · 20 mm margins · one path per pen stroke. Letters with tails extend below the baseline. Capitals, punctuation and cursive joins come later.</p>
 </div>

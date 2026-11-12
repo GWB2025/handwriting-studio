@@ -23,8 +23,8 @@ But thy eternal summer shall not fade
 Nor lose possession of that fair thou owest;
 Nor shall Death brag thou wander'st in his shade,
 When in eternal lines to time thou growest:
-So long as men can breathe or eyes can see,
-So long lives this and this gives life to thee.`;
+	So long as men can breathe or eyes can see,
+	So long lives this and this gives life to thee.`;
  // Original poem written by Codex for Handwriting Studio, in Shakespearean sonnet form.
  const handwritingSonnet=`Upon the page my fingers leave their trace,
 A path no other hand could make its own;
@@ -42,9 +42,9 @@ So let the ink outlive the passing day,
 And keep what hurried speech would cast away.`;
  return {pangrams,examples:[...pangrams,
   {id:'all-pangrams',label:'All eight pangrams',text:pangrams.map(p=>p.text).join('\n\n'),group:'Text passages',passage:true,note:'Eight pangrams, separated by a blank line. You can edit or replace the passage below.'},
-  {id:'sonnet-lowercase',label:'Sonnet 18 · lowercase letters only',text:sonnet.toLowerCase().replace(/[^a-z \n]/g,''),group:'Text passages',passage:true,sonnet:true,note:'William Shakespeare’s Sonnet 18, in lowercase with punctuation omitted. The fourteen verse lines are kept.'},
+  {id:'sonnet-lowercase',label:'Sonnet 18 · lowercase letters only',text:sonnet.toLowerCase().replace(/[^a-z \n\t]/g,''),group:'Text passages',passage:true,sonnet:true,note:'William Shakespeare’s Sonnet 18, in lowercase with punctuation omitted. The fourteen verse lines are kept.'},
   {id:'sonnet-original',label:'Sonnet 18 · original text',text:sonnet,group:'Text passages',passage:true,sonnet:true,note:'William Shakespeare’s Sonnet 18. Requires saved capitals and punctuation as well as lowercase letters; missing samples are listed before export.'},
-  {id:'handwriting-sonnet-lowercase',label:'The Hand in Ink · lowercase letters only',text:handwritingSonnet.toLowerCase().replace(/[^a-z \n]/g,''),group:'Text passages',passage:true,note:'The Hand in Ink: an original sonnet by Codex for Handwriting Studio, in the Shakespearean form. Lowercase with punctuation omitted; all fourteen verse lines are kept.'},
+  {id:'handwriting-sonnet-lowercase',label:'The Hand in Ink · lowercase letters only',text:handwritingSonnet.toLowerCase().replace(/[^a-z \n\t]/g,''),group:'Text passages',passage:true,note:'The Hand in Ink: an original sonnet by Codex for Handwriting Studio, in the Shakespearean form. Lowercase with punctuation omitted; all fourteen verse lines are kept.'},
   {id:'handwriting-sonnet-original',label:'The Hand in Ink · full text',text:handwritingSonnet,group:'Text passages',passage:true,note:'The Hand in Ink: an original sonnet by Codex for Handwriting Studio, in the Shakespearean form. Requires saved capitals and punctuation as well as lowercase letters; missing samples are listed before export.'}
  ]};
 });

@@ -8,3 +8,8 @@
 .studio-tip-toggle[aria-pressed="true"] {background:#245c4a;color:white;border-color:#245c4a}
 dialog>.studio-tip-toggle {margin-top:12px}
 .studio-tip-ui:focus-visible,.studio-tip-panel button:focus-visible {outline:3px solid #edbb40;outline-offset:3px}
+/* Help is explicitly opened; the circle has a generous touch target. */
+button.studio-help-marker{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex:0 0 32px;width:32px;height:32px;min-width:32px;min-height:32px;margin:0 4px;padding:0;border:1.5px solid #527565;border-radius:50%;background:#fff;color:#245442;font:bold 18px/1 sans-serif;cursor:pointer;touch-action:manipulation}
+button.studio-help-marker:hover,button.studio-help-marker[aria-expanded="true"]{background:#e2eee6}
+
+.studio-page button.studio-help-marker{flex:0 0 32px!important;width:32px!important;max-width:32px;min-height:32px!important;padding:0!important}

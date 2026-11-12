@@ -190,6 +190,7 @@ test('backups accept legacy, transitional and current joined-pair capture plans'
   const b=browser();assert.equal(await b.StudioStorage.importBackup(backup),3);
   const profile=(await call(b,'/api/letters/writers')).data.writers.find(p=>p.writer==='Pair Writer');
   assert.equal(profile.counts.th,3);
-  const fresh=browser();assert.equal(await fresh.StudioStorage.importBackup(await b.StudioStorage.backup()),3);
+  const roundTrip=await b.StudioStorage.backup(),fresh=browser();
+  assert.equal(await fresh.StudioStorage.importBackup(roundTrip),3);
   assert.equal((await call(fresh,'/api/letters/writers')).data.writers.find(p=>p.writer==='Pair Writer').counts.th,3);
 });

@@ -51,3 +51,72 @@ test('ink-width advance leaves ordinary samples unchanged when bounds match stro
   const a={letter:'a',bounds:{left:0,right:70},processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:35,y:-40},{x:70,y:0}]}]};
   assert.equal(E.sampleInkWidth(a),a.bounds.right-a.bounds.left);
 });
+
+
+test('primary joining stroke ignores a short dot or crossbar stroke',()=>{
+  const sample={processed_strokes:[
+    {pointerType:'pen',points:[{x:0,y:0},{x:20,y:-40},{x:45,y:-10},{x:60,y:0}]},
+    {pointerType:'pen',points:[{x:25,y:-55},{x:27,y:-55}]}
+  ]};
+  assert.equal(E.primaryStrokeIndex(sample),0);
+  assert.ok(E.strokeLength(sample.processed_strokes[0])>E.strokeLength(sample.processed_strokes[1]));
+  const metric=E.connectionMetrics(sample);
+  assert.equal(metric.join_stroke_index,0);
+  assert.equal(metric.auxiliary_stroke_count,1);
+  assert.deepEqual(metric.entry,{x:0,y:0});
+  assert.deepEqual(metric.exit,{x:60,y:0});
+});
+
+test('primary joining stroke can be later in captured stroke order',()=>{
+  const sample={processed_strokes:[
+    {pointerType:'pen',points:[{x:10,y:-30},{x:18,y:-30}]},
+    {pointerType:'pen',points:[{x:0,y:0},{x:20,y:-45},{x:50,y:-15},{x:70,y:0}]}
+  ]};
+  assert.equal(E.primaryStrokeIndex(sample),1);
+  const metric=E.connectionMetrics(sample);
+  assert.equal(metric.join_stroke_index,1);
+  assert.deepEqual(metric.entry,{x:0,y:0});
+  assert.deepEqual(metric.exit,{x:70,y:0});
+});
+
+
+test('connector geometry follows primary exit and entry tangents within a safe gap',()=>{
+  const left={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:30,y:-15},{x:60,y:0}]}]};
+  const right={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:25,y:-12},{x:50,y:0}]}]};
+  const join=E.connectorGeometry(left,right,20,28,30,.1,8);
+  assert.ok(join);
+  assert.deepEqual(join.start,{x:26,y:30});
+  assert.deepEqual(join.end,{x:28,y:30});
+  assert.ok(Number.isFinite(join.control1.x)&&Number.isFinite(join.control2.y));
+  assert.match(E.connectorPath(join),/^M26\.0000 30\.0000 Q/);
+});
+
+test('connector geometry rejects implausibly distant joins',()=>{
+  const sample={baseline_shift_mm:0,processed_strokes:[{pointerType:'pen',points:[{x:0,y:0},{x:40,y:0}]}]};
+  assert.equal(E.connectorGeometry(sample,sample,0,100,20,.1,5),null);
+});
+
+test('cursive proof can add preview-only connectors between uncaptured neighbours',()=>{
+  const files=extendedFiles('lowercase');
+  for(const {value:r} of files){for(const stroke of r.raw_strokes)stroke.points[1].y=318;r.samples=E.extract(r.raw_strokes,r.order,r.schema_version);}
+  const result=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:true,page_layout:{}});
+  assert.equal(result.pages.length,1);
+  assert.equal(result.pages[0].generated_joins,2);
+  assert.match(result.pages[0].svg,/ Q/);
+  const plain=E.compose(files,{writer:'Writer',phrase:'xyz',height:8,smooth:true,joined:true,auto_join_preview:false,page_layout:{}});
+  assert.equal(plain.pages[0].generated_joins,undefined);
+});
+
+
+test('cursive preview imports backups directly and preview publishing cancels stale runs',()=>{
+  const fs=require('node:fs');
+  const ui=fs.readFileSync('static/cursive.js','utf8');
+  const html=fs.readFileSync('static/cursive.html','utf8');
+  const workflow=fs.readFileSync('.github/workflows/static-preview.yml','utf8');
+  assert.match(html,/id="cursive-backup-file"/);
+  assert.match(ui,/cursive-backup-file/);
+  assert.match(ui,/\.click\(\)/);
+  assert.match(ui,/StudioStorage\.importBackup/);
+  assert.match(workflow,/group: cursive-milestone-2-preview/);
+  assert.match(workflow,/cancel-in-progress: true/);
+});

@@ -6,9 +6,23 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'proof-connect':'Connect neighbouring letters and saved pairs using the same smooth joins and closer spacing as Compose. Punctuation stays separate. Turning this on switches Natural variation Off.',
+  'uppercase-joins-save':'Save the checked uppercase letters for this Writer. Only those capitals can join to a following lowercase letter when Smooth cursive joins is on. This preference is included in backups.',
+  'compose-underline':'Select a heading, word or passage in Your phrase, then underline it. The rule sits below letter tails and appears in previews, saved compositions, SVG and G-code. Newly typed text is not automatically underlined.',
+  'compose-ununderline':'Select text in Your phrase, then remove its underline without changing the text.',
+  'proof-ununderline':'Select text in the text box, then remove its underline without changing the text or handwriting.',
+  'proof-underline':'Select words or lines in the text box, then click Underline selection. The rule sits below the letter tails and is included in SVG and G-code. Remove underline clears it from the selected text. Newly typed text is not underlined automatically.',
+  'proof-tab':'Insert a tab at the text cursor to indent a line or move to the next tab stop. Tab stops are four normal word spaces wide and scale with writing size.',
+  'proof-paper':'Choose the physical page size used for layout and SVG downloads. Margins remain 20 mm. Plotter G-code is available only for A4 portrait.',
+  'proof-orientation':'Choose portrait or landscape for the proof sheet and its SVG download.',
+  'proof-fit':'Find the largest writing size between 2 and 20 mm that fits the current alphabet or passage on one page without wrapping passage lines, in 0.1 mm steps. This changes physical writing size, not preview zoom. Not available in Compare versions.',
+  'capture-suggestions':'Open Suggested symbols in My alphabet for the current Writer. Review best-guess symbols there before accepting any for Compose.',
+  'symbol-zoom':'Enlarge every suggested symbol from 100% to 400% for inspection. This changes the preview only, not saved strokes, physical writing size or acceptance.',
+  'symbol-zoom-reset':'Return every suggested symbol preview to 100%. Saved symbols and review choices stay unchanged.',
+  'symbol-generate':'Create approximate symbols after capturing all lowercase letters, uppercase letters and digits. Each suggestion stays excluded until you accept it. Existing captures are kept.',
   'studio-more':'Open Review samples, proof sheets, Free writing, Calibration, Plotter and extra tools for this page.',
   'studio-more-close':'Close the extra tools and return to this page.',
-  'studio-help':'Open instructions for this page, the full help guide and tap-to-explain Control tips.',
+  'studio-help':'Open instructions for this page, the full help guide.',
   'studio-help-close':'Close the instructions and return to your work.',
   'studio-focus':'Give the handwriting more room by hiding navigation and sample choices. Show controls restores them. Saved writing and physical sizes stay unchanged.',
   'backup-open':'Open backup and import tools for the writing saved in this browser.',
@@ -24,12 +38,13 @@
   'recovery-later':'Close this window and keep the recovery draft for later.',
   'writer':'Enter or choose a writer name. Use the same name for samples that belong to the same handwriting collection.',
   'writer-done':'Finish entering the writer name and dismiss the keyboard.',
+  'writer-new':'Start a new named handwriting collection. Enter a new name; it is saved with your first captured sheet. Finish the current capture set before switching names.',
   'writer-change':'Edit the writer name before starting capture. Saved samples keep their original writer names.',
   'capture-more':'Open Review samples, proof sheets, free writing, calibration, Plotter, recovery drafts and sheet download.',
   'capture-more-close':'Close the extra tools and return to your writing sheet.',
   'capture-guides':'Choose the writing lines, shading, symbol examples and smoothing shown on this sheet.',
   'capture-guides-close':'Close the guide settings and return to the sheet with your choices applied.',
-  'capture-help':'Open capture instructions, the full help guide and tap-to-explain Control tips.',
+  'capture-help':'Open capture instructions, the full help guide.',
   'capture-help-close':'Close the instructions and return to your current writing.',
   'writing-focus':'Enlarge the writing sheet by hiding secondary controls. Show controls restores them. Strokes and saved character proportions stay unchanged. Finish the Pencil stroke before switching.',
   'capture-kind':'Choose lowercase letters, capitals, numbers, symbols or experimental joined pairs. Changing this clears unsaved practice after confirmation.',
@@ -127,6 +142,10 @@
   'compose-natural':natural+' After Generate preview, the amount updates live on every page.','compose-natural-new':'Try a different natural-variation pattern without changing the selected letter samples.',
   'compose-order':'Cycle through eligible samples in sequence, or shuffle them for a varied but repeatable result.',
   'compose-shuffle':'Shuffle the sample choices again. The new selection stays fixed through spacing and layout edits.',
+  'compose-compare-zoom':'Enlarge both comparison panes equally from fit width to 400%. Scroll each pane to inspect joins. Export size is unchanged.',
+  'compose-compare-fit':'Return both comparison panes to fit width and scroll back to the top left.',
+  'compose-compare':'Render the selected writer and text side by side at the same scale, with smooth joins off and on. Both use Natural variation Off. Main preview downloads are unchanged.',
+  'compose-connect':'Add smooth connecting strokes between letters and pairs, with closer spacing. Changing this option regenerates the preview; enabling it sets Natural variation to Off. Included in SVG and G-code; unsafe joins remain open.',
   'compose-source':'Choose original samples, saved blends, or both. Missing characters are reported before export.',
   'compose-preferred':'Use the preferred versions chosen in My alphabet when they match the selected source type.',
   'compose-joined':'Experimental; off for new compositions. Use saved pairs such as th or oo where available. Their size may differ from individual letters, and they do not automatically join neighbouring letters. Saved compositions and restored drafts retain their choice.',
@@ -161,12 +180,20 @@
   'plot-continue':'Continue the paused drawing from its current point. This does not restart the file.',
   'plot-cancel':'Stop the drawing and clear queued movement. The cancelled job cannot be continued; use Home before a deliberate new run.',
   'plot-travel':'Show dashed pen-up travel in the A4 preview. This changes only the display, not the G-code or plotter movement.',
+  'cursive-storage-status':'Shows whether this page can see handwriting in its own browser storage and how many writers and saved samples are available.',
+  'cursive-import-backup':'Choose a Handwriting Studio JSON backup and import it directly into this preview browser storage. Preview and live sites have separate stores.',
+  'cursive-backup-file':'Select a Handwriting Studio JSON backup file for direct import into this preview. The file is read locally by the browser.',
   'cursive-writer':'Choose the handwriting collection whose cursive joins and individual letters you want to inspect.',
   'capture-cursive':'Open Capture directly on the 24 common cursive joined pairs for this writer.',
   'cursive-refresh':'Reload cursive join coverage and the selected sample from saved handwriting.',
   'cursive-text':'Enter lowercase proof text. Captured joined pairs are used where available; other positions fall back to individual letters.',
+  'cursive-zoom':'Enlarge the fitted proof preview from 100% to 400%. Scroll or swipe inside the viewport; exported SVG and physical writing size are unchanged.',
+  'cursive-zoom-reset':'Fit the proof to the viewport width and return to its top-left corner without regenerating the handwriting.',
+  'proof-viewport':'Scroll horizontally and vertically, or swipe, to inspect the enlarged cursive proof. Focus this viewport to scroll with the keyboard.',
   'cursive-size':'Choose the physical small-letter height for the cursive proof.',
   'cursive-generate':'Generate a proof using captured joined pairs where available and individual letters elsewhere.',
+  'cursive-use-pairs':'Use saved joined-pair shapes in the proof. Turn off to compare individual letters when a captured pair contains an unwanted spike or flourish. Saved samples are unchanged.',
+  'cursive-auto-join':'Show experimental connector curves between neighbouring glyphs using their primary-stroke entry and exit directions. Preview only; this does not yet enable plotter output.',
  };
  Object.assign(ids,{"font-choice": "Choose an imported TrueType font. These fonts trace letter outlines, not single pen strokes.", "font-files": "Import .ttf files into this browser only. Keep the original files; handwriting backups do not include fonts.", "font-size": "Set the physical height of the font’s lowercase x. Tall letters and tails retain their proportions.", "font-phrase": "Enter up to 1,000 characters. Missing characters are reported when you generate the preview.", "font-generate": "Lay out the current text and font across A4 pages. Regenerate after changing settings.", "font-page": "Choose which A4 page to preview and download.", "font-svg": "Download the displayed page as outline paths. No font installation is needed to open the SVG.", "font-gcode": "Download the displayed outlines for the calibrated T-A4 plotter. This does not move the machine."});
  for(const side of ['top','bottom','left','right'])ids['compose-margin-'+side]='Set the '+side+' page margin from 20 to 60 mm. Larger margins leave less room for writing.';
@@ -190,7 +217,7 @@
   if(id==='writer-change'&&!capture)tip='Edit the writer name for this free-writing page. Previously saved pages are kept.';
   if(id==='capture-more'&&!capture)tip='Open other Studio pages, unfinished drafts and the SVG download for this free-writing page.';
   if(id==='capture-guides'&&!capture)tip='Choose whether to show writing lines and use gentle smoothing.';
-  if(id==='capture-help'&&!capture)tip='Open free-writing instructions, the full help guide and tap-to-explain Control tips.';
+  if(id==='capture-help'&&!capture)tip='Open free-writing instructions, the full help guide.';
   if(control.matches('summary'))tip='Show or hide '+text.toLowerCase()+'. Current settings are kept when this section is closed.';
   if(id==='save')tip=capture?(text.startsWith('Start')?'Start capturing a shuffled set of labelled characters. Practice strokes are cleared; they are not saved as samples.':text.startsWith('Compose')?'Open Compose using the character samples you have saved.':'Save this capture sheet in your browser and move to the next sheet. Use Backup / Import to keep an external copy.'):'Save this free-writing page in your browser. Editing an opened page creates a new copy; download a backup to keep it elsewhere.';
   if(id==='clear')tip=capture?'Clear the current unsaved sheet. Previously saved samples are kept.':'Clear the current working page. Previously saved pages are kept.';

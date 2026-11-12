@@ -11,6 +11,15 @@
   };
   const alphabet='abcdefghijklmnopqrstuvwxyz',fullExample='the quick brown fox jumps over the lazy dog\n'+alphabet;
   let automaticPhrase=fullExample,phraseEdited=byID('phrase').value!==fullExample;
+  let underlineFlags=[],underlineText=byID('phrase').value;
+  function underlineRanges(){const ranges=[];underlineFlags.forEach((on,i)=>{if(on){if(ranges.length&&ranges.at(-1).end===i)ranges.at(-1).end++;else ranges.push({start:i,end:i+1});}});return ranges;}
+  function underlineStatus(){const status=byID('compose-underline-status');if(status){const n=underlineFlags.filter(Boolean).length;status.textContent=n?n+' characters marked for underlining. Select text to add or remove underlining.':'Select text, then choose Underline selection. Underlines appear in the preview, SVG and G-code.';}}
+  function restoreUnderlines(ranges=[]){underlineText=byID('phrase').value;underlineFlags=[];for(const r of ranges)for(let i=r.start;i<r.end;i++)underlineFlags[i]=true;underlineStatus();}
+  function editUnderlines(){const text=byID('phrase').value;let start=0;while(start<underlineText.length&&start<text.length&&underlineText[start]===text[start])start++;let oldEnd=underlineText.length,newEnd=text.length;while(oldEnd>start&&newEnd>start&&underlineText[oldEnd-1]===text[newEnd-1]){oldEnd--;newEnd--;}underlineFlags=Array.from({length:underlineText.length},(_,i)=>!!underlineFlags[i]);underlineFlags.splice(start,oldEnd-start,...Array(newEnd-start).fill(false));underlineText=text;underlineStatus();}
+  function markUnderline(on){const box=byID('phrase'),start=box.selectionStart,end=box.selectionEnd;if(start===end){byID('compose-underline-status').textContent='Select the text you want to '+(on?'underline.':'remove underlining from.');box.focus();return;}for(let i=start;i<end;i++)underlineFlags[i]=on;underlineText=box.value;phraseEdited=true;underlineStatus();box.focus();invalidate();window.StudioRecovery?.changed();byID('compose-form').onsubmit({preventDefault(){},live:true});}
+  if(byID('compose-underline'))byID('compose-underline').onclick=()=>markUnderline(true);
+  if(byID('compose-ununderline'))byID('compose-ununderline').onclick=()=>markUnderline(false);
+
   let liveTimer=null,blendSeed='',hasPreview=false,frozenPreview=false,previewSVG='',profiles=[],imageURL='',requestNumber=0,controller=null,loading=false,checkingSamples=false;
   let sampleSeed=crypto.randomUUID(),naturalSeed=crypto.randomUUID();
   let previewPages=[],pageIndex=0;
@@ -49,14 +58,16 @@
     if(!profile)return;
     const available=[...(window.StudioEngine?.characters || alphabet)].filter(letter=>sourceCounts(profile)[letter]>0).join('');
     automaticPhrase=available===alphabet?fullExample:available==='abcde'?'a bad cab\naaaa bbbb cccc dddd eeee':[...available].join(' ');
-    byID('phrase').value=automaticPhrase;
+    byID('phrase').value=automaticPhrase;restoreUnderlines();
   }
   function clearPreview(keepImage=false){
+    clearComparison();
     frozenPreview=false;previewSVG='';previewPages=[];pageControls();window.StudioBlendPreview?.clear();if(byID('compose-gcode'))byID('compose-gcode').disabled=true;
     if(!keepImage){if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';byID('composed-image').hidden=true;byID('composed-image').removeAttribute('src');byID('compose-empty').hidden=false;}
     byID('compose-download').disabled=true;
   }
   function invalidate(options){
+    if(byID('compose-source-summary'))byID('compose-source-summary').textContent='Selection changed. Generate a preview to see the characters used.';
     clearTimeout(liveTimer);requestNumber++;controller?.abort();controller=null;loading=false;clearPreview(options?.keepImage===true);
     byID('generate').disabled=!byID('compose-writer').value;
     byID('generate').textContent='Generate preview';
@@ -90,11 +101,59 @@
       select.disabled=!profiles.length;updateExample();showCounts();
       byID('generate').disabled=!profiles.length;
       byID('compose-status').textContent=profiles.length?'Choose a writer and generate a preview.':'No letter samples yet. Tap Capture letters and save your first sheet.';
+      if(byID('compose-connect')?.checked)byID('compose-status').textContent+=' Smooth joins: '+(data.pages||[]).reduce((n,p)=>n+(p.generated_joins||0),0)+' connected; '+(data.pages||[]).reduce((n,p)=>n+(p.skipped_joins||0),0)+' left open.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some saved files could not be read and have been left untouched.';
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent='Could not load samples. Check that the Mac is running the app, then tap Refresh samples.';}
     finally{clearTimeout(timeout);if(ticket===requestNumber){controller=null;for(const id of [...layoutIDs,'compose-natural','compose-order','compose-source','compose-preferred','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-spacing-reset'])if(byID(id))byID(id).disabled=false;byID('refresh-writers').disabled=false;for(const id of ['phrase','compose-size','compose-smooth','compose-samples'])byID(id).disabled=false;orderControls();}}
   }
+  function composeRequest(){return {writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{underline:underlineRanges(),source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})};}
+  let comparisonTicket=0,comparisonController=null,comparisonURLs=[];
+  function comparisonZoom(){
+    const value=Number(byID('compose-compare-zoom')?.value)||100;
+    const zoom=[100,150,200,300,400].includes(value)?value:100;
+    byID('compose-comparison')?.style.setProperty('--comparison-width',zoom+'%');
+    if(zoom===100)for(const id of ['compose-compare-off','compose-compare-on']){
+      const pane=byID(id);if(pane){pane.scrollLeft=0;pane.scrollTop=0;}
+    }
+  }
+  byID('compose-compare-zoom')?.addEventListener('change',comparisonZoom);
+  if(byID('compose-compare-fit'))byID('compose-compare-fit').onclick=()=>{
+    byID('compose-compare-zoom').value='100';comparisonZoom();
+  };
+  function clearComparison(){
+    comparisonTicket++;comparisonController?.abort();comparisonController=null;
+    comparisonURLs.forEach(url=>URL.revokeObjectURL(url));comparisonURLs=[];
+    if(byID('compose-comparison'))byID('compose-comparison').hidden=true;
+    if(byID('compose-compare'))byID('compose-compare').disabled=false;
+    if(byID('compose-compare-status'))byID('compose-compare-status').textContent='Compare the current writer and text with smooth joins off and on.';
+  }
+  if(byID('compose-compare'))byID('compose-compare').onclick=async()=>{
+    clearComparison();const ticket=comparisonTicket;
+    const status=byID('compose-compare-status');
+    if(!window.StudioEngine){status.textContent='Side-by-side comparison is available in the browser edition.';return;}
+    if(!byID('compose-writer').value){status.textContent='Choose a writer first.';return;}
+    const settings=composeRequest();settings.natural_variation={level:'off',seed:naturalSeed};
+    const abort=new AbortController();comparisonController=abort;
+    const timeout=setTimeout(()=>abort.abort(),15000);
+    byID('compose-compare').disabled=true;status.textContent='Building both versions…';
+    try{
+      const results=await Promise.all([false,true].map(async enabled=>{
+        const response=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:abort.signal,body:JSON.stringify({...settings,auto_join_preview:enabled})});
+        const data=await response.json();if(!response.ok)throw Error(data.error||'Could not build comparison.');return data;
+      }));
+      if(ticket!==comparisonTicket)return;
+      results.forEach((data,index)=>{
+        const pages=data.pages?.length?data.pages:[{svg:data.svg}];
+        const images=pages.map((page,i)=>{const img=document.createElement('img'),url=URL.createObjectURL(new Blob([page.svg],{type:'image/svg+xml'}));comparisonURLs.push(url);img.src=url;img.alt='Smooth joins '+(index?'on':'off')+' · page '+(i+1)+' of '+pages.length;return img;});
+        byID(index?'compose-compare-on':'compose-compare-off').replaceChildren(...images);
+      });
+      byID('compose-comparison').hidden=false;
+      status.textContent=settings.writer+' · '+settings.height+' mm · same text, samples and scale. Natural variation is Off in both comparisons. Downloads still use the main preview.';
+    }catch(error){if(ticket===comparisonTicket)status.textContent=error.name==='AbortError'?'Comparison timed out. Try again.':error.message;}
+    finally{clearTimeout(timeout);if(ticket===comparisonTicket){byID('compose-compare').disabled=false;comparisonController=null;}}
+  };
+  window.addEventListener('beforeunload',clearComparison);
   byID('compose-form').onsubmit=async event=>{
     event.preventDefault();if(loading || !byID('compose-writer').value)return;
     if(!event.live)blendSeed=crypto.randomUUID();
@@ -105,14 +164,20 @@
     byID('compose-status').textContent='Building the phrase from your saved letters…';
     try{
       const r=await fetch('/api/compose',{method:'POST',headers:{'Content-Type':'application/json'},signal:requestController.signal,cache:'no-store',
-        body:JSON.stringify({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,...(window.StudioEngine?{source:byID('compose-source')?.value||'both',use_preferred:byID('compose-preferred')?.checked??true,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData(),variation:byID('compose-variation').value,joined:byID('compose-joined').checked,seed:blendSeed,...(byID('blend-mix')?{blend_strength:Number(byID('blend-mix').value),blend_count:Number(byID('blend-count')?.value||2),blend_vertical:Number(byID('blend-vertical')?.value||50)}:{})}:{})})});
+        body:JSON.stringify(composeRequest())});
       const data=await r.json();if(ticket!==requestNumber)return;if(!r.ok)throw Error(data.error || 'Could not generate preview.');
       hasPreview=true;previewPages=data.pages?.length?data.pages.map(page=>page.svg):[data.svg];showPage(pageIndex);window.StudioBlendPreview?.show(data.variation);
       const profile=profiles.find(p=>p.writer===byID('compose-writer').value);
       if(profile){profile.counts=data.sample_selection.all_counts||data.sample_selection.available_counts;for(const key of ['original_counts','blend_counts','preferred'])if(data.sample_selection[key])profile[key]=data.sample_selection[key];profile.latest_saved_at=data.sample_selection.latest_saved_at || data.sample_selection.newest_saved_at;profile.revision=data.sample_selection.writer_revision;}
       showCounts(data.sample_selection.counts);
+      if(byID('compose-source-summary')){
+        const groups=new Map();
+        for(const item of data.source_usage||[]){if(!groups.has(item.label))groups.set(item.label,[]);groups.get(item.label).push(item.letter);}
+        byID('compose-source-summary').textContent=groups.size?'Characters used across this preview — '+[...groups].map(([label,letters])=>label+': '+letters.join(', ')).join(' · ')+'.':'Character source details are unavailable for this preview.';
+      }
       byID('compose-status').textContent='Ready · '+data.used_samples.length+' letters composed. Newest sample used: '+
         new Date(data.sample_selection.newest_saved_at).toLocaleString()+'. '+previewPages.length+' page'+(previewPages.length===1?'':'s')+'. Downloads export the selected page exactly.';
+      if(byID('compose-connect')?.checked)byID('compose-status').textContent+=' Smooth joins: '+(data.pages||[]).reduce((n,p)=>n+(p.generated_joins||0),0)+' connected; '+(data.pages||[]).reduce((n,p)=>n+(p.skipped_joins||0),0)+' left open.';
       if(data.variation?.mode==='blend')byID('compose-status').textContent+=' '+data.variation.blended+' blended; '+data.variation.fallback+' used original samples.';
       if(data.unavailable_count)byID('compose-status').textContent+=' Some unreadable captures were skipped.';window.StudioRecovery?.changed();
     }catch(error){if(ticket===requestNumber)byID('compose-status').textContent=(error.name==='AbortError'?'The Mac took too long to respond. Try Generate preview again.':error.message)+(event.live&&imageURL?' Previous preview shown; adjust settings to update it.':'');}
@@ -136,6 +201,11 @@
   for(const id of ['compose-size','compose-smooth','compose-samples'])byID(id).addEventListener('change',invalidate);
   for(const id of ['compose-variation','compose-joined'])byID(id)?.addEventListener('change',invalidate);
   byID('compose-source')?.addEventListener('change',()=>{updateExample();invalidate();});
+  byID('compose-connect')?.addEventListener('change',()=>{
+    if(byID('compose-connect').checked&&byID('compose-natural'))byID('compose-natural').value='off';
+    invalidate({keepImage:hasPreview});
+    return byID('compose-form').onsubmit({preventDefault(){},live:true});
+  });
   byID('compose-preferred')?.addEventListener('change',invalidate);
   byID('compose-order')?.addEventListener('change',invalidate);
   if(byID('compose-shuffle'))byID('compose-shuffle').onclick=()=>{if(byID('compose-shuffle').disabled)return;sampleSeed=crypto.randomUUID();invalidate({keepImage:hasPreview});return byID('compose-form').onsubmit({preventDefault(){},live:true});};
@@ -149,10 +219,10 @@
   byID('compose-use-phrase')?.addEventListener('click',()=>{
     const key=byID('compose-phrase-example')?.value,text=standardPhrases[key];
     if(!text)return;
-    byID('phrase').value=text;phraseEdited=true;invalidate();
+    byID('phrase').value=text;restoreUnderlines();phraseEdited=true;invalidate();
     byID('phrase').focus({preventScroll:true});
   });
-  byID('phrase').addEventListener('input',()=>{phraseEdited=true;invalidate();});
+  byID('phrase').addEventListener('input',()=>{editUnderlines();phraseEdited=true;invalidate();});
   function spacingData(){return Object.fromEntries(['letter','word','line'].map(name=>[name+'_spacing',Number(byID('compose-'+name+'-spacing')?.value||100)/100]));}
   function liveSpacing(){
     for(const name of ['letter','word','line'])if(byID('compose-'+name+'-value'))byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
@@ -202,22 +272,23 @@
   window.addEventListener('pageshow',event=>{if(event.persisted)checkForNewSamples();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewSamples();});
   loadWriters().then(()=>{if(!window.StudioCompositions)return;
-    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData()}),restore:async (settings,drawing='',drawings)=>{
+    const compositions=window.StudioCompositions.init({readDrawing:()=>previewSVG,...(byID('compose-alignment')?{readDrawings:()=>previewPages.slice()}:{}),read:()=>({underline:underlineRanges(),writer:byID('compose-writer').value,phrase:byID('phrase').value,height:Number(byID('compose-size').value),smooth:byID('compose-smooth').checked,samples:byID('compose-samples').value,source:byID('compose-source').value,use_preferred:byID('compose-preferred').checked,joined:byID('compose-joined').checked,auto_join_preview:byID('compose-connect')?.checked??false,...spacingData(),...sampleOrderData(),...pageLayoutData(),...naturalData()}),restore:async (settings,drawing='',drawings)=>{
       const savedPages=drawings?.length?drawings:drawing?[drawing]:[];for(const svg of savedPages)window.StudioEngine.validateDrawingSVG(svg);
       const previousPhrase=byID('phrase').value;await loadWriters();if(!profiles.some(p=>p.writer===settings.writer)){if(!savedPages.length){byID('phrase').value=previousPhrase;throw Error('Import the saved handwriting for '+settings.writer+' first. Your text has not been replaced.');}const option=document.createElement('option');option.value=settings.writer;option.textContent=settings.writer+' · saved drawing only';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
-      byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;
+      byID('compose-writer').value=settings.writer;byID('phrase').value=settings.phrase;restoreUnderlines(settings.underline);phraseEdited=true;byID('compose-size').value=String(settings.height);byID('compose-smooth').checked=settings.smooth;byID('compose-samples').value=settings.samples;byID('compose-source').value=settings.source;byID('compose-preferred').checked=settings.use_preferred;byID('compose-joined').checked=settings.joined;if(byID('compose-connect'))byID('compose-connect').checked=settings.auto_join_preview??false;
       for(const name of ['letter','word','line']){byID('compose-'+name+'-spacing').value=String(settings[name+'_spacing']*100);byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';}
       if(byID('compose-order')){byID('compose-order').value=settings.sample_order??'cycle';sampleSeed=settings.sample_seed??'0';}
       if(byID('compose-natural'))byID('compose-natural').value=settings.natural_variation?.level??'off';naturalSeed=settings.natural_variation?.seed??'0';
       setLayout(settings.page_layout);pageIndex=0;hasPreview=false;invalidate();
-      if(savedPages.length){previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
+      if(savedPages.length){if(byID('compose-source-summary'))byID('compose-source-summary').textContent='Exact saved drawing restored. Character source details were not saved; generate a new preview to inspect current choices.';previewPages=savedPages.slice();frozenPreview=true;hasPreview=true;showPage(0);byID('compose-status').textContent='Exact saved drawing · '+savedPages.length+' page'+(savedPages.length===1?'':'s')+' restored. Downloads reproduce the selected page. Generate preview uses your current handwriting.';}
     }});
     if(window.StudioRecovery){
-      const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-order','compose-natural',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
-      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{seed:sampleSeed,...(byID('compose-natural')?{natural_seed:naturalSeed}:{}),fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
+      const draftIDs=['composition-title','compose-writer','phrase','compose-size','compose-smooth','compose-samples','compose-source','compose-preferred','compose-joined','compose-connect','compose-order','compose-natural',...['letter','word','line'].map(n=>'compose-'+n+'-spacing'),...layoutIDs.filter(id=>id!=='compose-layout-reset')];
+      window.StudioRecovery.init({kind:'compose',canRestore:()=>!compositions.isBusy()&&!loading,read:()=>compositions.isBusy()?undefined:compositions.hasUnsavedChanges()?{underline:underlineRanges(),seed:sampleSeed,...(byID('compose-natural')?{natural_seed:naturalSeed}:{}),fields:Object.fromEntries(draftIDs.filter(id=>byID(id)).map(id=>[id,['compose-smooth','compose-preferred','compose-joined','compose-connect'].includes(id)?byID(id).checked:byID(id).value]))}:null,restore:async data=>{
         if(!profiles.some(p=>p.writer===data.fields['compose-writer'])){const option=document.createElement('option');option.value=data.fields['compose-writer'];option.textContent=(option.value||'Choose a writer')+' · recovered draft';byID('compose-writer').append(option);byID('compose-writer').disabled=false;}
-        for(const id of draftIDs)if(byID(id)&&data.fields[id]!==undefined){if(['compose-smooth','compose-preferred','compose-joined'].includes(id))byID(id).checked=data.fields[id];else byID(id).value=data.fields[id];}
-        sampleSeed=data.seed;naturalSeed=data.natural_seed??'0';if(byID('compose-natural'))byID('compose-natural').value=data.fields['compose-natural']??'off';phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
+        if(byID('compose-connect'))byID('compose-connect').checked=data.fields['compose-connect']??false;
+        for(const id of draftIDs)if(byID(id)&&data.fields[id]!==undefined){if(['compose-smooth','compose-preferred','compose-joined','compose-connect'].includes(id))byID(id).checked=data.fields[id];else byID(id).value=data.fields[id];}
+        restoreUnderlines(data.underline);sampleSeed=data.seed;naturalSeed=data.natural_seed??'0';if(byID('compose-natural'))byID('compose-natural').value=data.fields['compose-natural']??'off';phraseEdited=true;hasPreview=false;invalidate();compositions.resetForRecovery();
         for(const name of ['letter','word','line'])byID('compose-'+name+'-value').textContent=byID('compose-'+name+'-spacing').value+'%';
         byID('compose-status').textContent='Composition draft restored. Generate a preview and Save composition to keep it. Your earlier saved document is unchanged.';
       }});

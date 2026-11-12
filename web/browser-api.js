@@ -45,8 +45,10 @@
     try{
       if(options.signal?.aborted)throw new DOMException('Aborted','AbortError');
       const u=new URL(url,window.location.href),path=u.pathname,method=options.method||'GET',data=options.body?JSON.parse(options.body):null;
+      if(method==='POST'&&path==='/api/symbol-suggestions')return await transaction((files,store)=>{const records=window.SymbolSuggestions.generate(files,data.writer,data.ids);records.forEach(r=>{E.validateRecord(r.key,r.value);store.add(r);});return json({saved:true});});
       if(method==='POST'&&path==='/api/character-spacing')return await transaction((files,store)=>{const record=E.characterSpacing(files,data);store.put(record);return json({saved:true,record});});
       if(method==='POST'&&path==='/api/compositions')return await transaction((files,store)=>{const old=files.find(f=>f.key==='compositions/'+data?.id+'.json')?.value;if(old?.settings.natural_variation&&data?.settings?.natural_variation===undefined)throw Error('Reload the app before updating a composition with natural variation.');if(old?.drawings&&data.drawings===undefined)throw Error('Reload the app before updating this finished document.');if((old?.drawing||old?.drawings?.length)&&!data.drawing&&!data.drawings?.length)throw Error('Generate a preview before updating this finished document, or save a separate draft copy.');const record=E.createComposition(data);store.put({key:'compositions/'+record.id+'.json',value:record});return json({saved:true,record});});
+      if(method==='POST'&&path==='/api/alphabet/uppercase-joins')return await transaction((files,store)=>{const record=E.setUppercaseJoins(files,data);store.put(record);return json({saved:true});});
       if(method==='POST'&&path==='/api/alphabet/preferred')return await transaction((files,store)=>{const record=E.choosePreferred(files,data);store.put(record);return json({saved:true,preferred:record.value.choices});});
       if(method==='POST'&&path==='/api/blends')return await transaction((files,store)=>{
         const record=E.createSavedBlend(files,data),key='blends/'+record.id+'.json',old=files.find(f=>f.key===key)?.value;
@@ -89,7 +91,7 @@
       if(method==='GET'&&path==='/api/letters/writers')return json({writers:E.catalog(files).writers,unavailable_count:0});
       if(method==='GET'&&path==='/api/letters/samples'){
         const letter=u.searchParams.get('letter');if(!letter||![...E.characters,...E.pairs].includes(letter))throw Error('Choose a captured character or joined pair.');
-        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,scale_factor:s.scale_factor,derived:!!s.derived,stroke_edit:s.stroke_edit,stroke_sample:files.find(f=>f.key===(s.derived?'blends/':'letters/')+s.capture_id+'.json').value.samples.find(p=>p.letter===s.letter),stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s,{colourStrokes:true,showStarts:true})})),unavailable_count:0});
+        return json({samples:(E.catalog(files).byWriter.get(u.searchParams.get('writer'))||[]).filter(s=>s.letter===letter).map(s=>({capture_id:s.capture_id,letter:s.letter,saved_at:s.saved_at,included:s.included,baseline_shift_mm:s.baseline_shift_mm,scale_factor:s.scale_factor,derived:!!s.derived,suggested:!!s.suggested,stroke_edit:s.stroke_edit,stroke_sample:files.find(f=>f.key===(s.derived?'blends/':'letters/')+s.capture_id+'.json').value.samples.find(p=>p.letter===s.letter),stroke_count:s.processed_strokes.length,svg:E.reviewSVG(s,{colourStrokes:true,showStarts:true})})),unavailable_count:0});
       }
       if(method==='POST'&&path==='/api/compose')return json(E.compose(files,data));
       return json({error:'Unknown browser operation.'},404);

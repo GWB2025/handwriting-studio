@@ -11,6 +11,7 @@
   }
   function sync(){
    const busy=hooks.busy();
+   if($('capture-suggestions'))$('capture-suggestions').href='alphabet.html?writer='+encodeURIComponent(writer.value.trim())+'#suggested-symbols';
    for(const id of ['capture-more','capture-guides','capture-help','writing-focus','backup-open','recovery-open'])if($(id))$(id).disabled=busy;
    for(const link of main.querySelectorAll('a'))link.setAttribute('aria-disabled',String(busy));
    $('writer-change').disabled=busy||writer.disabled;

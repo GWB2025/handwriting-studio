@@ -13,11 +13,11 @@ Capture your handwriting, blend individual characters, and compose A4 pages for 
 3. **Blend a character** from two or four different originals of the same character. Drag the transparent result towards its sources, then **Save blended sample**.
 4. **My alphabet** shows coverage, lets you choose preferred versions, and adjusts spacing before and after each character.
 5. Open **Alphabet proof sheet** to test pangrams, Sonnet 18, the original sonnet *The Hand in Ink*, or your own text. **Compare versions** puts originals, blends and preferred choices side by side.
-7. **Compose** lays out your text across A4 pages. A **Standard phrase** chooser can load pangrams, cursive-test sentences or the lowercase alphabet before you edit the text. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
+6. **Compose** lays out your text across A4 pages. A **Standard phrase** chooser can load pangrams, cursive-test sentences or the lowercase alphabet before you edit the text. Generate a preview, inspect each page and download its SVG or G-code. Generate before **Save composition** to keep the exact finished drawing too.
 
 The iPad layout uses compact navigation and **More** for extra pages and tools. **Writing focus** enlarges Capture and Free writing; **Preview focus** gives other handwriting previews more room. Settings fold into labelled sections, with choices beside the preview on wider screens. Main save and download actions stay within reach.
 
-**Help → Help guide** opens full instructions. Hover or use Tab for tooltips, or tap **Help → Control tips**, then a control to read its explanation. Tap **Done with tips** to resume using it.
+**Help → Help guide** opens full instructions. Click or tap a circled question mark beside an important control to open its explanation. Help does not appear on hover.
 
 ## Sizes and variations
 
@@ -26,9 +26,14 @@ The iPad layout uses compact navigation and **More** for extra pages and tools. 
 - **Writing size** sets the physical small-letter guide height: **3, 5, 8, 10, 12, 16 or 20 mm**. Tall letters and tails keep their proportions.
 - **Sample order** in Compose can shuffle saved versions. **Natural variation**, off by default, adds subtle changes to word gaps, letter sizes and line slope/curve in Compose and ordinary proof sheets.
 - **Cursive Milestone 1** captures 24 common joined pairs and preserves their actual pen strokes. The Cursive workspace reports join coverage, displays entry/exit points and directions, and can proof ordinary text using exact captured joins with individual-letter fallback.
-- **Generated joins between arbitrary neighbouring letters are not implemented yet.** Compose keeps joined-pair use off for new compositions unless explicitly enabled; saved compositions and recovered drafts keep their previous choice.
+- **Smooth cursive joins** is on by default in Compose, with Natural variation off. It connects suitable neighbouring letters and reduces gaps without changing saved captures. Punctuation stays separate. SVG and G-code exports include the displayed joins. Compare joins on and off with both previews at the same zoom.
+- **My alphabet → Uppercase cursive joins** lets each Writer choose which capitals can connect to the following lowercase letter. Save these choices before refreshing Compose or Proof sheets.
+- The **Cursive** inspection workspace also offers experimental generated connectors and preview zoom; its separate join-analysis preview is not a plotter export.
+- Compose keeps saved joined-pair use off for new compositions unless explicitly enabled; saved compositions and recovered drafts keep their previous choice.
+- **Suggested symbols** in My alphabet creates a reviewable set once lowercase, uppercase and numbers are complete. Inspect and zoom suggestions before accepting any; Capture links directly to this section.
+- **Text and examples** in Proof sheets supports tab indentation and selected-text underlining. Compose also supports selected-text underlining, including saved compositions and draft recovery.
 
-Proof sheets and Compose support up to 20 A4 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
+Proof sheets support A3, A4, A5, Letter and Legal paper in portrait or landscape. **Fit to page** adjusts physical writing size to fit a passage on one page without wrapping its verse lines, retaining indentation and underlining. SVG exports use the chosen paper size; calibrated G-code remains limited to A4 portrait. Compose uses A4. Both support up to 20 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
 
 ## Imported fonts
 

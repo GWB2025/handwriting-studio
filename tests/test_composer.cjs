@@ -13,9 +13,10 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
     return target;
   }
   const elements = {};
-  for (const id of ['compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
+  for (const id of ['compose-underline','compose-ununderline','compose-underline-status','compose-compare-zoom','compose-compare-fit','compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
+      style:{setProperty(name,value){this[name]=value;}},
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; },
@@ -25,6 +26,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   if(natural){elements['compose-natural']=events({value:'off',disabled:false});elements['compose-natural-new']=events({disabled:true});}
   if(shuffle){elements['compose-order']=events({value:'cycle',disabled:false});elements['compose-shuffle']=events({disabled:true});}
   for(const name of ['letter','word','line'])elements['compose-'+name+'-spacing'].value='100';elements['compose-source'].value='both';elements['compose-preferred'].checked=true;elements['blend-count'].value='2';elements['blend-vertical'].value='50';elements['blend-mix'].value='50';elements['compose-variation'].value='original';elements['compose-joined'].checked=/<input[^>]*id="compose-joined"[^>]*\bchecked\b/.test(fs.readFileSync('docs/compose.html','utf8'));
+  elements['compose-connect'].checked=false;
   elements.phrase.value = 'a bad cab';
   elements['compose-size'].value = '5';
   elements['compose-samples'].value = 'latest_three';
@@ -83,7 +85,7 @@ test('sample choice reaches the server and changing it invalidates the old downl
 test('opening a saved composition restores the complete form and invalidates earlier exports',async()=>{
  const c=await composer(true,true),e=c.elements;await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(e['compose-download'].disabled,false);
  const settings={...c.window.compositions.read(),phrase:'a saved letter',height:20,samples:'all',source:'blends',use_preferred:false,joined:true,smooth:false,letter_spacing:1.25,word_spacing:.8,line_spacing:1.5};
- await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),settings);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
+ await c.window.compositions.restore(settings);assert.deepEqual(JSON.parse(JSON.stringify(c.window.compositions.read())),JSON.parse(JSON.stringify(settings)));assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-letter-value'].textContent,'125%');
  await e['compose-form'].onsubmit({preventDefault(){}});assert.equal(JSON.parse(c.requests.at(-1).options.body).phrase,'a saved letter');assert.equal(JSON.parse(c.requests.at(-1).options.body).height,20);
  await assert.rejects(c.window.compositions.restore({...settings,writer:'Missing'}),/Import the saved handwriting/);assert.equal(e.phrase.value,'a saved letter');
 });
@@ -287,4 +289,63 @@ test('standard phrase chooser loads useful test text without generating automati
   e['compose-phrase-example'].value = 'quick-fox';
   e['compose-use-phrase'].emit('click');
   assert.equal(e.phrase.value, 'the quick brown fox jumps over the lazy dog');
+});
+
+
+test('smooth joins checkbox immediately regenerates on and off and disables natural variation',async()=>{
+ const c=await composer(true,false,false,true,false,true),e=c.elements;
+ e['compose-natural'].value='subtle';e['compose-connect'].checked=true;e['compose-connect'].emit('change');
+ assert.equal(e['compose-download'].disabled,true);await settle();
+ assert.equal(e['compose-natural'].value,'off');
+ assert.equal(JSON.parse(c.requests.at(-1).options.body).auto_join_preview,true);
+ assert.equal(e['compose-download'].disabled,false);
+ const count=c.requests.length;e['compose-connect'].checked=false;e['compose-connect'].emit('change');await settle();
+ assert.equal(c.requests.length,count+1);assert.equal(JSON.parse(c.requests.at(-1).options.body).auto_join_preview,false);
+ assert.equal(e['compose-download'].disabled,false);
+});
+
+
+test('side-by-side comparison uses identical selection and keeps normal downloads intact',async()=>{
+ const c=await composer(true,false,true,true,false,true),e=c.elements;
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ const preview=e['composed-image'].src;
+ for(const id of ['compose-compare-off','compose-compare-on'])e[id].replaceChildren=(...images)=>e[id].images=images;
+ c.server.pages=['<svg id="one"/>','<svg id="two"/>'];
+ e['compose-natural'].value='subtle';
+ await e['compose-compare'].onclick();
+ const requests=c.requests.slice(-2).map(r=>JSON.parse(r.options.body));
+ assert.equal(requests[0].auto_join_preview,false);assert.equal(requests[1].auto_join_preview,true);
+ delete requests[0].auto_join_preview;delete requests[1].auto_join_preview;assert.deepEqual(requests[0],requests[1]);
+ assert.equal(requests[0].natural_variation.level,'off');assert.equal(e['compose-natural'].value,'subtle');
+ assert.equal(e['compose-compare-off'].images.length,2);assert.equal(e['compose-compare-on'].images.length,2);
+ assert.equal(e['compose-comparison'].hidden,false);assert.equal(e['composed-image'].src,preview);assert.equal(e['compose-download'].disabled,false);
+ e.phrase.emit('input');assert.equal(e['compose-comparison'].hidden,true);assert.ok(c.revoked.length>=4);
+});
+
+ test('comparison zoom shares scale without rerendering or changing exports',async()=>{
+ const c=await composer(true),e=c.elements;
+ await e['compose-form'].onsubmit({preventDefault(){}});
+ await e['compose-compare'].onclick();
+ const src=e['composed-image'].src,requests=c.requests.length;
+ for(const zoom of ['150','200','300','400']){
+   e['compose-compare-zoom'].value=zoom;e['compose-compare-zoom'].emit('change');
+   assert.equal(e['compose-comparison'].style['--comparison-width'],zoom+'%');
+   assert.equal(e['compose-comparison'].hidden,false);
+ }
+ e['compose-compare-off'].scrollLeft=120;e['compose-compare-on'].scrollTop=200;
+ e['compose-compare-fit'].onclick();
+ assert.equal(e['compose-compare-zoom'].value,'100');
+ assert.equal(e['compose-comparison'].style['--comparison-width'],'100%');
+ assert.equal(e['compose-compare-off'].scrollLeft,0);assert.equal(e['compose-compare-on'].scrollTop,0);
+ assert.equal(c.requests.length,requests);assert.equal(e['composed-image'].src,src);assert.equal(e['compose-download'].disabled,false);
+ });
+
+test('Compose underlines update preview requests, survive save and recovery, and follow text edits',async()=>{
+ const c=await composer(true,true,true,true,true),e=c.elements;const plain=x=>JSON.parse(JSON.stringify(x));e.phrase.focus=()=>{};e.phrase.value='a heading\na bad cab';e.phrase.emit('input');e.phrase.selectionStart=0;e.phrase.selectionEnd=9;e['compose-underline'].onclick();await settle();
+ assert.deepEqual(JSON.parse(c.requests.at(-1).options.body).underline,[{start:0,end:9}]);assert.match(e['compose-underline-status'].textContent,/9 characters/);
+ const settings=plain(c.window.compositions.read()),record=require('../web/engine').createComposition({id:require('node:crypto').randomUUID(),title:'Underlined',settings});assert.deepEqual(record.settings.underline,[{start:0,end:9}]);
+ const draft=plain(c.window.recovery.read()),next=await composer(true,true,true,true,true);await next.window.recovery.restore(draft);assert.deepEqual(plain(next.window.compositions.read().underline),[{start:0,end:9}]);
+ await next.window.compositions.restore(record.settings);assert.deepEqual(plain(next.window.compositions.read().underline),[{start:0,end:9}]);
+ e.phrase.value='new '+e.phrase.value;e.phrase.emit('input');assert.deepEqual(plain(c.window.compositions.read().underline),[{start:4,end:13}]);e.phrase.selectionStart=4;e.phrase.selectionEnd=13;e['compose-ununderline'].onclick();await settle();assert.deepEqual(JSON.parse(c.requests.at(-1).options.body).underline,[]);
+ assert.throws(()=>require('../web/engine').compositionSettings({...settings,underline:[{start:0,end:99999}]}),/valid text range/);
 });

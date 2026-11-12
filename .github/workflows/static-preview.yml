@@ -1,9 +1,12 @@
 name: Build static cursive preview
 on:
   push:
-    branches: [feature/cursive-milestone-1]
+    branches: [feature/cursive-milestone-2]
 permissions:
   contents: write
+concurrency:
+  group: cursive-milestone-2-preview
+  cancel-in-progress: true
 jobs:
   preview:
     runs-on: ubuntu-latest
@@ -20,7 +23,7 @@ jobs:
       - run: python3 scripts/build_pages.py
       - name: Publish built site to preview branch
         env:
-          PREVIEW_BRANCH: preview-cursive-m1
+          PREVIEW_BRANCH: preview-cursive-m2
         run: |
           set -e
           cp -R docs /tmp/handwriting-preview
@@ -30,5 +33,5 @@ jobs:
           git switch --orphan "$PREVIEW_BRANCH"
           cp -R /tmp/handwriting-preview/. .
           git add .
-          git commit -m "Publish cursive milestone 1 preview"
+          git commit -m "Publish cursive milestone 2 preview"
           git push --force origin "$PREVIEW_BRANCH"
