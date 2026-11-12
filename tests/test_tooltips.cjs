@@ -79,3 +79,16 @@ test('Review and Proof expose click-only help for editing and physical-size deci
   dom.window.close();
  }
 });
+
+test('Free writing, Fonts, Calibration and Plotter help never activates the associated action',()=>{
+ for(const [file,ids] of [
+ ['notebook.html',['writer','save','saved-pages','open-page','replace-page','export','smooth','guides']],
+ ['fonts.html',['font-choice','font-files','font-size','font-phrase','font-page','font-svg','font-gcode']],
+ ['calibration.html',['calibration-stage','download-gcode','download-svg']],
+ ['plotting.html',['plot-open-local','plot-file','plot-port','plot-connect','plot-home','plot-ready','plot-start','plot-pause','plot-continue','plot-cancel','plot-travel']]
+ ]){
+  const dom=new JSDOM(fs.readFileSync('docs/'+file,'utf8')),doc=dom.window.document,tips=init(doc,dom.window,C);
+  for(const id of ids){const control=doc.getElementById(id);assert(control,file+': '+id);const entry=tips.entries.get(control);assert(entry,file+': help for '+id);let actions=0;control.addEventListener('click',()=>actions++);const checked=control.checked;entry.button.click();assert.equal(actions,0);assert.equal(control.checked,checked);assert.equal(tips.message.textContent,C.describe(control,doc));tips.panel.querySelector('button').click();assert(tips.panel.hidden);}
+  dom.window.close();
+ }
+});
