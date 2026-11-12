@@ -47,3 +47,22 @@ test('disabled controls have usable help inside dialogs and dynamic controls are
  tips.entries.get(select).button.click();doc.body.dispatchEvent(new dom.window.Event('pointerdown',{bubbles:true}));assert(tips.panel.hidden);
  select.remove();await new Promise(r=>dom.window.setTimeout(r,0));assert.equal(doc.querySelectorAll('.studio-help-marker').length,3);dom.window.close();
 });
+
+test('Capture, My alphabet and Blend expose help for their key decisions',()=>{
+ for(const [file,ids] of [
+  ['index.html',['writer','capture-kind','save','more-sheets','guide-symbols']],
+  ['alphabet.html',['alphabet-writer','alphabet-kind','alphabet-compare','alphabet-clear','alphabet-zoom']],
+  ['blending.html',['single-writer','single-pool','single-count','single-find','single-save','single-prefer','single-reopen','single-zoom','single-centre']]
+ ]){
+  const dom=new JSDOM(fs.readFileSync('docs/'+file,'utf8')),doc=dom.window.document,tips=init(doc,dom.window,C);
+  for(const id of ids){const c=doc.getElementById(id);assert(c,file+': '+id);assert(tips.entries.has(c),file+': help for '+id);}
+  assert(tips.panel.hidden);dom.window.close();
+ }
+});
+test('dynamic blend sources and preferred choices get help without activating the action',async()=>{
+ const dom=new JSDOM('<body><div id="single-sources"><label>Source A<select><option>Original</option></select></label></div><div id="alphabet-samples"><article><button>Add to preferred</button></article></div></body>');
+ const doc=dom.window.document,tips=init(doc,dom.window,C),select=doc.querySelector('select'),action=doc.querySelector('#alphabet-samples button');let calls=0;action.onclick=()=>calls++;
+ assert(tips.entries.has(select));tips.entries.get(action).button.click();assert.equal(calls,0);assert.match(tips.message.textContent,/Add this included version/);
+ action.textContent='Remove from preferred';await new Promise(r=>dom.window.setTimeout(r,0));assert.match(tips.message.textContent,/saved sample is kept/);
+ assert.equal(doc.querySelectorAll('.studio-help-marker').length,2);dom.window.close();
+});

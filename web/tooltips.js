@@ -1,7 +1,7 @@
 'use strict';
 (function(root){
  // Deliberately limited to decisions that benefit from an explanation.
- const important=new Set(('writer writer-new capture-kind save guide-symbols single-pool single-count single-save single-preferred sample-size sample-shift sample-included stroke-target review-save alphabet-writer alphabet-preferred proof-size proof-source proof-natural proof-zoom compose-writer compose-size compose-source compose-samples compose-preferred compose-joined compose-connect compose-natural compose-order compose-letter-spacing compose-word-spacing compose-line-spacing compose-compare compose-compare-zoom compose-gcode composition-save backup-download backup-import recovery-restore calibration-stage font-size font-upload').split(' '));
+ const important=new Set(('writer writer-new capture-kind more-sheets save guide-symbols guide-tail smooth single-writer single-letter single-pool single-count single-find single-reopen single-zoom single-centre single-save single-prefer sample-size sample-shift sample-included stroke-target review-save alphabet-writer alphabet-kind alphabet-compare alphabet-proof alphabet-zoom alphabet-clear spacing-before spacing-after spacing-save proof-size proof-source proof-natural proof-zoom compose-writer compose-size compose-source compose-samples compose-preferred compose-joined compose-connect compose-natural compose-order compose-letter-spacing compose-word-spacing compose-line-spacing compose-compare compose-compare-zoom compose-gcode composition-save backup-download backup-import recovery-restore calibration-stage font-size font-upload').split(' '));
  function init(doc,win,content){
   const selector='button,input:not([type="hidden"]),select,textarea,a[href],canvas,summary,[tabindex]:not([tabindex="-1"])';
   const entries=new Map();let active=null;
@@ -24,7 +24,7 @@
    const text=content.describe(control,doc);if(!text)return;
    // Native title tooltips should not appear either.
    control.removeAttribute('title');
-   if(!important.has(control.id))return text;
+   if(!important.has(control.id)&&!control.matches('#single-sources select,#alphabet-samples button'))return text;
    let entry=entries.get(control);
    if(!entry){
     const button=doc.createElement('button');button.type='button';button.className='studio-help-marker studio-tip-ui';button.textContent='?';button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-expanded','false');
