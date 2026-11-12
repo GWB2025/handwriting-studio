@@ -6,6 +6,9 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'svg-font-name':'Name the exported font, up to 80 characters. Leave blank to use the Writer name followed by Single Line. This does not rename the Writer or captures.',
+  'svg-font-download':'Download the prepared SVG 1.1 stroke font for compatible plotting software. This is a reusable character set, not a finished page or an installable Word font.',
+  'svg-font-build':'Prepare one included version of each character from the selected Writer, preferring saved preferred blends. Inspect coverage before downloading. Keeps single-line strokes; does not include automatic cursive connections.',
   'proof-connect':'Connect neighbouring letters and saved pairs using the same smooth joins and closer spacing as Compose. Punctuation stays separate. Turning this on switches Natural variation Off.',
   'uppercase-joins-save':'Save the checked uppercase letters for this Writer. Only those capitals can join to a following lowercase letter when Smooth cursive joins is on. This preference is included in backups.',
   'compose-underline':'Select a heading, word or passage in Your phrase, then underline it. The rule sits below letter tails and appears in previews, saved compositions, SVG and G-code. Newly typed text is not automatically underlined.',

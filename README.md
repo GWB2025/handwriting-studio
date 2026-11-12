@@ -35,6 +35,12 @@ The iPad layout uses compact navigation and **More** for extra pages and tools. 
 
 Proof sheets support A3, A4, A5, Letter and Legal paper in portrait or landscape. **Fit to page** adjusts physical writing size to fit a passage on one page without wrapping its verse lines, retaining indentation and underlining. SVG exports use the chosen paper size; calibrated G-code remains limited to A4 portrait. Compose uses A4. Both support up to 20 pages with separate downloads. [Detailed instructions](https://gwb2025.github.io/handwriting-studio/help.html#proof) cover longer passages, comparisons, spacing and live previews.
 
+## Export a single-line font
+
+In **My alphabet**, select a Writer and expand **Export single-line SVG font**. Choose a name, then **Prepare SVG font** to inspect coverage and the selected sample for each character before downloading. Preferred blends take priority, followed by preferred samples and original-capture fallbacks. Saved size, baseline, stroke corrections and character spacing apply. Missing characters are reported; partial alphabets are allowed.
+
+This first version exports one centreline glyph per character in SVG 1.1 font format for compatible plotting software. It does not include automatic cursive connectors, joined-pair ligatures or rotating alternates, and is not an installable Word font. Use Compose for finished page SVGs. Export does not change captures or preferences.
+
 ## Imported fonts
 
 Open **More → Fonts** to compose with a TrueType (`.ttf`) font. Add a font, enter text, choose its lowercase x height and generate the A4 preview. Download each page as SVG or outline G-code. The supplied QERuthStafford and QESamRoberts2 fonts are available on this Mac through the local app’s **Fonts** link; on the public website, import the original files once per browser/device.
