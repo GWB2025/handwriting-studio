@@ -70,8 +70,6 @@ Edit sources in `static/` and `web/`, then run `npm run build` and `npm test`. T
 
 ## Licence and acknowledgement
 
-A [proposed noncommercial replacement](LICENSE-NONCOMMERCIAL-PROPOSED.txt) is awaiting the owner’s review before PR #8 is merged. It is not yet in force.
-
 [MIT License](LICENSE) · Copyright © 2026 Gordon Brindle. Reuse and modification, including commercial use, are permitted under its terms.
 
 Inspired by [Dan Catt’s handwriting workflow](https://www.youtube.com/watch?v=nD3XlqFhcEI), including the two- and four-source blending demonstration around 22–24 minutes. Handwriting Studio is an independent implementation.
