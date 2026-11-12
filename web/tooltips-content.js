@@ -6,6 +6,8 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'proof-connect':'Connect neighbouring letters and saved pairs using the same smooth joins and closer spacing as Compose. Punctuation stays separate. Turning this on switches Natural variation Off.',
+  'proof-tab':'Insert a tab at the text cursor to indent a line or move to the next tab stop. Tab stops are four normal word spaces wide and scale with writing size.',
   'proof-paper':'Choose the physical page size used for layout and SVG downloads. Margins remain 20 mm. Plotter G-code is available only for A4 portrait.',
   'proof-orientation':'Choose portrait or landscape for the proof sheet and its SVG download.',
   'proof-fit':'Find the largest writing size between 2 and 20 mm that fits the current alphabet or passage on one page, in 0.1 mm steps. This changes physical writing size, not preview zoom. Not available in Compare versions.',

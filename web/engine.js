@@ -217,8 +217,8 @@
     const ready=tokens(p.alphabet).filter(c=>counts[c]>0),missing=tokens(p.alphabet).filter(c=>!counts[c]);
     if(!text_only&&!ready.length)fail('No included samples for this group and source type.');
     if(text_only&&!sentence.trim())fail('Enter a passage or choose an example from Test sentences.');
-    const phrase=text_only?sentence.trim():ready.join(' ')+(sentence.trim()?'\n\n'+sentence.trim():'');
-    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:kind==='pairs'&&!text_only,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
+    const phrase=text_only?sentence.replace(/^\n+|\n+$/g,''):ready.join(' ')+(sentence.trim()?'\n\n'+sentence.replace(/^\n+|\n+$/g,''):'');
+    const result=compose(files,{writer,source,height,smooth:data.smooth??true,use_preferred:true,samples:'latest_only',joined:(kind==='pairs'&&!text_only)||!!data.auto_join_preview,auto_join_preview:data.auto_join_preview??false,phrase,page_layout:{},paper:data.paper,natural_variation:data.natural_variation});
     return {...result,missing,characters:ready};
   }
   function fitProofSheet(files,data){
@@ -439,6 +439,7 @@
     const scale=height/80,{above,below}=extents,right=frame.x+frame.width;let x=frame.x,baseline=frame.y+above;
     const line=above+below+height*.8*line_spacing,paths=[],chosen=[];let maxRight=frame.x;
     for(let i=0;i<letters.length;){
+      if(letters[i]==='\t'){const stop=height*2.8*word_spacing;x=frame.x+(Math.floor((x-frame.x+.000001)/stop)+1)*stop;i++;continue;}
       if(letters[i]==='\n'){x=frame.x;baseline+=line;i++;continue;}if(letters[i]===' '){x+=height*.7*word_spacing;i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
       const {positions,left,wordWidth,cursor}=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments);
@@ -482,11 +483,12 @@
     const flush=()=>{lines.push(row);row={glyphs:[],cursor:0,left:Infinity,right:-Infinity};};
     for(let i=0;i<letters.length;){
       if(letters[i]==='\n'){flush();i++;continue;}
+      if(letters[i]==='\t'){const stop=height*2.8*word_spacing;row.cursor=(Math.floor((row.cursor+.000001)/stop)+1)*stop;i++;continue;}
       if(letters[i]===' '){row.cursor+=height*(auto_join_preview?.35:.7)*word_spacing*(1+natural.word*natural.drift('word-gap',gapIndex++,3));i++;continue;}
       let end=i;while(end<letters.length&&used[end])end++;
       const word=wordLayout(letters.slice(i,end),used.slice(i,end),height,letter_spacing,adjustments,auto_join_preview);
       if(word.wordWidth>width)fail('A word is too wide for these margins. Use smaller writing, narrower margins or add a space.');
-      if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else row.cursor=0;}
+      if(row.cursor+word.wordWidth>width){if(row.glyphs.length)flush();else fail('A word and its indentation are too wide for the page. Reduce writing size or indentation.');}
       for(let j=i;j<end;j++){const s=used[j],x=row.cursor+word.positions[j-i]-word.left;row.glyphs.push({s,x,letter:letters[j],joinPrevious:j>i&&cursiveNeighbours(letters[j-1],letters[j])});row.left=Math.min(row.left,x);row.right=Math.max(row.right,x+sampleInkWidth(s)*scale);}
       row.cursor+=Math.max(0,word.cursor-word.left)+height*.22;i=end;
     }
@@ -540,7 +542,7 @@
     if(!['original','blend'].includes(variation))fail('Choose an available variation mode.');
     if(typeof writer!=='string'||!writer.trim()||writer.trim().length>80)fail('Choose a writer.');
     if(typeof phrase!=='string'||phrase.length>(data.page_layout!==undefined?10000:2000)||![...phrase].some(c=>characters.includes(c)))fail(data.page_layout!==undefined?'Type a document (up to 10,000 characters).':'Type a phrase (up to 2000 characters).');
-    if([...phrase].some(c=>!(characters+' \n').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
+    if([...phrase].some(c=>!(characters+' \n\t').includes(c)))fail('Use captured letters, numbers and supported punctuation.');
     if(!finite(height,2,20)||typeof smooth!=='boolean'||typeof joined!=='boolean'||typeof auto_join_preview!=='boolean')fail('Choose a writing size from 2 to 20 mm.');
     if(blend_strength!==undefined&&!finite(blend_strength,0,100))fail('Choose a blend mix from 0 to 100 percent.');
     if(![2,4].includes(blend_count)||!finite(blend_vertical,0,100))fail('Choose two or four sources and valid blend controls.');
@@ -549,12 +551,12 @@
     for(const s of all){variants[s.letter]??=[];if(s.included&&(source==='both'||(source==='blends')===s.derived))variants[s.letter].push(s);}
     for(const [letter,list] of Object.entries(variants)){available[letter]=list.length;const preferred=use_preferred?preferenceIDs(preferences[letter]).map(id=>list.find(s=>s.capture_id===id)).filter(Boolean):[];variants[letter]=preferred.length?preferred:list.slice(0,{latest_three:3,latest_four:4,latest_only:1,all:undefined}[mode]);}
     const letters=[];for(let i=0;i<phrase.length;i++){const pair=phrase.slice(i,i+2);if(joined&&pairs.includes(pair)&&(!reviewSample||pair===reviewSample.letter)&&variants[pair]?.length){letters.push(pair);i++;}else letters.push(phrase[i]);}
-    const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&!variants[c]?.length))].sort();
+    const missing=[...new Set(letters.filter(c=>c!==' '&&c!=='\n'&&c!=='\t'&&!variants[c]?.length))].sort();
     if(missing.length)fail('No included '+(source==='blends'?'saved blends':source==='originals'?'original samples':'samples')+' for: '+missing.join(', ')+'. '+(source==='blends'?'Save blends for these characters or choose Both.':'Capture them or include a saved example in Review samples.'));
     let state=2166136261;for(const c of String(seed)+phrase)state=Math.imul(state^c.charCodeAt(0),16777619)>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
     let blended=0,fallback=0;const occurrence={},used=letters.map(c=>{
-      if(c===' '||c==='\n')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=pick(c,list,n);
+      if(c===' '||c==='\n'||c==='\t')return null;const n=occurrence[c]||0;occurrence[c]=n+1;const list=variants[c],original=pick(c,list,n);
       if(variation==='blend'){
         const candidates=list.filter(s=>s!==original&&compatible(original,s));
         // Seeded selection stays fixed when only the mix controls change.
@@ -579,7 +581,7 @@
       return {svg,used_samples:layout.chosen};
     }
     if(auto_join_preview&&natural.level!=='off')fail('Turn Natural variation off to use smooth cursive joins.');
-    const layouts=auto_join_preview||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
+    const layouts=auto_join_preview||phrase.includes('\t')||data.page_layout!==undefined||data.paper!==undefined||natural.level!=='off'?layoutDocument(letters,used,{...options,paper:data.paper},profile.character_spacing,data.page_layout):[layoutWriting(letters,used,options,undefined,profile.character_spacing)];
     const pages=layouts.map((layout,i)=>({svg:drawingSVG(layout.paths,layouts.length===1?'Handwriting: '+phrase:'Handwriting page '+(i+1)+' of '+layouts.length,data.paper),used_samples:layout.chosen,...(layout.lines?{lines:layout.lines}:{}),...(auto_join_preview?{generated_joins:layout.generated_joins||0,skipped_joins:layout.skipped_joins||0}:{})})),chosen=layouts.flatMap(layout=>layout.chosen);
     const dates=used.filter(Boolean).map(s=>s.saved_at).sort((a,b)=>Date.parse(a)-Date.parse(b));
     const source_usage=[];
