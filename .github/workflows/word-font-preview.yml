@@ -1,7 +1,7 @@
 name: Build Word font and Compose preview
 on:
   push:
-    branches: [feature/word-font-export]
+    branches: [feature/word-font-export, fix/font-punctuation]
 permissions:
   contents: write
 concurrency:

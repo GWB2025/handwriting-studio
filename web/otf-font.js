@@ -20,9 +20,28 @@
   for(const polygon of union){polygon.forEach((p,i)=>i?path.lineTo(p.X/scale,p.Y/scale):path.moveTo(p.X/scale,p.Y/scale));path.close();}
   return path;
  }
+ // Match punctuation to the Writer's actual lowercase body height, not the
+ // nominal capture guides. Apply a uniform transform only to outlying marks.
+ function fitPunctuation(source){
+  const bounds=g=>{const p=g.strokes.flat();return {left:Math.min(...p.map(p=>p.x)),right:Math.max(...p.map(p=>p.x)),top:Math.max(...p.map(p=>p.y)),bottom:Math.min(...p.map(p=>p.y))};};
+  const heights=source.glyphs.filter(g=>'acemnorsuvwx'.includes(g.letter)).map(g=>{const b=bounds(g);return b.top-b.bottom;}).filter(h=>h>0).sort((a,b)=>a-b);
+  if(heights.length<3)return source;
+  const height=heights[Math.floor(heights.length/2)];
+  const groups=[['.',.18,0], [',',.4,-.22], [':',1,0], [';',1.22,-.22], ['!?',1.7,0], ["'\"‘’“”",.45,1.15], ['-–—',.12,.45]];
+  return {...source,glyphs:source.glyphs.map(g=>{
+   const rule=groups.find(([chars])=>chars.includes(g.letter));if(!rule)return g;
+   const b=bounds(g),h=b.top-b.bottom,target=rule[1]*height,bottom=rule[2]*height;
+   // Leave proportionate punctuation and intentional small positioning differences alone.
+   if(h<=target*1.3&&b.bottom>=bottom-height*.25&&b.top<=bottom+target+height*.25)return g;
+   const scale=h>target?target/h:1,shift=bottom-b.bottom*scale;
+   const strokes=g.strokes.map(s=>s.map(p=>({x:b.left+(p.x-b.left)*scale,y:p.y*scale+shift})));
+   const d=strokes.map(s=>s.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' ')).join(' ');
+   return {...g,strokes,d,advance:g.advance-(b.right-b.left)*(1-scale)};
+  })};
+ }
  function create(files,{writer,name,thickness=20,cursive=true}){
   if(!Number.isFinite(thickness)||thickness<5||thickness>60)throw Error('Choose a stroke thickness between 5 and 60.');
-  const source=S.create(files,{writer,name}),missing=new O.Path();
+  const source=fitPunctuation(S.create(files,{writer,name})),missing=new O.Path();
   missing.moveTo(50,0);missing.lineTo(50,700);missing.lineTo(450,700);missing.lineTo(450,0);missing.close();
   missing.moveTo(90,40);missing.lineTo(410,40);missing.lineTo(410,660);missing.lineTo(90,660);missing.close();
   const glyphs=[new O.Glyph({name:'.notdef',advanceWidth:500,path:missing}),new O.Glyph({name:'space',unicode:32,advanceWidth:350,path:new O.Path()})];
@@ -51,5 +70,5 @@
   const buffer=font.toArrayBuffer();
   return {...source,font,buffer,joins,filename:source.filename.replace('-single-line.svg','.otf')};
  }
- const api={create,outline};if(typeof module!=='undefined')module.exports=api;else root.StudioOTFFont=api;
+ const api={create,outline,fitPunctuation};if(typeof module!=='undefined')module.exports=api;else root.StudioOTFFont=api;
 })(typeof window==='undefined'?globalThis:window);

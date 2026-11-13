@@ -31,3 +31,15 @@ test('contextual cursive alternates retain base outlines and advances and exclud
  for(const j of joined.joins){assert.match(j.left,/^[A-Za-z]$/);assert.match(j.right,/^[a-z]$/);assert.equal(joined.font.glyphs.get(j.index).advanceWidth,plain.font.charToGlyph(j.left).advanceWidth);}
  assert.equal(plain.joins.length,0);
 });
+test('punctuation uses actual lowercase height with uniform shape-preserving transforms',()=>{
+ const glyph=(letter,bottom,top,width=40)=>({letter,advance:width+100,strokes:[[{x:50,y:bottom},{x:50+width,y:top}]]});
+ const source={glyphs:[...['a','e','n'].map(c=>glyph(c,0,100)),glyph('?',30,980),glyph("'",760,985),glyph(',',-150,20),glyph(':',40,450),glyph('.',0,12),glyph('A',0,200)]},before=JSON.stringify(source),result=F.fitPunctuation(source);
+ assert.equal(JSON.stringify(source),before);
+ for(const c of ['a','e','n','A','.'])assert.deepEqual(result.glyphs.find(g=>g.letter===c),source.glyphs.find(g=>g.letter===c));
+ for(const [c,bottom,height] of [['?',0,170],["'",115,45],[',',-22,40],[':',0,100]]){
+  const g=result.glyphs.find(g=>g.letter===c),old=source.glyphs.find(g=>g.letter===c),p=g.strokes[0];assert(Math.abs(p[0].y-bottom)<1e-8);assert(Math.abs(p[1].y-p[0].y-height)<1e-8);
+  assert(Math.abs((p[1].x-p[0].x)/40-height/(old.strokes[0][1].y-old.strokes[0][0].y))<1e-8);assert(g.advance<old.advance);
+ }
+ assert.deepEqual(F.fitPunctuation(result),result);
+ assert.deepEqual(F.fitPunctuation({glyphs:[glyph('?',0,900)]}),{glyphs:[glyph('?',0,900)]});
+});
