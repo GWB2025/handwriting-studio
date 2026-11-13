@@ -88,3 +88,9 @@ This project includes contributions developed by Gordon Brindle with assistance
 from OpenAI's ChatGPT, particularly with software implementation and
 documentation. Gordon directs the project and makes the final design and
 development decisions.
+
+### Word and LibreOffice font export (draft)
+
+In the browser app, open My alphabet → Export font for Word and LibreOffice. Prepare an OpenType (.otf) font using the selected Writer’s preferred blends where available, inspect the filled glyph outlines, then download and install it with your system font manager. Fine, Regular and Bold control outline thickness without changing captures. Export happens locally; no handwriting is bundled or uploaded. Missing characters are listed. This first version contains individual characters, without generated cursive joins, ligatures or variation. Word/LibreOffice installation and layout testing is still pending.
+
+Outline construction uses clipper-lib 6.4.2 (Boost Software License; notices retained in the bundled script), and font serialization uses the existing opentype.js dependency.

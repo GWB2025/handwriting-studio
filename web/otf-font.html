@@ -1,0 +1,11 @@
+<details id="otf-font-export"><summary>Export font for Word and LibreOffice</summary>
+<p>Make an installable OpenType (.otf) font from this Writer’s included characters. Preferred blends are used first, then preferred captures, then available originals or saved blends. Unaccepted suggestions and excluded samples are never used.</p>
+<label for="otf-font-name">Font name</label><input id="otf-font-name" maxlength="80" placeholder="Writer name + Handwriting">
+<label for="otf-font-thickness">Stroke thickness</label><select id="otf-font-thickness"><option value="10">Fine</option><option value="20" selected>Regular</option><option value="35">Bold</option></select>
+<p>Your pen strokes become filled outlines with rounded ends. Thickness only affects this export; your captures remain unchanged. This first version has separate characters, without automatic cursive joins, pair ligatures or natural variation. Missing characters may appear in a fallback font in your word processor.</p>
+<button id="otf-font-build" type="button">Prepare Word font</button>
+<a id="otf-font-download" class="button" hidden>Download OpenType font</a>
+<p id="otf-font-status" role="status">Prepare the font to inspect the actual exported outlines.</p>
+<p>After downloading, open the .otf file and install it with your computer’s font manager. Reopen Word or LibreOffice and select the font by its name. Use a new name for revised exports to avoid font caching. Desktop application compatibility is awaiting review.</p>
+<div id="otf-font-preview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px"></div>
+</details>

@@ -7,6 +7,8 @@ DEST = ROOT / 'docs'
 DEST.mkdir(exist_ok=True)
 assets = DEST / 'assets'
 assets.mkdir(exist_ok=True)
+(assets/'clipper.js').write_bytes((ROOT/'node_modules/clipper-lib/clipper.js').read_bytes())
+(assets/'opentype.min.js').write_bytes((ROOT/'static/opentype.min.js').read_bytes())
 notice = '''<aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small></div><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
 route = {'/proof':'proof.html','/help':'help.html','/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
@@ -32,7 +34,7 @@ style+='\n'+(ROOT/'web/tooltips.css').read_text()
 style+='\n'+(ROOT/'web/capture-layout.css').read_text()
 style+='\n'+(ROOT/'web/studio-layout.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['svg-font.js','svg-font-ui.js','symbol-suggestions.js','studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
+for name in ['otf-font.js','otf-font-ui.js','svg-font.js','svg-font-ui.js','symbol-suggestions.js','studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html'),('cursive.html','cursive.html')]:
     html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
@@ -53,8 +55,8 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     if(source=='blending.html'):
         html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
-        html=html.replace('<div id="alphabet-previews"', (ROOT/'web/svg-font.html').read_text()+'<div id="alphabet-previews"')
-        html=html.replace('</body>','<script src="assets/svg-font.js"></script><script src="assets/svg-font-ui.js"></script></body>')
+        html=html.replace('<div id="alphabet-previews"', (ROOT/'web/svg-font.html').read_text()+(ROOT/'web/otf-font.html').read_text()+'<div id="alphabet-previews"')
+        html=html.replace('</body>','<script src="assets/svg-font.js"></script><script src="assets/svg-font-ui.js"></script><script src="assets/opentype.min.js"></script><script src="assets/clipper.js"></script><script src="assets/otf-font.js"></script><script src="assets/otf-font-ui.js"></script></body>')
         html=html.replace('<div id="alphabet-previews"', '<div id="suggested-symbols"></div><div id="alphabet-previews"')
         html=html.replace('</body>','<script src="assets/symbol-suggestions.js"></script></body>')
         html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
