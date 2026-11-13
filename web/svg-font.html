@@ -1,0 +1,9 @@
+<details id="svg-font-export"><summary>Export single-line SVG font</summary>
+<p>Create a stroke font from the selected Writer’s included characters across all groups. Uses the first preferred blend, then the first preferred sample, otherwise the newest original, newest saved blend or accepted suggested symbol. Excluded samples and unaccepted suggestions are skipped.</p>
+<label for="svg-font-name">Font name</label><input id="svg-font-name" maxlength="80" placeholder="Writer name + Single Line">
+<button id="svg-font-build" type="button">Prepare SVG font</button>
+<a id="svg-font-download" class="button" hidden>Download single-line SVG font</a>
+<p>One version per character, with saved baseline, size, stroke order and spacing adjustments. This first version exports separate characters without generated cursive joins or joined pairs. Missing characters are listed below; a partial alphabet can still be downloaded. Re-prepare after changing saved samples or preferences.</p>
+<p>For plotting software that imports SVG 1.1 stroke fonts, such as Hershey Text. This is a reusable font, not a page drawing or an installable Word font. Use Compose to download finished writing. Application compatibility still needs testing.</p>
+<p id="svg-font-status" role="status">Prepare the font to inspect its characters and missing coverage.</p>
+<div id="svg-font-preview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px"></div></details>

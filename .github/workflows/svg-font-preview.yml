@@ -1,0 +1,37 @@
+name: Build single-line SVG font preview
+on:
+  push:
+    branches: [feature/single-line-svg-font]
+permissions:
+  contents: write
+concurrency:
+  group: single-line-svg-font-preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install -r requirements.txt
+      - run: npm ci --ignore-scripts
+      - run: python3 scripts/build_pages.py
+      - name: Publish built site to preview branch
+        env:
+          PREVIEW_BRANCH: preview-svg-font
+        run: |
+          set -e
+          cp -R docs /tmp/handwriting-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git reset --hard HEAD
+          git switch --orphan "$PREVIEW_BRANCH"
+          cp -R /tmp/handwriting-preview/. .
+          git add .
+          git commit -m "Publish single-line SVG font preview"
+          git push --force origin "$PREVIEW_BRANCH"

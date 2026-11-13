@@ -33,6 +33,12 @@ The legacy Mac app optionally serves `.ttf` files from ignored `data/fonts/` thr
 
 `opentype.js` is pinned to 2.0.0 in npm. Its browser distribution and MIT license are vendored in `static/opentype.min.js` and `static/opentype-LICENSE.txt`, then copied unchanged into `docs/assets/`. The unused source-map directive is removed. To update the parser, update the pinned npm version and both vendored files together, rebuild, and run the font and app tests. No CDN or Python font package is required.
 
+### Single-line font export
+
+`web/svg-font.js` builds a read-only SVG 1.1 font from the reviewed catalog; `web/svg-font-ui.js` and `web/svg-font.html` expose it in the browser-only My alphabet build. Export uses one included single-character sample per glyph, with preferred blends first. Every pen stroke has a separate M subpath; L segments preserve the sampled path without closed outlines or invented connections. Font coordinates use Y up, 1000 units/em and a 500-unit capture-guide x-height (80 capture units). Reviewed shifts, scaling, stroke ordering and spacing are retained. Ascent/descent cover all exported ink. Space advances 350 units; missing glyphs advance 500 without drawing. Characters absent from the supported catalog are omitted and listed.
+
+See [SVG 1.1 fonts](https://www.w3.org/TR/SVG11/fonts.html). This initial export is aimed at stroke-font importers such as Hershey Text, not browser text rendering or TrueType installation; real importer compatibility remains to be verified. `tests/test_svg_font.cjs` checks XML, source selection, geometry, immutability and the downloadable UI.
+
 ### Data model
 
 The public app stores records in IndexedDB; these paths are logical record keys, not files uploaded to a server:
