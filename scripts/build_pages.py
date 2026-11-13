@@ -7,6 +7,8 @@ DEST = ROOT / 'docs'
 DEST.mkdir(exist_ok=True)
 assets = DEST / 'assets'
 assets.mkdir(exist_ok=True)
+(assets/'clipper.js').write_bytes((ROOT/'node_modules/clipper-lib/clipper.js').read_bytes())
+(assets/'opentype.min.js').write_bytes((ROOT/'static/opentype.min.js').read_bytes())
 notice = '''<aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small></div><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>
 <dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>'''
 route = {'/proof':'proof.html','/help':'help.html','/alphabet':'alphabet.html','/blending':'blending.html','/calibration':'calibration.html','/review':'review.html','/compose':'compose.html','/notebook':'notebook.html','/':'index.html'}
@@ -32,7 +34,7 @@ style+='\n'+(ROOT/'web/tooltips.css').read_text()
 style+='\n'+(ROOT/'web/capture-layout.css').read_text()
 style+='\n'+(ROOT/'web/studio-layout.css').read_text()
 (assets/'style.css').write_text(style)
-for name in ['svg-font.js','svg-font-ui.js','symbol-suggestions.js','studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
+for name in ['otf-font.js','otf-font-ui.js','svg-font.js','svg-font-ui.js','symbol-suggestions.js','studio-layout.js','capture-layout.js','tooltips-content.js','tooltips.js','recovery-store.js','recovery.js','writing-recovery.js','engine.js','browser-api.js','backup.js','blend-preview.js','blending.js','alphabet.js','proof.js','proof-texts.js','proof-comparison.js','plotting.js','compositions.js','character-spacing.js']:
     (assets/name).write_text((ROOT/'web'/name).read_text())
 for source,target in [('capture.html','index.html'),('compose.html','compose.html'),('review.html','review.html'),('index.html','notebook.html'),('calibration.html','calibration.html'),('blending.html','blending.html'),('alphabet.html','alphabet.html'),('help.html','help.html'),('proof.html','proof.html'),('cursive.html','cursive.html')]:
     html=adapt((ROOT/('web' if source in ['capture.html','help.html','proof.html'] else 'static')/source).read_text())
@@ -53,8 +55,8 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
     if(source=='blending.html'):
         html=html.replace('<div id="single-controls">','<p>For sources with different stroke order or direction, use <a href="review.html">Review samples → Correct stroke order and direction</a>, save the corrections, then return and tap <strong>Refresh originals</strong>.</p><div id="single-controls">')
     if(source=='alphabet.html'):
-        html=html.replace('<div id="alphabet-previews"', (ROOT/'web/svg-font.html').read_text()+'<div id="alphabet-previews"')
-        html=html.replace('</body>','<script src="assets/svg-font.js"></script><script src="assets/svg-font-ui.js"></script></body>')
+        html=html.replace('<div id="alphabet-previews"', (ROOT/'web/svg-font.html').read_text()+(ROOT/'web/otf-font.html').read_text()+'<div id="alphabet-previews"')
+        html=html.replace('</body>','<script src="assets/svg-font.js"></script><script src="assets/svg-font-ui.js"></script><script src="assets/opentype.min.js"></script><script src="assets/clipper.js"></script><script src="assets/otf-font.js"></script><script src="assets/otf-font-ui.js"></script></body>')
         html=html.replace('<div id="alphabet-previews"', '<div id="suggested-symbols"></div><div id="alphabet-previews"')
         html=html.replace('</body>','<script src="assets/symbol-suggestions.js"></script></body>')
         html=html.replace('<div id="alphabet-samples"></div>',(ROOT/'web/character-spacing.html').read_text()+'<div id="alphabet-samples"></div>')
@@ -66,7 +68,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><label>Character <select')
         html=html.replace('Choose a letter and inspect its saved examples, newest first.', 'Choose a writer, group and character, then inspect its originals and saved blends, newest first. Blends are labelled.')
     if(source=='compose.html'):
-        html=html.replace('<textarea id="phrase"', '<div id="compose-underline-controls"><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase"')
+        html=html.replace('<textarea id="phrase"', '<div id="compose-underline-controls"><button id="compose-tab" type="button">Insert tab</button><p>Tab indents the text. Shift+Tab moves to the previous control.</p><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase"')
         # Larger sizes are supported by the browser engine; the legacy server keeps its original choices.
         html=html.replace('<option value="8">Large · 8 mm</option>', '<option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option>')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-natural.html').read_text()+'<div class="compose-actions">',1)
@@ -87,7 +89,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('Capitals, punctuation and cursive joins come later.', 'Capture capitals, numbers and punctuation as needed. Joined pairs are experimental and off for new compositions. Words wrap together; full cursive is not included.')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-layout.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<div class="composed-paper">',(ROOT/'web/compose-pages.html').read_text()+'<div class="composed-paper">')
-        html=html.replace('A4 portrait · 20 mm margins', 'A4 portrait · adjustable margins, at least 20 mm')
+        html=html.replace('A4 portrait · 20 mm margins', 'Selected paper size · adjustable margins, at least 20 mm').replace('Download A4 SVG','Download page SVG').replace('up to 20 A4 pages','up to 20 pages')
         html=html.replace('<form id="compose-form">',(ROOT/'web/compositions.html').read_text()+'<form id="compose-form">')
     if(source=='capture.html'):
         html=html.replace('Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets.', 'Choose lowercase, uppercase, numbers, punctuation and symbols, or experimental joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress.')
@@ -136,3 +138,19 @@ fonts = fonts.replace('</body>','<script src="assets/tooltips-content.js"></scri
 fonts = re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],fonts)
 (DEST/'fonts.html').write_text(fonts)
 print('Built ten Pages screens, the help guide and browser-only assets in docs/. No handwriting or font data was copied.')
+
+# Stamp every built screen; no personal data or machine paths enter metadata.
+import subprocess, json, datetime, os, html as html_module
+revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+branch=os.environ.get('GITHUB_REF_NAME') or subprocess.check_output(['git','branch','--show-current'],cwd=ROOT,text=True).strip()
+digest=hashlib.sha256()
+for folder in ['web','static','scripts']:
+    for path in sorted((ROOT/folder).rglob('*')):
+        if path.is_file() and '__pycache__' not in path.parts:
+            digest.update(str(path.relative_to(ROOT)).encode());digest.update(path.read_bytes())
+version={'revision':revision,'channel':'live' if branch=='main' else 'preview','build':digest.hexdigest()[:16],'built':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+(DEST/'version.json').write_text(json.dumps(version))
+(assets/'version.js').write_bytes((ROOT/'web/version.js').read_bytes())
+version_tag='<script src="assets/version.js?v='+hashlib.sha256((assets/'version.js').read_bytes()).hexdigest()[:12]+'" data-version="'+html_module.escape(json.dumps(version),quote=True)+'"></script>'
+for page in DEST.glob('*.html'):
+    page.write_text(page.read_text().replace('</body>',version_tag+'</body>'))

@@ -112,7 +112,7 @@
    helpText(form);
    const basic=q('.compose-settings',form);basic.classList.add('studio-basic-settings');
    details('Writing samples',[q('.sample-settings'),$('compose-source').closest('.compose-settings'),$('compose-preferred')?.closest('.compose-settings'),$('compose-joined').closest('label'),$('compose-joined-help')].filter((n,i,a)=>a.indexOf(n)===i));
-   for(const [id,label] of [['compose-natural','Natural variation'],['compose-order','Sample order'],['compose-letter-spacing','Spacing'],['compose-margin-top','Page layout']])details(label,[$(id).closest('fieldset')]);
+   for(const [id,label] of [['compose-natural','Natural variation'],['compose-order','Sample order'],['compose-letter-spacing','Spacing'],['compose-margin-top','Page layout']])details(label,[$(id).closest('fieldset')],id==='compose-margin-top');
    const actions=$('generate').parentElement;for(const el of actions.querySelectorAll('button'))el.setAttribute('form','compose-form');
    move(more.dialog,$('refresh-writers'));move(preview,$('compose-status'),$('compose-compare-panel'),q('.compose-pages'),q('.composed-paper'),primary(actions));
    // Hidden required fields must be revealed when native form validation fails.
