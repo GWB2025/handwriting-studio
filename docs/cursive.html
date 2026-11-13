@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Handwriting Studio · Cursive</title>
+<link rel="stylesheet" href="assets/style.css?v=4f905271fd23">
+<style>
+html{height:auto;overflow:auto}
+body{height:auto;overflow:visible}
+main.studio-page{position:static;display:block;height:auto;max-width:1400px;margin:auto;overflow:visible;touch-action:auto}
+main.studio-page>section,main.studio-page>.cursive-layout{margin-top:1rem}
+.cursive-card{min-width:0}
+#proof-viewport{overflow:auto;max-height:70vh;min-height:220px;background:#e5e8e1;padding:16px;margin-top:12px;border-radius:10px;touch-action:pan-x pan-y;overscroll-behavior:contain}
+#proof-image{display:block;max-width:none;width:min(100%,650px);height:auto;margin:0 auto;background:white}
+#proof-image[hidden]{display:none}
+.cursive-proof select{font:inherit;min-height:44px}
+
+.cursive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:.55rem;margin:1rem 0}
+.cursive-grid button{min-height:48px}
+.cursive-grid button[aria-pressed="true"]{outline:3px solid #93ad9b}
+.cursive-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:1rem}
+.cursive-card{border:1px solid #b9c9bf;border-radius:12px;padding:1rem;background:#fff}
+.cursive-preview img{width:100%;max-height:360px;object-fit:contain;background:#fbfcfb;border:1px solid #d8e0da;border-radius:8px}
+
+.cursive-metrics{font-variant-numeric:tabular-nums}
+.cursive-storage{border:2px solid #93ad9b;background:#f4f8f4}
+.cursive-storage .toolbar{align-items:center}
+.cursive-storage strong{color:#203832}
+@media(max-width:820px){.cursive-layout{grid-template-columns:1fr}}
+</style>
+<script src="assets/engine.js?v=93c05c6d5638"></script><script src="assets/browser-api.js?v=7e204506c0c5"></script><script src="assets/recovery-store.js?v=4bdf843ab22c"></script>
+</head>
+<body data-studio-page="cursive">
+<main class="studio-page">
+<aside class="browser-storage"><div class="storage-info"><span>Saved in this browser · keep a backup to move writing between devices.</span><small id="backup-reminder" role="status">Checking backup status…</small></div><div class="storage-buttons"><button id="backup-open" type="button">Backup / Import</button></div></aside>
+<header>
+  <div>
+    <h1>Cursive handwriting</h1>
+    <p>Capture how letters join, inspect their pen entry and exit, then test them in ordinary text.</p>
+  </div>
+  <nav class="header-actions" aria-label="Studio">
+    <a class="button" href="index.html">Capture</a>
+    <a class="button" href="alphabet.html">My alphabet</a>
+    <a class="button" href="blending.html">Blend</a>
+    <a class="button" href="compose.html">Compose</a>
+  <a class="button" href="plotting.html">Plotter</a><a class="button" href="help.html#cursive" target="_blank" rel="noopener" aria-label="Help guide (opens in a new tab)">Help guide</a></nav>
+</header>
+
+<section id="cursive-storage-panel" class="cursive-card cursive-storage" aria-labelledby="cursive-storage-title">
+  <h2 id="cursive-storage-title">Handwriting data for this page</h2>
+  <p id="cursive-storage-status" role="status">Checking this browser’s handwriting store…</p>
+  <div class="toolbar">
+    <button id="cursive-import-backup" type="button">Import handwriting backup</button>
+    <input id="cursive-backup-file" type="file" accept=".json,application/json" hidden>
+    <a id="cursive-live-app" class="button" href="https://gwb2025.github.io/handwriting-studio/">Open live Handwriting Studio</a>
+  </div>
+  <p class="subtle">Preview builds use separate browser storage from the live site. To copy your latest captures here, download a backup on the live site and import that JSON file into this preview.</p>
+</section>
+
+<section class="cursive-card">
+  <div class="toolbar">
+    <label>Writer <select id="cursive-writer"></select></label>
+    <a class="button" id="capture-cursive" href="/?kind=pairs">Capture cursive joins</a>
+    <button id="cursive-refresh" type="button">Refresh</button>
+  </div>
+  <p id="cursive-coverage">Checking captured handwriting…</p>
+  <p class="subtle">Milestone 2 groundwork identifies each glyph’s primary joining stroke separately from dots, crossbars and other auxiliary strokes. Proofs start from individual letters. Enable Use captured joined pairs to compare saved pair shapes; generated joins are not plotted yet.</p>
+  <div id="cursive-pairs" class="cursive-grid" aria-label="Cursive join coverage"></div>
+</section>
+
+<div class="cursive-layout">
+<section class="cursive-card cursive-preview">
+  <h2 id="join-title">Join sample</h2>
+  <p id="join-status">Choose a join above.</p>
+  <img id="join-image" alt="Selected cursive join sample" hidden>
+  <div id="join-metrics" class="cursive-metrics"></div>
+</section>
+
+<section class="cursive-card">
+  <h2>Cursive proof</h2>
+  <label for="cursive-text">Text</label>
+  <textarea id="cursive-text" rows="5" maxlength="2000">the quick brown fox jumps over the lazy dog</textarea>
+  <div class="toolbar">
+    <label>Writing size
+      <select id="cursive-size">
+        <option value="5">5 mm</option>
+        <option value="8" selected>8 mm</option>
+        <option value="10">10 mm</option>
+        <option value="12">12 mm</option>
+      </select>
+    </label>
+    <label><input id="cursive-use-pairs" type="checkbox"> Use captured joined pairs</label>
+    <label><input id="cursive-auto-join" type="checkbox" checked> Preview generated joins</label>
+    <button id="cursive-generate" class="primary" type="button">Generate proof</button>
+  </div>
+  <p class="subtle">If a spike is visible in a Join sample, it is part of that saved pair. Untick Use captured joined pairs to build the proof from individual letters instead. Saved captures are kept intact.</p>
+  <p id="proof-status" role="status" aria-live="polite">Choose a writer and generate a proof.</p>
+</section>
+</div>
+
+<section class="cursive-card cursive-proof">
+  <h2>Proof preview</h2>
+  <div class="toolbar">
+    <label for="cursive-zoom">Preview zoom</label>
+    <select id="cursive-zoom" title="Enlarge the preview only; physical writing size stays unchanged." aria-describedby="proof-view-help">
+      <option value="100">Fit width (100%)</option>
+      <option value="150">150%</option><option value="200">200%</option>
+      <option value="300">300%</option><option value="400">400%</option>
+    </select>
+    <button id="cursive-zoom-reset" title="Fit the proof to the viewport width and return to the top." type="button">Fit width</button>
+  </div>
+  <p id="proof-view-help" class="subtle">Zoom changes only the preview, not the SVG or physical writing size. Scroll in either direction or swipe to inspect the page. 100% fits the page width.</p>
+  <p id="proof-view-status" role="status">Preview zoom: fit width (100%).</p>
+  <div id="proof-viewport" tabindex="0" role="region" aria-label="Scrollable cursive proof preview" aria-describedby="proof-view-help">
+    <img id="proof-image" alt="Cursive handwriting proof" hidden>
+  </div>
+</section>
+</main>
+<script src="assets/cursive.js?v=199b25768a3b"></script>
+<dialog id="backup-dialog" aria-labelledby="backup-title"><h2 id="backup-title">Keep your handwriting</h2><p>Writing stays on this browser and device. Clearing website data, using private browsing, or switching devices can make it unavailable. Download backups regularly.</p><button id="backup-download" type="button">Download backup</button><button id="backup-confirm" type="button" hidden>I have saved the backup file</button><p id="backup-history"></p><hr><label>Backup JSON file <input id="backup-file" type="file" accept=".json,application/json"></label><button id="backup-import" type="button">Import backup</button><p>Import adds records without replacing existing writing. Different versions of the same record are rejected together.</p><p id="backup-status" role="status" aria-live="polite"></p><button id="backup-close" type="button">Close</button></dialog>
+<script src="assets/studio-layout.js?v=8657f42082f3"></script><script src="assets/backup.js?v=7ed494b93875"></script>
+<script src="assets/tooltips-content.js?v=c0417cd2d0a3"></script><script src="assets/tooltips.js?v=3fa12d6f5ade"></script>
+<script src="assets/version.js?v=1ed2dde65c05" data-version="{&quot;revision&quot;: &quot;e79d6c1fe04c1d708a45ee33d48d1c38cd3b559d&quot;, &quot;channel&quot;: &quot;preview&quot;, &quot;build&quot;: &quot;5c5f5be23ed43381&quot;, &quot;built&quot;: &quot;2026-11-13T18:52:30.656434+00:00&quot;}"></script></body>
+</html>
