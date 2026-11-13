@@ -45,7 +45,7 @@ This first version exports one centreline glyph per character in SVG 1.1 font fo
 
 Open **More → Fonts** to compose with a TrueType (`.ttf`) font. Add a font, enter text, choose its lowercase x height and generate the A4 preview. Download each page as SVG or outline G-code. The supplied QERuthStafford and QESamRoberts2 fonts are available on this Mac through the local app’s **Fonts** link; on the public website, import the original files once per browser/device.
 
-These are **outline fonts**: the plotter traces the edges of each letter. They do not become Dan’s single-line SVG fonts or captured pen strokes. Font imports stay in a separate browser library and are not included in handwriting backups. Keep the original files; neither the supplied fonts nor their drawings are published with the app.
+These are **outline fonts**: the plotter traces the edges of each letter. They do not become single-line SVG fonts or captured pen strokes. Font imports stay in a separate browser library and are not included in handwriting backups. Keep the original files; neither the supplied fonts nor their drawings are published with the app.
 
 ## Keep your writing
 
@@ -78,7 +78,7 @@ Edit sources in `static/` and `web/`, then run `npm run build` and `npm test`. T
 
 [MIT License](LICENSE) · Copyright © 2026 Gordon Brindle. Reuse and modification, including commercial use, are permitted under its terms.
 
-Inspired by [Dan Catt’s handwriting workflow](https://www.youtube.com/watch?v=nD3XlqFhcEI), including the two- and four-source blending demonstration around 22–24 minutes. Handwriting Studio is an independent implementation.
+Handwriting Studio is an independent implementation.
 
 TrueType parsing uses [OpenType.js](https://opentype.js.org/), distributed under its [MIT license](static/opentype-LICENSE.txt). Imported fonts retain their own copyrights and terms.
 
