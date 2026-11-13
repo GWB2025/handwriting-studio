@@ -68,7 +68,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('<label>Letter <select', '<label>Group <select id="review-kind"><option value="lowercase">Lowercase</option><option value="uppercase">Uppercase</option><option value="numbers">Numbers</option><option value="symbols">Symbols</option><option value="pairs">Joined pairs · Experimental</option></select></label><label>Character <select')
         html=html.replace('Choose a letter and inspect its saved examples, newest first.', 'Choose a writer, group and character, then inspect its originals and saved blends, newest first. Blends are labelled.')
     if(source=='compose.html'):
-        html=html.replace('<textarea id="phrase"', '<div id="compose-underline-controls"><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase"')
+        html=html.replace('<textarea id="phrase"', '<div id="compose-underline-controls"><button id="compose-tab" type="button">Insert tab</button><p>Tab indents the text. Shift+Tab moves to the previous control.</p><button id="compose-underline" type="button">Underline selection</button><button id="compose-ununderline" type="button">Remove underline</button><p id="compose-underline-status" role="status">Select text to underline in the box below.</p></div><textarea id="phrase"')
         # Larger sizes are supported by the browser engine; the legacy server keeps its original choices.
         html=html.replace('<option value="8">Large · 8 mm</option>', '<option value="8">Large · 8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option>')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-natural.html').read_text()+'<div class="compose-actions">',1)
@@ -89,7 +89,7 @@ for source,target in [('capture.html','index.html'),('compose.html','compose.htm
         html=html.replace('Capitals, punctuation and cursive joins come later.', 'Capture capitals, numbers and punctuation as needed. Joined pairs are experimental and off for new compositions. Words wrap together; full cursive is not included.')
         html=html.replace('<div class="compose-actions">',(ROOT/'web/compose-layout.html').read_text()+'<div class="compose-actions">',1)
         html=html.replace('<div class="composed-paper">',(ROOT/'web/compose-pages.html').read_text()+'<div class="composed-paper">')
-        html=html.replace('A4 portrait · 20 mm margins', 'A4 portrait · adjustable margins, at least 20 mm')
+        html=html.replace('A4 portrait · 20 mm margins', 'Selected paper size · adjustable margins, at least 20 mm').replace('Download A4 SVG','Download page SVG').replace('up to 20 A4 pages','up to 20 pages')
         html=html.replace('<form id="compose-form">',(ROOT/'web/compositions.html').read_text()+'<form id="compose-form">')
     if(source=='capture.html'):
         html=html.replace('Six sheets capture one example of every lowercase letter a–z. Repeat the set for more variations; positions change across three sets.', 'Choose lowercase, uppercase, numbers, punctuation and symbols, or experimental joined pairs. Each set covers its characters once, in shuffled positions. Lowercase has six sheets. Repeat sets under the same writer name for more samples; each type keeps separate progress.')
@@ -138,3 +138,19 @@ fonts = fonts.replace('</body>','<script src="assets/tooltips-content.js"></scri
 fonts = re.sub(r'assets/([a-z.-]+)',lambda m:m.group(0)+'?v='+hashlib.sha256((assets/m.group(1)).read_bytes()).hexdigest()[:12],fonts)
 (DEST/'fonts.html').write_text(fonts)
 print('Built ten Pages screens, the help guide and browser-only assets in docs/. No handwriting or font data was copied.')
+
+# Stamp every built screen; no personal data or machine paths enter metadata.
+import subprocess, json, datetime, os, html as html_module
+revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+branch=os.environ.get('GITHUB_REF_NAME') or subprocess.check_output(['git','branch','--show-current'],cwd=ROOT,text=True).strip()
+digest=hashlib.sha256()
+for folder in ['web','static','scripts']:
+    for path in sorted((ROOT/folder).rglob('*')):
+        if path.is_file() and '__pycache__' not in path.parts:
+            digest.update(str(path.relative_to(ROOT)).encode());digest.update(path.read_bytes())
+version={'revision':revision,'channel':'live' if branch=='main' else 'preview','build':digest.hexdigest()[:16],'built':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+(DEST/'version.json').write_text(json.dumps(version))
+(assets/'version.js').write_bytes((ROOT/'web/version.js').read_bytes())
+version_tag='<script src="assets/version.js?v='+hashlib.sha256((assets/'version.js').read_bytes()).hexdigest()[:12]+'" data-version="'+html_module.escape(json.dumps(version),quote=True)+'"></script>'
+for page in DEST.glob('*.html'):
+    page.write_text(page.read_text().replace('</body>',version_tag+'</body>'))

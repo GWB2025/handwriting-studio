@@ -1,5 +1,9 @@
 <fieldset class="compose-layout"><legend>Page layout · live after Generate preview</legend>
 <div class="layout-fields">
+<label>Page size <select id="compose-paper"><option value="a4">A4 · 210 × 297 mm</option><option value="a3">A3 · 297 × 420 mm</option><option value="a5">A5 · 148 × 210 mm</option><option value="letter">US Letter</option><option value="legal">US Legal</option></select></label>
+<label>Orientation <select id="compose-orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+<button id="compose-fit" type="button">Fit to page</button>
+<p>Fit to page chooses the largest writing size from 2–20 mm that fits on one page without wrapping your explicit lines. It changes the exported writing size. G-code is available for A4 portrait only.</p>
 <label>Top margin (mm) <input id="compose-margin-top" type="number" min="20" max="60" step="1" value="20" required></label>
 <label>Bottom margin (mm) <input id="compose-margin-bottom" type="number" min="20" max="60" step="1" value="20" required></label>
 <label>Left margin (mm) <input id="compose-margin-left" type="number" min="20" max="60" step="1" value="20" required></label>
@@ -8,5 +12,5 @@
 <label>Extra paragraph gap (mm) <input id="compose-paragraph-gap" type="number" min="0" max="30" step="1" value="0" required></label>
 </div>
 <button id="compose-layout-reset" type="button">Reset page layout</button>
-<p>Leave a blank line between paragraphs. Extra paragraph gap adds space after that blank line. Margins keep at least 20 mm clear for the verified A4 setup. Longer writing continues onto new pages automatically, up to 20 pages.</p>
+<p>Leave a blank line between paragraphs. Extra paragraph gap adds space after that blank line. Margins keep at least 20 mm clear for the page edges. Longer writing continues onto new pages automatically, up to 20 pages.</p>
 </fieldset>

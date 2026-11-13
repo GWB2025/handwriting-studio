@@ -16,7 +16,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
   for (const id of ['compose-underline','compose-ununderline','compose-underline-status','compose-compare-zoom','compose-compare-fit','compose-compare','compose-compare-status','compose-comparison','compose-compare-off','compose-compare-on','compose-connect','compose-letter-spacing','compose-word-spacing','compose-line-spacing','compose-letter-value','compose-word-value','compose-line-value','compose-spacing-reset','compose-source','compose-preferred','compose-form','compose-writer','compose-size','compose-smooth','compose-samples',
     'blend-count','blend-vertical','blend-vertical-value','blend-mix','blend-mix-value','compose-gcode','compose-counts','compose-phrase-example','compose-use-phrase','phrase','generate','compose-download','refresh-writers','compose-status','composed-image','compose-empty','review-link','compose-variation','compose-joined']) {
     elements[id] = events({value: '', checked: true, disabled: false, hidden: false, textContent: '',
-      style:{setProperty(name,value){this[name]=value;}},
+      options:[],style:{setProperty(name,value){this[name]=value;}},
       replaceChildren() { this.value = ''; },
       append(option) { if (!this.value) this.value = option.value; },
       removeAttribute(name) { delete this[name]; },
@@ -53,7 +53,7 @@ async function composer(extended=false,savedCompositions=false,shuffle=false,lay
       const limit = url === '/api/compose' && JSON.parse(options.body).samples === 'latest_only' ? 1 : 3;
       return {ok: !server.error, json: async () => server.error?{error:server.error}:url === '/api/letters/writers'
         ? {writers: [{writer: 'Writer', counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])), original_counts:{a:7,b:8,c:8,d:8,e:8},blend_counts:{a:1},preferred:{},latest_saved_at: server.savedAt, revision:server.revision}]}
-        : {svg: '<svg/>',...(server.pages?{pages:server.pages.map(svg=>({svg}))}:{}), used_samples: [{letter: 'a'}], sample_selection: {
+        : {svg: '<svg width="210mm" height="297mm"/>',...(server.pages?{pages:server.pages.map(svg=>({svg}))}:{}), used_samples: [{letter: 'a'}], sample_selection: {
           available_counts: Object.fromEntries([...('abcde')].map(c => [c, server.count])),
           counts: {a: limit, b: limit, c: limit, d: limit, e: limit}, newest_saved_at: server.savedAt,writer_revision:server.revision}}};
     }});
@@ -174,7 +174,7 @@ test('G-code export uses the displayed preview and clears when settings change',
  assert.equal(e['compose-gcode'].disabled,true);
  await e['compose-form'].onsubmit({preventDefault(){}});
  assert.equal(e['compose-gcode'].disabled,false);
- e['compose-gcode'].onclick();assert.deepEqual(c.exported,['<svg/>']);
+ e['compose-gcode'].onclick();assert.deepEqual(c.exported,['<svg width="210mm" height="297mm"/>']);
  assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.gcode');
  e.phrase.value='abc';e.phrase.emit('input');assert.equal(e['compose-gcode'].disabled,true);
  e['compose-gcode'].onclick();assert.equal(c.exported.length,1);
@@ -242,10 +242,10 @@ test('page navigation exports the selected page and preserves all pages for savi
  e.phrase.emit('input');assert.equal(c.window.compositions.readDrawings().length,0);assert.equal(e['compose-page-select'].disabled,true);assert.equal(e['compose-download'].disabled,true);assert.equal(e['compose-gcode'].disabled,true);
 });
 test('live page layout blocks exports while updating, preserves selection, and clamps removed pages',async()=>{
- const c=await composer(true,true,true,true),e=c.elements;c.server.pages=['<svg/>','<svg/>'];await e['compose-form'].onsubmit({preventDefault(){}});e['compose-page-next'].onclick();const seed=JSON.parse(c.requests.at(-1).options.body).sample_seed,oldURL=e['composed-image'].src;
+ const c=await composer(true,true,true,true),e=c.elements;c.server.pages=['<svg width="210mm" height="297mm"/>','<svg width="210mm" height="297mm"/>'];await e['compose-form'].onsubmit({preventDefault(){}});e['compose-page-next'].onclick();const seed=JSON.parse(c.requests.at(-1).options.body).sample_seed,oldURL=e['composed-image'].src;
  e['compose-margin-left'].value='35';e['compose-margin-left'].emit('input');assert.equal(e['composed-image'].src,oldURL);assert.equal(e['compose-gcode'].disabled,true);assert.equal(e['compose-page-select'].disabled,true);
  await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-page-status'].textContent,'Page 2 of 2');assert.equal(JSON.parse(c.requests.at(-1).options.body).page_layout.margin_left,35);assert.equal(JSON.parse(c.requests.at(-1).options.body).sample_seed,seed);
- c.server.pages=['<svg/>'];e['compose-alignment'].value='centre';e['compose-alignment'].emit('change');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-page-status'].textContent,'Page 1 of 1');e['compose-download'].onclick();assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.svg');
+ c.server.pages=['<svg width="210mm" height="297mm"/>'];e['compose-alignment'].value='centre';e['compose-alignment'].emit('change');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-page-status'].textContent,'Page 1 of 1');e['compose-download'].onclick();assert.equal(c.downloads.at(-1).name,'composed-handwriting-a4.svg');
  c.server.error='Margins must be 20–60 mm';e['compose-margin-top'].value='10';e['compose-margin-top'].emit('input');await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-download'].disabled,true);assert.equal(c.window.compositions.readDrawings().length,0);assert.match(e['compose-status'].textContent,/Margins/);
  delete c.server.error;e['compose-layout-reset'].onclick();await new Promise(resolve=>setTimeout(resolve,220));assert.equal(e['compose-margin-top'].value,'20');assert.equal(e['compose-alignment'].value,'left');assert.equal(e['compose-download'].disabled,false);
 });

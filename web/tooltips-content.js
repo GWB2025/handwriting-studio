@@ -6,6 +6,11 @@
  const smooth='Use gentle curves in the preview and exported drawing. Your original captured points are kept.';
  const natural='Off by default. Choose Subtle or More pronounced to vary word gaps, letter sizes and the slope and curve of lines. Saved samples stay unchanged.';
  const ids={
+  'compose-tab':'Insert a tab at the text cursor. Tab stops are four word spaces wide; Shift+Tab leaves the text box.',
+  'compose-paper':'Choose the physical page size for the preview and SVG. G-code supports A4 portrait only.',
+  'compose-orientation':'Choose portrait or landscape orientation for the page and exported SVG.',
+  'compose-fit':'Find the largest writing size that fits your text on one page without wrapping explicit lines. This changes the exported writing size.',
+  'studio-version-check':'Check whether this build matches the latest published live app. Preview builds are labelled separately.',
   'otf-font-name':'Name shown in Word and LibreOffice after installation. Use a fresh name for revised exports to avoid cached fonts.',
   'otf-font-thickness':'Choose the thickness of the filled letter outlines. Your original captured strokes remain unchanged.',
   'otf-font-build':'Prepare an installable OpenType font locally using preferred blends where available. Inspect the outlines and missing characters before downloading.',

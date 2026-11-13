@@ -147,14 +147,15 @@
   function validateDrawingSVG(svg){
     if(typeof svg!=='string'||svg.length>7*1024*1024)fail('Invalid finished drawing.');
     // Accept only the inert path-only format emitted by this app; imported SVG is never executed.
-    const match=svg.match(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="210mm" height="297mm" viewBox="0 0 210 297"><title>(?:[^<>&]|&(?:amp|lt|gt|quot|apos);)*<\/title><g fill="none" stroke="black" stroke-width="0\.3" stroke-linecap="round" stroke-linejoin="round">((?:<path d="[^"<>]+"\/>)+)<\/g><\/svg>$/);
-    if(!match)fail('This finished drawing is not a supported A4 preview.');
-    const paths=[...match[1].matchAll(/<path d="([^"]+)"\/>/g)].map(m=>m[1]);let count=0;
+    const match=svg.match(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="([0-9.]+)mm" height="([0-9.]+)mm" viewBox="0 0 \1 \2"><title>(?:[^<>&]|&(?:amp|lt|gt|quot|apos);)*<\/title><g fill="none" stroke="black" stroke-width="0\.3" stroke-linecap="round" stroke-linejoin="round">((?:<path d="[^"<>]+"\/>)+)<\/g><\/svg>$/);
+    if(!match||!Object.values(paperSizes).some(([w,h])=>(w===Number(match[1])&&h===Number(match[2]))||(h===Number(match[1])&&w===Number(match[2]))))fail('This finished drawing is not a supported page preview.');
+    const width=Number(match[1]),height=Number(match[2]);
+    const paths=[...match[3].matchAll(/<path d="([^"]+)"\/>/g)].map(m=>m[1]);let count=0;
     for(const d of paths){
       if(!/^M/.test(d)||d.replace(/[MLQ]|-?(?:\d+(?:\.\d*)?|\.\d+)|[\s,]/g,''))fail('Unsupported finished drawing stroke.');
       const commands=[...d.matchAll(/([MLQ])([^MLQ]*)/g)];
       for(let i=0;i<commands.length;i++){const [,op,coords]=commands[i],nums=coords.trim().split(/[\s,]+/).map(Number);if((i===0?op!=='M':op==='M')||nums.length!==(op==='Q'?4:2))fail('Invalid finished drawing stroke.');
-        for(let j=0;j<nums.length;j++)if(!finite(nums[j],j%2?19.9999:19.9999,j%2?277.0001:190.0001))fail('Finished drawing extends outside the A4 margins.');
+        for(let j=0;j<nums.length;j++)if(!finite(nums[j],j%2?19.9999:19.9999,j%2?height-19.9999:width-19.9999))fail('Finished drawing extends outside the page margins.');
         if((count+=nums.length/2)>500000)fail('Finished drawing is too complex.');
       }
     }
@@ -164,7 +165,8 @@
   function compositionSettings(data){
     if(!data||typeof data.writer!=='string'||!data.writer.trim()||data.writer.length>80||typeof data.phrase!=='string'||!data.phrase.trim()||data.phrase.length>(data.page_layout!==undefined?10000:2000))fail('Choose a writer and enter text within the document limit before saving a composition.');
     const result={writer:data.writer,phrase:data.phrase,height:data.height??5,smooth:data.smooth??true,samples:data.samples??'latest_three',source:data.source??'both',use_preferred:data.use_preferred??true,joined:data.joined??false,letter_spacing:data.letter_spacing??1,word_spacing:data.word_spacing??1,line_spacing:data.line_spacing??1};
-    if(![3,5,8,10,12,16,20].includes(result.height)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    if(!finite(result.height,2,20)||!['latest_three','latest_four','latest_only','all'].includes(result.samples)||!['both','originals','blends'].includes(result.source)||!['smooth','use_preferred','joined'].every(k=>typeof result[k]==='boolean')||!['letter_spacing','word_spacing','line_spacing'].every(k=>finite(result[k],.5,2)))fail('Invalid composition settings.');
+    if(data.paper!==undefined){const p=paperSize(data.paper);result.paper={size:p.size,orientation:p.orientation};}
     if(data.underline!==undefined){validateUnderline(data.underline,data.phrase.length);result.underline=clone(data.underline);}
     if(data.auto_join_preview!==undefined){if(typeof data.auto_join_preview!=='boolean')fail('Invalid cursive join setting.');result.auto_join_preview=data.auto_join_preview;}
     if(data.sample_order!==undefined||data.sample_seed!==undefined){validateSampleOrder(data.sample_order,data.sample_seed);result.sample_order=data.sample_order;result.sample_seed=data.sample_seed;}
@@ -230,6 +232,16 @@
     const lineCount=data.text_only&&typeof data.sentence==='string'?data.sentence.split('\n').filter(line=>line.trim()).length:null;
     const fits=result=>result&&result.pages.length===1&&(lineCount===null||result.pages[0].lines.length===lineCount);
     const attempt=height=>{try{return proofSheet(files,{...data,height});}catch(error){if(/too wide|taller than|more than 20 pages/.test(error.message))return null;throw error;}};
+    let best=attempt(2);if(!fits(best))fail('This text cannot fit on one page without wrapping at 2 mm. Choose a larger page or shorten the text.');
+    let low=20,high=200;
+    while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(fits(candidate)){low=mid;best=candidate;}else high=mid-1;}
+    return {...best,fitted_height:low/10};
+  }
+  function fitComposition(files,data){
+    // Passage fitting preserves explicit verse lines, including their indentation.
+    const lineCount=typeof data.phrase==='string'?data.phrase.split('\n').filter(line=>line.trim()).length:null;
+    const fits=result=>result&&result.pages.length===1&&(lineCount===null||result.pages[0].lines.length===lineCount);
+    const attempt=height=>{try{return compose(files,{...data,page_layout:data.page_layout||{},height});}catch(error){if(/too wide|taller than|more than 20 pages/.test(error.message))return null;throw error;}};
     let best=attempt(2);if(!fits(best))fail('This text cannot fit on one page without wrapping at 2 mm. Choose a larger page or shorten the text.');
     let low=20,high=200;
     while(low<high){const mid=Math.ceil((low+high)/2),candidate=attempt(mid/10);if(fits(candidate)){low=mid;best=candidate;}else high=mid-1;}
@@ -711,6 +723,6 @@
     if(showStarts)sample.processed_strokes.forEach((stroke,i)=>{const p=stroke.points[0];svg+='<g class="stroke-start" data-stroke-start="'+i+'" transform="translate('+p.x+' '+(p.y+shift)+')" fill="'+colours[colourStrokes?i%colours.length:0]+'"><circle r="3"/><text x="5" y="-5" font-size="10" font-family="sans-serif">'+(i+1)+'</text></g>';});
     return svg+'</svg>';
   }
-  const api={setUppercaseJoins,validateUppercaseJoins,validateUnderline,paperSizes,paperSize,fitProofSheet,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
+  const api={setUppercaseJoins,validateUppercaseJoins,validateUnderline,paperSizes,paperSize,fitProofSheet,fitComposition,legacyPairs,legacyPairsPlan,transitionalPairsPlan,resolvePlan,recordPlan,sampleInkWidth,strokeLength,primaryStrokeIndex,connectionMetrics,connectorGeometry,connectorPath,naturalSettings,pageLayout,layoutDocument,originalStrokeEdit,validateStrokeEdit,editStrokes,characterSpacingKey,characterSpacing,spacingPreview,drawingSVG,validateDrawingSVG,layoutWriting,writingExtents,sampleAtSize,scaleSample,preferenceIDs,compositionSettings,createComposition,reviewWord,savedBlendRecipe,proofSheet,alphabetKey,choosePreferred,validateAlphabetReferences,countsFor,createSavedBlend,validateBlendReferences,blendMany,resample,blendConflict,compatible,findCompatibleSources,blend,spacing,plan,plans,characters,pairs,tokens,getPlan,shuffleSet,validateOrders,clone,same,uuid,validateContent,validateReview,validateRecord,extract,capture,catalog,compose,reviewSVG,size};
   if(typeof module!=='undefined')module.exports=api;else{root.StudioEngine=api;root.capturePlan=plan;}
 })(typeof window==='undefined'?globalThis:window);
