@@ -428,10 +428,10 @@
     for(const stroke of sample.processed_strokes||[])for(const p of stroke.points||[]){left=Math.min(left,p.x);right=Math.max(right,p.x);}
     return Number.isFinite(left)&&Number.isFinite(right)?Math.max(0,right-left):Math.max(0,(sample.bounds?.right||0)-(sample.bounds?.left||0));
   }
-  function spacing(a,b,scale,height,connected=false){
+  function spacing(a,b,scale,height,connected=false,detachedCapital=false){
     function envelope(sample){const rows=new Map();for(const stroke of sample.processed_strokes){const points=resample(stroke.points,128);for(const p of points){const row=Math.floor((p.y*scale+sample.baseline_shift_mm)/.5),x=p.x*scale;for(const key of [row-1,row,row+1]){const r=rows.get(key)||[Infinity,-Infinity];r[0]=Math.min(r[0],x);r[1]=Math.max(r[1],x);rows.set(key,r);}}}return rows;}
-    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*(connected?.08:.25);
-    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*(connected?.04:.18));
+    const ar=envelope(a),br=envelope(b),width=sampleInkWidth(a)*scale;let advance=height*(connected?.08:detachedCapital?.12:.25);
+    for(const [row,r] of ar)if(br.has(row))advance=Math.max(advance,r[1]-br.get(row)[0]+height*(connected?.04:detachedCapital?.07:.18));
     const normal=Math.max(width*.45,Math.min(width+height*.22,advance));
     if(connected){const aJoin=connectionMetrics(a),bJoin=connectionMetrics(b);if(aJoin&&bJoin)return Math.max(normal,(aJoin.exit.x-bJoin.entry.x)*scale+height*.04);}
     return normal;
@@ -442,7 +442,7 @@
   function wordLayout(letters,used,height,letter_spacing,adjustments,connected=false,uppercase=allUppercase){
     const scale=height/80;
     let cursor=0;const positions=[];
-    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1],uppercase))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
+    for(let j=0;j<letters.length;j++){const a=adjustments[letters[j]]||{before_mm:0,after_mm:0};cursor+=a.before_mm*height/5;if(positions.length)cursor=Math.max(cursor,positions.at(-1)+height*.05);positions.push(cursor);cursor+=(j+1<letters.length?spacing(used[j],used[j+1],scale,height,connected&&cursiveNeighbours(letters[j],letters[j+1],uppercase),connected&&/[A-Z]$/.test(letters[j])&&/^[a-z]/.test(letters[j+1])&&!uppercase.includes(letters[j].at(-1)))*letter_spacing:sampleInkWidth(used[j])*scale)+a.after_mm*height/5;}
     const left=Math.min(0,...positions),wordWidth=Math.max(cursor,...positions.map((p,j)=>p+sampleInkWidth(used[j])*scale))-left;
     return {positions,left,wordWidth,cursor};
   }
@@ -656,7 +656,7 @@
     const dx=end.x-start.x,dy=end.y-start.y,distance=Math.hypot(dx,dy);
     // A negative horizontal gap or a high stem/low tail endpoint cannot be
     // joined safely without retracing or inventing a long stroke.
-    if(distance<.15||dx<=0||dx>height*1.8||Math.abs(dy)>height*.6)return null;
+    if(distance<.15||dx<=0||distance>height*.75||Math.abs(dy)>height*.6)return null;
     if([start.y,end.y].some(y=>y<baseline-height*.75||y>baseline+height*.4))return null;
     function direction(t){const length=Math.hypot(t.dx,t.dy);return length>1e-6?{x:t.dx/length,y:t.dy/length}:null;}
     const outgoing=direction(a.exit_tangent),incoming=direction(b.entry_tangent);
@@ -665,14 +665,30 @@
     // backwards pen-lift flourish creates a second loop over the saved ink.
     // Only the new connector changes; endpoints and letter strokes stay fixed.
     const chord={x:dx/distance,y:dy/distance};
-    const exitDirection=outgoing.x>0?outgoing:chord;
-    const entryDirection=incoming.x>0?incoming:chord;
+    // A backwards flourish is part of the captured letter, not a new exit.
+    // Lift the pen rather than force a hook or retrace that flourish.
+    if(outgoing.x<-.1||incoming.x<-.1||outgoing.x*chord.x+outgoing.y*chord.y<.1||incoming.x*chord.x+incoming.y*chord.y<.1)return null;
+    const exitDirection=outgoing;
+    const entryDirection=incoming;
     const handle=Math.min(distance/6,dx/6,height*.035);
     const low=Math.min(start.y,end.y)-height*.02,high=Math.max(start.y,end.y)+height*.02;
     const clamp=y=>Math.max(low,Math.min(high,y));
     const control1={x:start.x+exitDirection.x*handle,y:clamp(start.y+exitDirection.y*handle)};
     const control2={x:end.x-entryDirection.x*handle,y:clamp(end.y-entryDirection.y*handle)};
     const middle={x:(control1.x+control2.x)/2,y:(control1.y+control2.y)/2};
+    // Reject connectors that cross existing ink away from the shared endpoints.
+    const curve=[start];
+    for(const [p,c,q] of [[start,control1,middle],[middle,control2,end]])for(let i=1;i<=12;i++){const t=i/12,u=1-t;curve.push({x:u*u*p.x+2*u*t*c.x+t*t*q.x,y:u*u*p.y+2*u*t*c.y+t*t*q.y});}
+    const orient=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+    const crosses=(a,b,c,d)=>orient(a,b,c)*orient(a,b,d)<-1e-10&&orient(c,d,a)*orient(c,d,b)<-1e-10;
+    for(const [sample,x] of [[left,leftX],[right,rightX]])for(const stroke of sample.processed_strokes){
+      const ink=stroke.points.map(p=>({x:x+p.x*scale,y:baseline+(sample.baseline_shift_mm||0)+p.y*scale}));
+      for(let i=1;i<curve.length;i++){
+        const p=curve[i-1],q=curve[i];
+        if(Math.hypot(p.x-start.x,p.y-start.y)<height*.06||Math.hypot(q.x-end.x,q.y-end.y)<height*.06)continue;
+        for(let k=1;k<ink.length;k++)if(crosses(p,q,ink[k-1],ink[k]))return null;
+      }
+    }
     return {start,control1,middle,control2,end,distance};
   }
   function connectorPath(geometry){

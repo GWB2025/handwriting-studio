@@ -144,11 +144,12 @@ test('page sizes retain all text inside margins and impossible fits report failu
 });
 test('proof tabs indent lines including the first, remain in fitting, and never join across punctuation',()=>{
  const records=files(),base={writer:'Writer',height:5,text_only:true,auto_join_preview:true};
- const plain=E.proofSheet(records,{...base,sentence:'ab\nab'}),tabbed=E.proofSheet(records,{...base,sentence:'\tab\n\t\tab'});
+ // Use a forward-entry c; the fixture b now correctly requires a pen lift.
+ const plain=E.proofSheet(records,{...base,sentence:'ac\nac'}),tabbed=E.proofSheet(records,{...base,sentence:'\tac\n\t\tac'});
  assert.equal(tabbed.pages[0].lines[0].left-plain.pages[0].lines[0].left,14);assert.equal(tabbed.pages[0].lines[1].left-plain.pages[0].lines[1].left,28);assert.equal(tabbed.used_samples.length,4);assert(tabbed.pages[0].generated_joins>0);
- const r=E.capture({writer:'Writer',request_id:require('node:crypto').randomUUID(),plan_id:E.plans.symbols.id,order_index:0,smooth:true,strokes:E.plans.symbols.orders[0].map((c,i)=>({pointerType:'pen',points:[{x:30+i*250,y:320,t:i*2},{x:35+i*250,y:330,t:i*2+1}]}))});records.push({key:'letters/'+r.id+'.json',value:r});assert.equal(E.proofSheet(records,{...base,sentence:'ab.ab'}).pages[0].generated_joins,2);
- const fitted=E.fitProofSheet(records,{...base,sentence:'ab\n\tab'});assert.equal(fitted.pages.length,1);assert(Math.abs(fitted.pages[0].lines[1].left-fitted.pages[0].lines[0].left-fitted.fitted_height*2.8)<.001);
- assert.throws(()=>E.proofSheet(records,{...base,sentence:'\t'.repeat(30)+'ab'}),/indentation.*too wide/);
+ const r=E.capture({writer:'Writer',request_id:require('node:crypto').randomUUID(),plan_id:E.plans.symbols.id,order_index:0,smooth:true,strokes:E.plans.symbols.orders[0].map((c,i)=>({pointerType:'pen',points:[{x:30+i*250,y:320,t:i*2},{x:35+i*250,y:330,t:i*2+1}]}))});records.push({key:'letters/'+r.id+'.json',value:r});assert.equal(E.proofSheet(records,{...base,sentence:'ac.ac'}).pages[0].generated_joins,2);
+ const fitted=E.fitProofSheet(records,{...base,sentence:'ac\n\tac'});assert.equal(fitted.pages.length,1);assert(Math.abs(fitted.pages[0].lines[1].left-fitted.pages[0].lines[0].left-fitted.fitted_height*2.8)<.001);
+ assert.throws(()=>E.proofSheet(records,{...base,sentence:'\t'.repeat(30)+'ac'}),/indentation.*too wide/);
  const examples=require('../web/proof-texts').examples;for(const id of ['sonnet-original','sonnet-lowercase'])assert(examples.find(e=>e.id===id).text.split('\n').slice(-2).every(line=>line.startsWith('\t')));
 });
 test('Tab and Insert tab edit text; Shift Tab retains keyboard navigation; joins refresh immediately',async()=>{
