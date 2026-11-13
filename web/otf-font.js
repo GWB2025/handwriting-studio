@@ -1,6 +1,7 @@
 'use strict';
 (function(root){
  const S=typeof module==='undefined'?root.StudioSVGFont:require('./svg-font');
+ const E=typeof module==='undefined'?root.StudioEngine:require('./engine');
  const O=typeof module==='undefined'?root.opentype:require('opentype.js');
  const C=typeof module==='undefined'?root.ClipperLib:require('clipper-lib');
  // Offset each open centreline with round caps, then union all ink so crossings
@@ -19,7 +20,7 @@
   for(const polygon of union){polygon.forEach((p,i)=>i?path.lineTo(p.X/scale,p.Y/scale):path.moveTo(p.X/scale,p.Y/scale));path.close();}
   return path;
  }
- function create(files,{writer,name,thickness=20}){
+ function create(files,{writer,name,thickness=20,cursive=true}){
   if(!Number.isFinite(thickness)||thickness<5||thickness>60)throw Error('Choose a stroke thickness between 5 and 60.');
   const source=S.create(files,{writer,name}),missing=new O.Path();
   missing.moveTo(50,0);missing.lineTo(50,700);missing.lineTo(450,700);missing.lineTo(450,0);missing.close();
@@ -28,9 +29,27 @@
   for(const g of source.glyphs){const path=outline(g.strokes,thickness);const b=path.getBoundingBox();
    if(!path.commands.length||[b.x1,b.y1,b.x2,b.y2].some(v=>!Number.isFinite(v)||Math.abs(v)>16000)||g.advance>32000)throw Error('A character is too large for an installable font. Check its size and spacing in My alphabet.');
    glyphs.push(new O.Glyph({name:'uni'+g.letter.codePointAt(0).toString(16).toUpperCase().padStart(4,'0'),unicode:g.letter.codePointAt(0),advanceWidth:Math.round(g.advance),path}));}
+  const joins=[],lookups=[{lookupType:6,lookupFlag:0,subtables:[]}];
+  if(cursive){
+   const profile=E.catalog(files).writers.find(p=>p.writer===writer);
+   const letters=source.glyphs.map((g,i)=>({...g,index:i+2,sample:{baseline_shift_mm:0,processed_strokes:g.strokes.map(points=>({points:points.map(p=>({x:p.x/100,y:-p.y/100}))}))}}));
+   const cov=index=>({format:1,glyphs:[index]});
+   for(const a of letters.filter(g=>/^[a-z]$/.test(g.letter)||profile.uppercase_joins.includes(g.letter)&&/^[A-Z]$/.test(g.letter)))for(const b of letters.filter(g=>/^[a-z]$/.test(g.letter))){
+    const geometry=E.connectorGeometry(a.sample,b.sample,0,Math.round(a.advance)/100,0,1,5);if(!geometry)continue;
+    const curve=[geometry.start];
+    for(const [p,c,q] of [[geometry.start,geometry.control1,geometry.middle],[geometry.middle,geometry.control2,geometry.end]])for(let i=1;i<=16;i++){const t=i/16,u=1-t;curve.push({x:u*u*p.x+2*u*t*c.x+t*t*q.x,y:u*u*p.y+2*u*t*c.y+t*t*q.y});}
+    const path=outline([...a.strokes,curve.map(p=>({x:p.x*100,y:-p.y*100}))],thickness),index=glyphs.length;
+    glyphs.push(new O.Glyph({name:'join_'+a.letter+'_'+b.letter,advanceWidth:Math.round(a.advance),path}));
+    const lookupListIndex=lookups.length;
+    lookups.push({lookupType:1,lookupFlag:0,subtables:[{substFormat:2,coverage:cov(a.index),substitute:[index]}]});
+    lookups[0].subtables.push({substFormat:3,backtrackCoverage:[],inputCoverage:[cov(a.index)],lookaheadCoverage:[cov(b.index)],lookupRecords:[{sequenceIndex:0,lookupListIndex}]});
+    joins.push({left:a.letter,right:b.letter,index});
+   }
+  }
   const font=new O.Font({familyName:source.name,styleName:'Regular',unitsPerEm:1000,ascender:Math.ceil(source.ascent+thickness/2),descender:-Math.max(200,Math.ceil(source.descent+thickness/2)),glyphs});
+  if(joins.length){const lang={reserved:0,reqFeatureIndex:65535,featureIndexes:[0]};font.tables.gsub={version:1,scripts:[{tag:'DFLT',script:{defaultLangSys:lang,langSysRecords:[]}},{tag:'latn',script:{defaultLangSys:lang,langSysRecords:[]}}],features:[{tag:'calt',feature:{featureParams:0,lookupListIndexes:[0]}}],lookups};}
   const buffer=font.toArrayBuffer();
-  return {...source,font,buffer,filename:source.filename.replace('-single-line.svg','.otf')};
+  return {...source,font,buffer,joins,filename:source.filename.replace('-single-line.svg','.otf')};
  }
  const api={create,outline};if(typeof module!=='undefined')module.exports=api;else root.StudioOTFFont=api;
 })(typeof window==='undefined'?globalThis:window);

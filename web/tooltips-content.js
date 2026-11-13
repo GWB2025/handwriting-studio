@@ -11,6 +11,8 @@
   'compose-orientation':'Choose portrait or landscape orientation for the page and exported SVG.',
   'compose-fit':'Find the largest writing size that fits your text on one page without wrapping explicit lines. This changes the exported writing size.',
   'studio-version-check':'Check whether this build matches the latest published live app. Preview builds are labelled separately.',
+  'otf-font-cursive':'Add safe contextual cursive connections without changing captured letter outlines. Punctuation remains separate and unsafe joins are skipped.',
+  'otf-font-text':'Type a phrase to preview the actual prepared OpenType font, including its contextual cursive connections.',
   'otf-font-name':'Name shown in Word and LibreOffice after installation. Use a fresh name for revised exports to avoid cached fonts.',
   'otf-font-thickness':'Choose the thickness of the filled letter outlines. Your original captured strokes remain unchanged.',
   'otf-font-build':'Prepare an installable OpenType font locally using preferred blends where available. Inspect the outlines and missing characters before downloading.',
